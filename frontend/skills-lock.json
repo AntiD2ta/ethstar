@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "frontend-react-best-practices": {
+      "source": "sergiodxa/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b0a43ebbba8550bfa179283acf9979994bd15245660ee1163204e2f307d971ff"
+    },
+    "frontend-react-router-best-practices": {
+      "source": "sergiodxa/agent-skills",
+      "sourceType": "github",
+      "computedHash": "dfedb94fcefb0739a281fe8b57935953e24df0df36cc93cb3eeabc9fc668cceb"
+    },
+    "nielsen-heuristics-audit": {
+      "source": "mastepanoski/claude-skills",
+      "sourceType": "github",
+      "computedHash": "811e7ea7f1e0a19f8165e9aedd5bf0ee65075cad4e2031ffe0fbd0cb6378815d"
+    },
+    "playwright-testing": {
+      "source": "alinaqi/claude-bootstrap",
+      "sourceType": "github",
+      "computedHash": "bc23e4931f4ed38cc4ae3450e6d350a49fdae686f008b3a048018c78a02c55ee"
+    },
+    "tailwind-theme-builder": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "fd84027a0d97134a73054d010f3ebc0352de7d6f24567086444aa7884c24bcde"
+    },
+    "ux-audit-rethink": {
+      "source": "mastepanoski/claude-skills",
+      "sourceType": "github",
+      "computedHash": "ac1ccb247a49e0d5eb3a38b6d95642276c94cc245387d64fac6d8748abb71dd5"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4365be772fd3b41994a72ad478472c6d680678e7f3859860ab010e9c46e48ee0"
+    },
+    "wcag-accessibility-audit": {
+      "source": "mastepanoski/claude-skills",
+      "sourceType": "github",
+      "computedHash": "a7ee58bc07baa46b0eb63069479ee8633aed8cf2e175e65cfeaf777094916996"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    }
+  }
+}

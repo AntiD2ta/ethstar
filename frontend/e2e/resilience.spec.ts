@@ -1,0 +1,84 @@
+import { test, expect } from "@playwright/test";
+import { seedAuth } from "./helpers";
+
+test("session-expired toast fires when refresh fails after 401", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  // GitHub API returns 401 for every call.
+  await page.route("https://api.github.com/**", (route) =>
+    route.fulfill({ status: 401, body: "" }),
+  );
+  // Refresh endpoint also fails.
+  await page.route("**/api/auth/refresh", (route) =>
+    route.fulfill({ status: 401, body: "" }),
+  );
+
+  await page.goto("/");
+
+  const toast = page.getByText("Session expired. Sign in again.");
+  await expect(toast).toBeVisible({ timeout: 5000 });
+
+  // User is logged out — Connect button reappears.
+  await expect(
+    page.getByRole("button", { name: "Connect via GitHub" }).first(),
+  ).toBeVisible();
+});
+
+test("network-error toast fires when GitHub is unreachable", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  await page.route("https://api.github.com/**", (route) => route.abort("failed"));
+
+  await page.goto("/");
+
+  const toast = page.getByText(/Couldn't reach GitHub/i);
+  await expect(toast).toBeVisible({ timeout: 5000 });
+
+  // Network errors do NOT log out the user.
+  await expect(
+    page.getByRole("button", { name: "Connect via GitHub" }).first(),
+  ).toHaveCount(0);
+});
+
+test("failed repo shows retry button that re-attempts starring", async ({
+  page,
+}) => {
+  await seedAuth(page);
+
+  // First: all isStarred checks return 500 so repos land in "failed" state.
+  // Then for the first retried PUT, return 204 (success).
+  let retryCount = 0;
+  await page.route("https://api.github.com/user/starred/**", (route) => {
+    const method = route.request().method();
+    if (method === "GET") {
+      return route.fulfill({ status: 500, body: "" });
+    }
+    if (method === "PUT") {
+      retryCount++;
+      return route.fulfill({ status: 204, body: "" });
+    }
+    return route.fulfill({ status: 204, body: "" });
+  });
+  // Profile fetch succeeds so we stay authenticated.
+  await page.route("https://api.github.com/user", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "e2euser", avatar_url: "", name: "E2E User" }),
+    }),
+  );
+
+  await page.goto("/");
+
+  // Wait for at least one retry button to appear.
+  const retryBtn = page.getByRole("button", { name: "Retry starring" }).first();
+  await expect(retryBtn).toBeVisible({ timeout: 10000 });
+
+  // Button is inside a continuously-scrolling marquee; force click to bypass stability check.
+  await retryBtn.click({ force: true });
+
+  // After click, the PUT should have been called at least once.
+  await expect.poll(() => retryCount, { timeout: 5000 }).toBeGreaterThan(0);
+});

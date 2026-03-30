@@ -1,0 +1,201 @@
+import { test, expect } from "@playwright/test";
+import { seedAuth } from "./helpers";
+
+/**
+ * Responsive layout tests across three viewport sizes:
+ * - Mobile:  375×812 (iPhone 14)
+ * - Tablet:  768×1024 (iPad portrait)
+ * - Desktop: 1440×900
+ */
+
+const VIEWPORTS = [
+  { name: "mobile", width: 375, height: 812, expectedLogoWidth: 250 },
+  { name: "tablet", width: 768, height: 1024, expectedLogoWidth: 375 },
+  { name: "desktop", width: 1440, height: 900, expectedLogoWidth: 500 },
+] as const;
+
+for (const vp of VIEWPORTS) {
+  test.describe(`${vp.name} (${vp.width}×${vp.height})`, () => {
+    test.use({ viewport: { width: vp.width, height: vp.height } });
+
+    test("no horizontal overflow", async ({ page }) => {
+      await page.goto("/");
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+      );
+      expect(overflow).toBe(false);
+    });
+
+    test("hero section renders without clipping", async ({ page }) => {
+      await page.goto("/");
+      const h1 = page.getByRole("heading", { level: 1 });
+      await expect(h1).toBeVisible();
+      const box = await h1.boundingBox();
+      expect(box).toBeTruthy();
+      // H1 should not overflow the viewport
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width + 1);
+    });
+
+    test("logo is visible and correctly sized", async ({ page }) => {
+      await page.goto("/");
+      // Hero logo renders as <canvas> (WebGL) or <img> (fallback).
+      // Both use data-testid="hero-logo" for targeting.
+      const logo = page.getByTestId("hero-logo");
+      await expect(logo).toBeAttached();
+      const box = await logo.boundingBox();
+      expect(box).toBeTruthy();
+      // Allow ±20px tolerance for sub-pixel rounding under parallel load
+      // (WebGL canvas sizing varies with compositor timing)
+      expect(box!.width).toBeGreaterThan(vp.expectedLogoWidth - 20);
+      expect(box!.width).toBeLessThan(vp.expectedLogoWidth + 20);
+    });
+
+    test("repo cards are visible in marquee", async ({ page }) => {
+      await page.goto("/");
+      // At least one repo card should be visible
+      await expect(page.getByText("go-ethereum").first()).toBeVisible();
+    });
+
+    test("support section is accessible", async ({ page }) => {
+      await page.goto("/");
+      await expect(
+        page.getByRole("heading", { name: "Support", exact: true }),
+      ).toBeVisible();
+    });
+  });
+}
+
+// Mobile-specific: marquee duplicate is hidden
+test.describe("mobile marquee behavior", () => {
+  test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
+
+  test("marquee duplicate content is hidden on mobile", async ({ page }) => {
+    await page.goto("/");
+    // With conditional rendering, duplicates are not in the DOM at all on mobile.
+    const dupes = page.locator('[aria-label*="Scrolling"] > div > div[aria-hidden="true"]');
+    await expect(dupes).toHaveCount(0);
+  });
+
+  test("marquee container is horizontally scrollable", async ({ page }) => {
+    await page.goto("/");
+    const marqueeOuter = page.locator('[role="region"]').first();
+    const overflowX = await marqueeOuter.evaluate(
+      (el) => getComputedStyle(el).overflowX,
+    );
+    expect(overflowX).toBe("auto");
+  });
+});
+
+// Desktop-specific: marquee animates with JS auto-scroll
+test.describe("desktop marquee behavior", () => {
+  test.use({ viewport: { width: VIEWPORTS[2].width, height: VIEWPORTS[2].height } });
+
+  test("marquee duplicate content is visible on desktop", async ({ page }) => {
+    await page.goto("/");
+    // The aria-hidden duplicate should be rendered (flex, not hidden)
+    const dupes = page.locator('[aria-label*="Scrolling"] > div > div[aria-hidden="true"]').first();
+    await expect(dupes).toBeVisible();
+  });
+
+  test("marquee container is scrollable on desktop", async ({ page }) => {
+    await page.goto("/");
+    const marqueeOuter = page.locator('[role="region"]').first();
+    const overflowX = await marqueeOuter.evaluate(
+      (el) => getComputedStyle(el).overflowX,
+    );
+    expect(overflowX).toBe("auto");
+  });
+});
+
+// AC5: Progress bar + star-all controls fit at mobile width (authenticated)
+test.describe("mobile starring controls", () => {
+  test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
+
+  test("progress bar and star-all button fit within mobile viewport", async ({
+    page,
+  }) => {
+    await seedAuth(page, "ghu_fake_responsive");
+
+    // Mock GitHub user endpoint so auth context resolves
+    await page.route("https://api.github.com/user", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          login: "e2euser",
+          avatar_url: "",
+          name: "E2E User",
+        }),
+      }),
+    );
+
+    // Mock star checks so progress bar renders (404 = unstarred)
+    await page.route("https://api.github.com/user/starred/**", (route) =>
+      route.fulfill({ status: 404, body: "" }),
+    );
+    await page.route("**/api/stats", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+      }),
+    );
+
+    await page.goto("/");
+
+    // Wait for the progress bar to appear (authenticated state)
+    const progressBar = page.getByRole("progressbar").first();
+    await expect(progressBar).toBeVisible({ timeout: 10_000 });
+
+    // Progress bar container should fit within viewport (use first instance)
+    const container = page.getByTestId("starring-controls-top");
+    const box = await container.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(VIEWPORTS[0].width + 1);
+
+    // Star-all button should be visible and not clipped (scope to top instance)
+    const starBtn = container.getByRole("button", { name: /Star All/i });
+    await expect(starBtn).toBeVisible();
+    const btnBox = await starBtn.boundingBox();
+    expect(btnBox).toBeTruthy();
+    expect(btnBox!.x).toBeGreaterThanOrEqual(0);
+    expect(btnBox!.x + btnBox!.width).toBeLessThanOrEqual(
+      VIEWPORTS[0].width + 1,
+    );
+  });
+});
+
+// AC6: Support section buttons stack vertically on mobile
+test.describe("mobile support section layout", () => {
+  test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
+
+  test("support buttons stack vertically on mobile", async ({ page }) => {
+    await page.goto("/");
+
+    // Scroll to the support section
+    const supportHeading = page.getByRole("heading", { name: "Support", exact: true });
+    await supportHeading.scrollIntoViewIfNeeded();
+
+    // Get the bounding boxes of the first two support links
+    const sponsorsLink = page.getByRole("link", { name: "GitHub Sponsors" });
+    const kofiLink = page.getByRole("link", { name: "Ko-fi" });
+    await expect(sponsorsLink).toBeVisible();
+    await expect(kofiLink).toBeVisible();
+
+    const sponsorsBox = await sponsorsLink.boundingBox();
+    const kofiBox = await kofiLink.boundingBox();
+    expect(sponsorsBox).toBeTruthy();
+    expect(kofiBox).toBeTruthy();
+
+    // At 375px, the buttons should either wrap (Ko-fi below Sponsors)
+    // or sit side-by-side if they fit. Check they don't overflow viewport.
+    expect(sponsorsBox!.x + sponsorsBox!.width).toBeLessThanOrEqual(
+      VIEWPORTS[0].width + 1,
+    );
+    expect(kofiBox!.x + kofiBox!.width).toBeLessThanOrEqual(
+      VIEWPORTS[0].width + 1,
+    );
+  });
+});

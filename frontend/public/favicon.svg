@@ -1,0 +1,11 @@
+<svg viewBox="0 0 170 285" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>ethstar</title>
+  <!-- Upper kite -->
+  <polygon points="85,0 85,120 0,120" fill="#6366f1" opacity="0.85"/>
+  <polygon points="85,0 170,120 85,120" fill="#4f46e5" opacity="0.80"/>
+  <polygon points="0,120 85,120 85,215" fill="#4338ca" opacity="0.80"/>
+  <polygon points="85,120 170,120 85,215" fill="#3730a3" opacity="0.75"/>
+  <!-- Lower chevron -->
+  <polygon points="0,150 85,235 85,285" fill="#5b52d6" opacity="0.80"/>
+  <polygon points="85,235 170,150 85,285" fill="#3730a3" opacity="0.75"/>
+</svg>

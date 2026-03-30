@@ -1,0 +1,491 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design System — Ethstar: Dark Elegance + Clean Minimalism
+ * Color Mood: Ethereum Blue (#627EEA) + Purple (#7B3FE4) on deep navy
+ * Typography: Space Grotesk (headlines) + Inter (body) + JetBrains Mono (code)
+ * Style: Glassmorphism accents, 3D rotating logo, horizontal marquee repo cards
+ */
+
+@theme inline {
+    /* -- Radius Scale -- */
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 12px);
+    --radius-4xl: calc(var(--radius) + 16px);
+
+    /* -- Typography -- */
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-heading: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    /* -- Core Color Mappings -- */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    /* -- Status Colors (semantic) -- */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+
+    /* -- Ethereum-specific -- */
+    --color-eth-blue: var(--eth-blue);
+    --color-eth-purple: var(--eth-purple);
+    --color-star-gold: var(--star-gold);
+
+    /* -- Chart Colors -- */
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    /* -- Sidebar -- */
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    /* -- Custom Animations -- */
+    --animate-marquee: marquee 30s linear infinite;
+    --animate-marquee-reverse: marquee-reverse 30s linear infinite;
+    --animate-rotate-3d: rotate-3d 20s linear infinite;
+    --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
+    --animate-saturn-pulse: saturn-pulse 1.5s ease-in-out infinite;
+    --animate-star-float: star-float 4s ease-out infinite;
+}
+
+/* ============================================================
+   DARK MODE (Default) — Deep Navy + Ethereum Blue
+   ============================================================ */
+:root {
+    --radius: 0.75rem;
+
+    --background: oklch(0.165 0.025 280);
+    --foreground: oklch(0.935 0.008 280);
+
+    --card: oklch(0.200 0.025 280);
+    --card-foreground: oklch(0.935 0.008 280);
+
+    --popover: oklch(0.200 0.025 280);
+    --popover-foreground: oklch(0.935 0.008 280);
+
+    --primary: oklch(0.620 0.140 270);
+    --primary-foreground: oklch(1 0 0);
+
+    --secondary: oklch(0.520 0.230 290);
+    --secondary-foreground: oklch(1 0 0);
+
+    --muted: oklch(0.235 0.025 280);
+    --muted-foreground: oklch(0.640 0.020 280);
+
+    --accent: oklch(0.235 0.025 280);
+    --accent-foreground: oklch(0.935 0.008 280);
+
+    --destructive: oklch(0.637 0.237 25.331);
+
+    --border: oklch(0.270 0.030 280);
+    --input: oklch(0.270 0.030 280);
+    --ring: oklch(0.620 0.140 270);
+
+    /* Ethereum-specific tokens */
+    --eth-blue: oklch(0.620 0.140 270);
+    --eth-purple: oklch(0.520 0.230 290);
+    --star-gold: oklch(0.870 0.170 90);
+
+    /* Status */
+    --success: oklch(0.696 0.17 162.48);
+    --success-foreground: oklch(0.165 0.025 280);
+    --warning: oklch(0.828 0.189 84.429);
+    --warning-foreground: oklch(0.165 0.025 280);
+    --info: oklch(0.700 0.150 250);
+    --info-foreground: oklch(1 0 0);
+
+    /* Charts — Ethereum ecosystem palette */
+    --chart-1: oklch(0.620 0.140 270);
+    --chart-2: oklch(0.520 0.230 290);
+    --chart-3: oklch(0.640 0.020 280);
+    --chart-4: oklch(0.696 0.17 162.48);
+    --chart-5: oklch(0.870 0.170 90);
+
+    /* Sidebar */
+    --sidebar: oklch(0.145 0.025 280);
+    --sidebar-foreground: oklch(0.935 0.008 280);
+    --sidebar-primary: oklch(0.620 0.140 270);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.235 0.025 280);
+    --sidebar-accent-foreground: oklch(0.935 0.008 280);
+    --sidebar-border: oklch(0.270 0.030 280);
+    --sidebar-ring: oklch(0.620 0.140 270);
+}
+
+/* ============================================================
+   LIGHT MODE — Soft lavender white + deeper Ethereum Blue
+   ============================================================ */
+.dark {
+    --background: oklch(0.970 0.005 280);
+    --foreground: oklch(0.200 0.025 280);
+
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.200 0.025 280);
+
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.200 0.025 280);
+
+    --primary: oklch(0.560 0.150 270);
+    --primary-foreground: oklch(1 0 0);
+
+    --secondary: oklch(0.460 0.230 290);
+    --secondary-foreground: oklch(1 0 0);
+
+    --muted: oklch(0.935 0.008 280);
+    --muted-foreground: oklch(0.540 0.020 280);
+
+    --accent: oklch(0.935 0.008 280);
+    --accent-foreground: oklch(0.200 0.025 280);
+
+    --destructive: oklch(0.637 0.237 25.331);
+
+    --border: oklch(0.860 0.010 280);
+    --input: oklch(0.860 0.010 280);
+    --ring: oklch(0.560 0.150 270);
+
+    /* Ethereum-specific tokens */
+    --eth-blue: oklch(0.560 0.150 270);
+    --eth-purple: oklch(0.460 0.230 290);
+    --star-gold: oklch(0.800 0.170 90);
+
+    /* Status */
+    --success: oklch(0.696 0.17 162.48);
+    --success-foreground: oklch(1 0 0);
+    --warning: oklch(0.769 0.188 70.08);
+    --warning-foreground: oklch(0.200 0.025 280);
+    --info: oklch(0.623 0.214 259.815);
+    --info-foreground: oklch(1 0 0);
+
+    /* Charts */
+    --chart-1: oklch(0.560 0.150 270);
+    --chart-2: oklch(0.460 0.230 290);
+    --chart-3: oklch(0.540 0.020 280);
+    --chart-4: oklch(0.696 0.17 162.48);
+    --chart-5: oklch(0.800 0.170 90);
+
+    /* Sidebar */
+    --sidebar: oklch(0.955 0.005 280);
+    --sidebar-foreground: oklch(0.200 0.025 280);
+    --sidebar-primary: oklch(0.560 0.150 270);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.935 0.008 280);
+    --sidebar-accent-foreground: oklch(0.200 0.025 280);
+    --sidebar-border: oklch(0.860 0.010 280);
+    --sidebar-ring: oklch(0.560 0.150 270);
+}
+
+/* ============================================================
+   Base Styles
+   ============================================================ */
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+
+    /* Ethereum diamond tile on a fixed viewport-sized layer so the browser
+       rasterizes one viewport of tiles instead of the full document height.
+       %23ffffff = #ffffff (white) at 2.5% opacity — CSS custom properties
+       can't be used inside data-URI SVGs. */
+    .bg-diamond-tile {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d='M60 5 L95 60 L60 115 L25 60 Z' fill='%23ffffff' fill-opacity='0.025'/%3E%3C/svg%3E");
+        background-size: 120px 120px;
+    }
+}
+
+/* ============================================================
+   Keyframe Animations
+   ============================================================ */
+
+/* Star particles floating upward between slides —
+   travel distance matches the 400px overlap zone. */
+@keyframes star-float {
+    0% {
+        transform: translateY(0) rotate(45deg) scale(1);
+        opacity: 0;
+    }
+    15% {
+        opacity: 0.45;
+    }
+    60% {
+        opacity: 0.3;
+    }
+    100% {
+        transform: translateY(-300px) rotate(45deg) scale(0.2);
+        opacity: 0;
+    }
+}
+
+/* Horizontal marquee for repo card sections */
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0); }
+}
+
+/* 3D logo rotation — `perspective` is on the parent wrapper so this
+   transform stays compositor-friendly (pure rotateY). */
+@keyframes rotate-3d {
+    0% { transform: rotateY(0deg); }
+    100% { transform: rotateY(360deg); }
+}
+
+/* Saturn chip status dot pulse */
+@keyframes saturn-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Subtle glow pulse for the logo */
+@keyframes glow-pulse {
+    0%, 100% { filter: drop-shadow(0 0 30px oklch(0.620 0.140 270 / 20%)); }
+    50% { filter: drop-shadow(0 0 60px oklch(0.620 0.140 270 / 40%)); }
+}
+
+/* CSS diamond Y-rotation (carousel center) */
+@keyframes css-diamond-spin {
+    from { transform: rotateY(0deg); }
+    to { transform: rotateY(360deg); }
+}
+
+/* ============================================================
+   Custom Utilities
+   ============================================================ */
+@layer utilities {
+    /* Skip-to-content link: visually hidden until focused. */
+    .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        z-index: 50;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font-weight: 500;
+        text-decoration: none;
+        box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.35);
+    }
+    .skip-link:focus,
+    .skip-link:focus-visible {
+        left: 1rem;
+        top: 1rem;
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* Composite animation for the hero logo (Tailwind's single-animation
+       utilities would shadow one another because both set `animation:`). */
+    .animate-hero-logo {
+        animation:
+            rotate-3d 20s linear infinite,
+            glow-pulse 3s ease-in-out infinite;
+        will-change: filter, transform;
+    }
+
+    /* Glassmorphism */
+    .glass {
+        background: oklch(0.200 0.025 280 / 50%);
+        backdrop-filter: blur(12px);
+        border: 1px solid oklch(0.350 0.030 280 / 25%);
+    }
+
+    .glass-hover:hover {
+        background: oklch(0.200 0.025 280 / 65%);
+        border-color: oklch(0.400 0.040 270 / 40%);
+    }
+
+    .eth-glow {
+        box-shadow: 0 0 30px oklch(0.620 0.140 270 / 15%),
+                    inset 0 0 30px oklch(0.620 0.140 270 / 5%);
+    }
+
+    .text-eth-highlight {
+        color: oklch(0.620 0.140 270);
+        text-shadow:
+            0 0 10px oklch(0.620 0.140 270 / 60%),
+            0 0 30px oklch(0.620 0.140 270 / 40%),
+            0 0 60px oklch(0.620 0.140 270 / 25%),
+            0 0 100px oklch(0.520 0.230 290 / 15%);
+    }
+
+    /* Saturn carousel: compact repo card */
+    .saturn-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        width: 220px;
+        height: 100px;
+        padding: 10px 12px;
+        background: oklch(0.200 0.025 280 / 60%);
+        backdrop-filter: blur(12px);
+        border: 1px solid oklch(0.350 0.030 280 / 25%);
+        border-radius: 0.75rem;
+        text-decoration: none;
+        transition: box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .saturn-card:hover {
+        /* Overrides inline opacity set by the rAF animation loop */
+        opacity: 1 !important;
+        box-shadow: 0 0 30px oklch(0.620 0.140 270 / 20%),
+                    inset 0 0 30px oklch(0.620 0.140 270 / 5%);
+        border-color: oklch(0.400 0.040 270 / 40%);
+    }
+
+    .saturn-card:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* Saturn carousel: pill-shaped repo chip (mobile) */
+    .saturn-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        width: 180px;
+        height: 36px;
+        padding: 0 12px;
+        background: oklch(0.200 0.025 280 / 60%);
+        backdrop-filter: blur(8px);
+        border: 1px solid oklch(0.350 0.030 280 / 25%);
+        border-radius: 9999px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--foreground);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-decoration: none;
+        transition: box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .saturn-chip:hover {
+        /* Overrides inline opacity set by the rAF animation loop */
+        opacity: 1 !important;
+        box-shadow: 0 0 20px oklch(0.620 0.140 270 / 25%);
+        border-color: oklch(0.400 0.040 270 / 50%);
+    }
+
+    .saturn-chip:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* SVG Ethereum diamond — replaces second WebGL Canvas.
+       Static filter on wrapper (compositor-friendly); rotateY on child. */
+    .css-diamond-wrapper {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        perspective: 200px;
+        filter: drop-shadow(0 0 6px oklch(0.620 0.140 270 / 40%));
+    }
+
+    .css-diamond-rotate {
+        width: 55%;
+        height: 80%;
+        animation: css-diamond-spin 20s linear infinite;
+        will-change: transform;
+    }
+
+    .css-diamond-svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Hide scrollbar for mobile saturn chip rows */
+    .scrollbar-none {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+/* Pause hero animation when off-screen to avoid filter: drop-shadow() paint work.
+   Targets the animated child via descendant selector because animation-play-state
+   is not inherited — setting it on the wrapper alone would be a no-op. */
+.hero-logo-paused .animate-hero-logo {
+    animation-play-state: paused !important;
+}
+
+/* Diamond shake — oscillating wobble for the progress bar cursor */
+@keyframes diamond-shake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-2px) rotate(-3deg); }
+    75% { transform: translateX(2px) rotate(3deg); }
+}
+.diamond-shake {
+    animation: diamond-shake 0.3s ease-in-out infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .animate-marquee,
+    .animate-marquee-reverse,
+    .animate-rotate-3d,
+    .animate-glow-pulse,
+    .animate-hero-logo,
+    .animate-saturn-pulse,
+    .animate-star-float,
+    .css-diamond-rotate,
+    .diamond-shake {
+        animation: none !important;
+    }
+}

@@ -1,0 +1,39 @@
+# Go build output
+bin/
+
+# Frontend build output (embedded at compile time, not checked in)
+web/static/*
+!web/static/.gitkeep
+
+# Frontend dependencies
+frontend/node_modules/
+
+# Frontend test artifacts
+frontend/test-results/
+test-results/
+frontend/playwright-report/
+
+# Environment variables (secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+
+plan/*
+
+SPEC.md
+TASKS.md
+server
+
+# Serena files
+.serena/
