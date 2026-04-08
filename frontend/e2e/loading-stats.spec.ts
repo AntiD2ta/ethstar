@@ -115,11 +115,11 @@ test("stats counter hidden when API returns error", async ({ page }) => {
 
   await page.goto("/");
 
-  // Wait for the page to load, then confirm stats ribbon is not visible.
+  // Wait for the page to load, then confirm no stats ribbon.
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
     page.getByText("Ethstar Stars"),
-  ).not.toBeVisible();
+  ).toHaveCount(0);
 });
 
 test("failed stats POST queues pending stars, next successful POST flushes them", async ({
@@ -221,5 +221,5 @@ test("stats counter hidden when total is zero", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
     page.getByText("Ethstar Stars"),
-  ).not.toBeVisible();
+  ).toHaveCount(0);
 });

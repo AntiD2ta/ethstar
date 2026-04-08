@@ -1,7 +1,11 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { supportsWebGL } from "@/lib/webgl";
 
-const EthereumScene = lazy(() => import("./hero-logo-3d/ethereum-scene"));
+// Start the chunk download immediately at module-load time (during main bundle
+// execution) instead of waiting for React to render and hit the lazy boundary.
+// This eliminates the React render delay from the loading waterfall.
+const sceneChunk = import("./hero-logo-3d/ethereum-scene");
+const EthereumScene = lazy(() => sceneChunk);
 
 /** Lightweight shimmer placeholder shown while the Three.js chunk loads. */
 function HeroPlaceholder() {
