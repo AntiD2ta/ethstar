@@ -35,5 +35,8 @@ SPEC.md
 TASKS.md
 server
 
+# Bundle analysis report
+frontend/bundle-report.html
+
 # Serena files
 .serena/

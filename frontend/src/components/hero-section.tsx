@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { HeroLogo } from "./hero-logo";
 
@@ -27,6 +28,8 @@ export function HeroSection({
   isLoading,
   children,
 }: HeroSectionProps) {
+  const showCommunityStars = communityStars !== null && communityStars > 0;
+
   return (
     <section className="relative flex min-h-dvh flex-col items-center px-4 py-12 text-center md:px-6 md:py-20">
       <HeroLogo />
@@ -85,19 +88,20 @@ export function HeroSection({
               Categories
             </span>
           </div>
-          {communityStars !== null && communityStars > 0 && (
-            <>
-              <span className="text-border" aria-hidden="true">·</span>
-              <div aria-label={`${communityStars.toLocaleString()} stars given through Ethstar`}>
-                <span className="text-2xl font-bold text-primary">
-                  {communityStars.toLocaleString()}
-                </span>
-                <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Ethstar Stars
-                </span>
-              </div>
-            </>
-          )}
+          {/* Always render on desktop (invisible placeholder prevents CLS).
+               Hidden on mobile to avoid overflowing 375px viewports. */}
+          <span className={cn("text-border", !showCommunityStars && "hidden md:inline md:invisible")} aria-hidden="true">·</span>
+          <div
+            className={cn(!showCommunityStars && "hidden md:block md:invisible")}
+            aria-label={showCommunityStars ? `${communityStars!.toLocaleString()} stars given through Ethstar` : undefined}
+          >
+            <span className="text-2xl font-bold text-primary">
+              {showCommunityStars ? communityStars!.toLocaleString() : "0"}
+            </span>
+            <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
+              Ethstar Stars
+            </span>
+          </div>
         </div>
       </div>
 

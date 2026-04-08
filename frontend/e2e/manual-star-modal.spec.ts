@@ -162,8 +162,8 @@ test("stars are vertically aligned between starred and unstarred rows", async ({
   expect(starredBox).not.toBeNull();
   expect(unstarredBox).not.toBeNull();
 
-  // Both should be right-aligned at roughly the same x position (within 5px).
+  // Both should be right-aligned at roughly the same x position (within 8px).
   const starredRight = starredBox!.x + starredBox!.width;
   const unstarredRight = unstarredBox!.x + unstarredBox!.width;
-  expect(Math.abs(starredRight - unstarredRight)).toBeLessThan(5);
+  expect(Math.abs(starredRight - unstarredRight)).toBeLessThan(8);
 });

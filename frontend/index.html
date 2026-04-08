@@ -2,9 +2,60 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ethstar</title>
+
+    <title>Ethstar — Star Every Ethereum Repo</title>
+    <meta name="description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 20+ core protocol repositories in a single click." />
+    <meta name="theme-color" content="#1a1a2e" />
+    <link rel="canonical" href="https://ethstar.org/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Ethstar — Star Every Ethereum Repo" />
+    <meta property="og:description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 20+ core protocol repositories in a single click." />
+    <meta property="og:url" content="https://ethstar.org/" />
+    <meta property="og:image" content="https://ethstar.org/logo-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Ethstar — Star Every Ethereum Repo" />
+    <meta name="twitter:description" content="Support Ethereum's open-source ecosystem. Star 20+ core protocol repos in one click." />
+    <meta name="twitter:image" content="https://ethstar.org/logo-512.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Font preconnects (eliminate DNS+TCP+TLS latency for font files) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Resource hints for GitHub API (dns-prefetch only — no credentials sent at discovery time) -->
+    <link rel="dns-prefetch" href="https://api.github.com" />
+    <link rel="dns-prefetch" href="https://avatars.githubusercontent.com" />
+
+    <!-- Structured data: WebApplication -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Ethstar",
+        "url": "https://ethstar.org",
+        "description": "Star every core Ethereum protocol GitHub repository with one click.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -26,8 +26,11 @@ export function AuthHeader({
         className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight"
       >
         <img
-          src="/logo.png"
+          src="/logo-128.png"
           alt=""
+          width={40}
+          height={40}
+          fetchPriority="high"
           className="h-10 w-10 rounded-full object-cover"
           aria-hidden="true"
         />
