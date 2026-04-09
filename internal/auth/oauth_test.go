@@ -26,32 +26,21 @@ import (
 )
 
 func TestGenerateState(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		{name: "ReturnsNonEmpty"},
-		{name: "ReturnsDifferentValues"},
-	}
+	t.Run("ReturnsNonEmpty", func(t *testing.T) {
+		state, err := auth.GenerateState()
+		require.NoError(t, err)
+		require.NotEmpty(t, state)
+		// 16 bytes hex-encoded = 32 chars
+		require.Len(t, state, 32)
+	})
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			switch test.name {
-			case "ReturnsNonEmpty":
-				state, err := auth.GenerateState()
-				require.NoError(t, err)
-				require.NotEmpty(t, state)
-				// 16 bytes hex-encoded = 32 chars
-				require.Len(t, state, 32)
-
-			case "ReturnsDifferentValues":
-				s1, err := auth.GenerateState()
-				require.NoError(t, err)
-				s2, err := auth.GenerateState()
-				require.NoError(t, err)
-				require.NotEqual(t, s1, s2)
-			}
-		})
-	}
+	t.Run("ReturnsDifferentValues", func(t *testing.T) {
+		s1, err := auth.GenerateState()
+		require.NoError(t, err)
+		s2, err := auth.GenerateState()
+		require.NoError(t, err)
+		require.NotEqual(t, s1, s2)
+	})
 }
 
 func TestBuildAuthURL(t *testing.T) {

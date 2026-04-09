@@ -116,11 +116,12 @@ test("unstarred star links open in new tab (href check)", async ({ page }) => {
   await setupWithStarStatuses(page, ["prysm", "lighthouse"]);
   await openManualModal(page);
 
-  // Both unstarred repos should have clickable star links.
+  // Both unstarred repos should have clickable star links pointing to GitHub.
   for (const repo of ["prysmaticlabs/prysm", "sigp/lighthouse"]) {
     const link = page.getByLabel(`Star ${repo} on GitHub`);
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("href", new RegExp(`github\\.com/${repo}`));
   }
 });
 

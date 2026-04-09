@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -121,7 +122,7 @@ func ValidateNamedState(r *http.Request, cookieName string) error {
 		return errors.New("missing state cookie")
 	}
 
-	if urlState != cookie.Value {
+	if subtle.ConstantTimeCompare([]byte(urlState), []byte(cookie.Value)) != 1 {
 		return errors.New("state mismatch")
 	}
 

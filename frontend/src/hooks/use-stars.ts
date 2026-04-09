@@ -91,6 +91,10 @@ export function useStars(): UseStarsReturn {
     });
   }, [token]);
 
+  // Track in-flight recheckRepo calls to prevent duplicate concurrent API requests
+  // for the same repo when rapid focus events fire.
+  const recheckInFlightRef = useRef(new Set<string>());
+
   // Mirror starStatuses in a ref so starAll can read current values without
   // having starStatuses in its dependency array (avoids reconstruction on every
   // status update during the starring loop).
@@ -282,6 +286,8 @@ export function useStars(): UseStarsReturn {
     async (repo: Repository) => {
       if (!token) return;
       const key = repoKey(repo);
+      if (recheckInFlightRef.current.has(key)) return;
+      recheckInFlightRef.current.add(key);
       try {
         const starred = await isStarred(token, repo.owner, repo.name);
         setStarStatuses((prev) => ({
@@ -290,6 +296,8 @@ export function useStars(): UseStarsReturn {
         }));
       } catch {
         // Silently ignore — this is a best-effort background recheck.
+      } finally {
+        recheckInFlightRef.current.delete(key);
       }
     },
     [token],

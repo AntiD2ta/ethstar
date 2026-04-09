@@ -64,7 +64,7 @@ export function AuthHeader({
       </a>
 
       {isLoading ? (
-        <div className="flex items-center gap-3" aria-label="Loading account">
+        <div className="flex items-center gap-3" role="status" aria-label="Loading account">
           <Skeleton className="size-6 rounded-full" />
           <Skeleton className="h-4 w-20 rounded" />
         </div>

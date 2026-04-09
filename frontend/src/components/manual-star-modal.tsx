@@ -76,7 +76,7 @@ export function ManualStarModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[50vh] overflow-y-auto -mx-2 px-2" role="list" aria-label="Repositories">
+        <div className="max-h-[50vh] overflow-y-auto" role="list" aria-label="Repositories">
           <div className="space-y-1">
             {repos.map((repo) => {
               const key = repoKey(repo);

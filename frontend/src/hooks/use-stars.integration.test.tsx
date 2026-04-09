@@ -33,6 +33,7 @@ const spy = vi.hoisted(() => ({
   checkAllStars: vi.fn(),
   starAllUnstarred: vi.fn(),
   starRepo: vi.fn(),
+  isStarred: vi.fn(),
 }));
 
 vi.mock("@/lib/github", async () => {
@@ -44,6 +45,7 @@ vi.mock("@/lib/github", async () => {
     checkAllStars: spy.checkAllStars,
     starAllUnstarred: spy.starAllUnstarred,
     starRepo: spy.starRepo,
+    isStarred: spy.isStarred,
   };
 });
 
@@ -82,6 +84,7 @@ describe("useStars — checkStars", () => {
     spy.checkAllStars.mockReset();
     spy.starAllUnstarred.mockReset();
     spy.starRepo.mockReset();
+    spy.isStarred.mockReset();
     seedToken();
   });
   afterEach(() => {
@@ -241,6 +244,7 @@ describe("useStars — starAll", () => {
     spy.checkAllStars.mockReset();
     spy.starAllUnstarred.mockReset();
     spy.starRepo.mockReset();
+    spy.isStarred.mockReset();
     seedToken();
   });
   afterEach(() => {
@@ -600,5 +604,121 @@ describe("useStars — starAll", () => {
     expect(progress.starred).toBe(0);
     expect(progress.remaining).toBe(REPOSITORIES.length);
     expect(progress.current).toBeNull();
+  });
+});
+
+describe("useStars — recheckRepo", () => {
+  let fetchStub: FetchStub;
+
+  beforeEach(() => {
+    fetchStub = installFetchStub();
+    spy.getUser.mockReset().mockResolvedValue({
+      login: "u",
+      avatar_url: "a",
+      name: "U",
+    });
+    spy.checkAllStars.mockReset();
+    spy.starAllUnstarred.mockReset();
+    spy.starRepo.mockReset();
+    spy.isStarred.mockReset();
+    seedToken();
+  });
+  afterEach(() => {
+    fetchStub.reset();
+  });
+
+  it("updates status to 'starred' when isStarred returns true", async () => {
+    spy.isStarred.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useStarsWithAuth(), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(result.current.auth.isLoading).toBe(false));
+
+    const repo = REPOSITORIES[0];
+    const key = `${repo.owner}/${repo.name}`;
+    expect(result.current.stars.starStatuses[key]).toBe("unknown");
+
+    await act(async () => {
+      await result.current.stars.recheckRepo(repo);
+    });
+
+    expect(spy.isStarred).toHaveBeenCalledWith("test-token", repo.owner, repo.name);
+    expect(result.current.stars.starStatuses[key]).toBe("starred");
+  });
+
+  it("updates status to 'unstarred' when isStarred returns false", async () => {
+    spy.isStarred.mockResolvedValue(false);
+
+    const { result } = renderHook(() => useStarsWithAuth(), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(result.current.auth.isLoading).toBe(false));
+
+    const repo = REPOSITORIES[0];
+    const key = `${repo.owner}/${repo.name}`;
+
+    await act(async () => {
+      await result.current.stars.recheckRepo(repo);
+    });
+
+    expect(result.current.stars.starStatuses[key]).toBe("unstarred");
+  });
+
+  it("silently ignores errors from isStarred", async () => {
+    spy.isStarred.mockRejectedValue(new Error("network error"));
+
+    const { result } = renderHook(() => useStarsWithAuth(), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(result.current.auth.isLoading).toBe(false));
+
+    const repo = REPOSITORIES[0];
+    const key = `${repo.owner}/${repo.name}`;
+
+    await act(async () => {
+      await result.current.stars.recheckRepo(repo);
+    });
+
+    // Status should remain unchanged on error.
+    expect(result.current.stars.starStatuses[key]).toBe("unknown");
+  });
+
+  it("no-op when no token", async () => {
+    localStorage.clear();
+    const { result } = renderHook(() => useStarsWithAuth(), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(result.current.auth.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.stars.recheckRepo(REPOSITORIES[0]);
+    });
+
+    expect(spy.isStarred).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates concurrent recheckRepo calls for the same repo", async () => {
+    // isStarred resolves after a small delay to simulate network latency.
+    spy.isStarred.mockImplementation(
+      () => new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 50)),
+    );
+
+    const { result } = renderHook(() => useStarsWithAuth(), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(result.current.auth.isLoading).toBe(false));
+
+    const repo = REPOSITORIES[0];
+
+    // Fire two concurrent recheckRepo calls for the same repo.
+    await act(async () => {
+      const p1 = result.current.stars.recheckRepo(repo);
+      const p2 = result.current.stars.recheckRepo(repo);
+      await Promise.all([p1, p2]);
+    });
+
+    // Only one isStarred call should have been made due to deduplication.
+    expect(spy.isStarred).toHaveBeenCalledTimes(1);
   });
 });

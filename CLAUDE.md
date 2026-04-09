@@ -203,6 +203,10 @@ Configured in `frontend/vite.config.ts` (`outDir: "../web/static"`). The `web/em
 - **`inert` attribute on marquee clone for a11y**: `aria-hidden="true"` alone doesn't prevent keyboard focus on child `<a>` elements. Add `inert={true}` to make the duplicate container fully non-interactive. Use explicit `inert={true}` (not bare `inert`) for React prop consistency.
 - **Heading hierarchy requires sr-only h2 for Saturn carousel**: The Saturn carousel section contains h3 repo cards but sits between the hero h1 and later h2 sections. Add `<h2 className="sr-only">` in both mobile and desktop branches to prevent axe-core "heading-order" violations.
 - **`eslint-plugin-jsx-a11y` flat config**: Import as `jsxA11y` and add `jsxA11y.flatConfigs.recommended` to the extends array. Runs cleanly with existing shadcn/ui components (shadcn files are already in globalIgnores).
+- **`aria-label` on bare `<div>` is ignored**: Without a semantic role, `aria-label` has no effect. Add `role="status"` (or another appropriate role) to make the label visible to assistive tech. `role="status"` implicitly includes `aria-live="polite"`.
+- **Module-level singletons (`logoPromise`) break Vitest mocks**: `restoreMocks: true` restores mocks between tests, but module-level `let` variables persist. If a singleton captures a mocked dependency, subsequent tests may use stale references. For canvas/Image-heavy components, test dialog behavior (open/close, button states) and validate rendering in browser sessions instead.
+- **E2E popup OAuth mock via `addInitScript`**: Mock `window.open` to intercept `/api/auth/star` requests and immediately `postMessage` a fake token back. Return `{ closed: false, close: () => {} }` as the fake popup to prevent the closed-popup poller from rejecting prematurely.
+- **WebGL canvas sizing in Playwright is highly variable**: Compositor timing causes canvas dimensions to vary ±80px+ from expected values. Use proportional tolerances (e.g., 50%-200% of expected) instead of absolute ±N px ranges.
 
 ### Security
 

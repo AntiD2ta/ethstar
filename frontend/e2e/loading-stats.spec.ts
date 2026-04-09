@@ -144,6 +144,26 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
     localStorage.setItem("ethstar_pending_stats", "5");
   });
 
+  // Mock window.open to auto-deliver a fake classic OAuth token via postMessage.
+  // This bypasses the popup OAuth flow so the starring proceeds immediately.
+  await page.addInitScript(() => {
+    const origOpen = window.open.bind(window);
+    window.open = (url?: string | URL, ...args: Parameters<typeof window.open> extends [unknown, ...infer R] ? R : never[]) => {
+      if (typeof url === "string" && url.includes("/api/auth/star")) {
+        // Simulate the popup posting back a token then closing.
+        setTimeout(() => {
+          window.postMessage(
+            { type: "ethstar-star-token", access_token: "ghu_fake_star_token" },
+            window.location.origin,
+          );
+        }, 50);
+        // Return a fake popup object that reports itself as closed after the message is sent.
+        return { closed: false, close: () => {} } as Window;
+      }
+      return origOpen(url, ...args);
+    };
+  });
+
   // Profile fetch succeeds.
   await page.route("https://api.github.com/user", (route) =>
     route.fulfill({
@@ -193,14 +213,20 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
 
   await page.goto("/");
 
-  // Wait for star checks to complete, then click "Star All" (use first instance).
+  // Wait for star checks to complete, then click "Star All" (opens StarModal).
   const starAllBtn = page.getByRole("button", { name: /Star All/i }).first();
   await expect(starAllBtn).toBeVisible({ timeout: 15000 });
   await starAllBtn.click();
 
-  // Wait for the success toast (all repos starred).
+  // StarModal opens at warning step — click "Proceed" to trigger OAuth popup (mocked above).
   await expect(
-    page.getByText(/Starred 2 repos/),
+    page.getByRole("heading", { name: "Authorization Required" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /Proceed/ }).click();
+
+  // Wait for the modal complete step showing starred count.
+  await expect(
+    page.getByText(/starred 2 repos/i),
   ).toBeVisible({ timeout: 30000 });
 
   // The POST should include new (2) + pending (5) = 7.
