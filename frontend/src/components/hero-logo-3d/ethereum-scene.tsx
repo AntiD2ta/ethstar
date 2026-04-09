@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -12,9 +13,19 @@ import { SceneLighting } from "./scene-lighting";
 export default function EthereumScene() {
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
+  // Chrome may not fire requestAnimationFrame in visible tabs without user
+  // interaction or DevTools open (energy optimization). R3F's render loop
+  // depends on rAF, so the Canvas never initializes. Dispatching a resize
+  // event from setTimeout (which DOES fire) kicks Chrome's rendering pipeline.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <Canvas
-      // "demand" renders a single frame then stops — used for reduced motion
       frameloop={reducedMotion ? "demand" : "always"}
       dpr={[1, 1.5]}
       camera={{ position: [0, 0, 6], fov: 45 }}
