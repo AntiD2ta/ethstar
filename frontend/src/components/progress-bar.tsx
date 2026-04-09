@@ -40,7 +40,7 @@ export function ProgressBar({ progress }: ProgressBarProps) {
         />
       </div>
 
-      <p className="min-h-[1rem] truncate text-xs text-muted-foreground">
+      <p aria-live="polite" className="min-h-[1rem] truncate text-xs text-muted-foreground">
         {current && !allDone ? `Starring ${current}…` : ""}
       </p>
     </div>

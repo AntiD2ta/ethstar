@@ -107,7 +107,7 @@ export const RepoMarquee = memo(function RepoMarquee({
           {cards}
         </div>
         {showDuplicate && (
-          <div aria-hidden="true" className="flex gap-6 md:gap-8">
+          <div aria-hidden="true" inert={true} className="flex gap-6 md:gap-8">
             {cards}
           </div>
         )}

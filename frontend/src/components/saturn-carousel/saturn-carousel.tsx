@@ -60,6 +60,7 @@ export function SaturnCarousel({
         aria-label="Ethereum ecosystem repositories"
         className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col items-center justify-center gap-6 px-6 py-8"
       >
+        <h2 className="sr-only">Ethereum Ecosystem</h2>
         <div aria-hidden="true" className="mx-auto size-20 opacity-70">
           <CssDiamond />
         </div>
@@ -92,6 +93,7 @@ export function SaturnCarousel({
       className="relative mx-auto flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden"
       style={{ perspective: "1200px" }}
     >
+      <h2 className="sr-only">Ethereum Ecosystem</h2>
       <div className="relative h-[80vh] w-full">
         {/* Central 3D diamond */}
         <div

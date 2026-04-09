@@ -21,21 +21,23 @@ export function AuthHeader({
 }: AuthHeaderProps) {
   return (
     <header className="glass sticky top-0 z-50 flex items-center justify-between px-6 py-3">
-      <a
-        href="/"
-        className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight"
-      >
-        <img
-          src="/logo-128.png"
-          alt=""
-          width={40}
-          height={40}
-          fetchPriority="high"
-          className="h-10 w-10 rounded-full object-cover"
-          aria-hidden="true"
-        />
-        <span>ethstar</span>
-      </a>
+      <nav aria-label="Site">
+        <a
+          href="/"
+          className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight"
+        >
+          <img
+            src="/logo-128.png"
+            alt=""
+            width={40}
+            height={40}
+            fetchPriority="high"
+            className="h-10 w-10 rounded-full object-cover"
+            aria-hidden="true"
+          />
+          <span>ethstar</span>
+        </a>
+      </nav>
 
       {isLoading ? (
         <div className="flex items-center gap-3" aria-label="Loading account">

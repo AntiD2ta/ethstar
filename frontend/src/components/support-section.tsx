@@ -29,8 +29,8 @@ export function SupportSection({
   }
 
   return (
-    <section className="flex flex-col items-center gap-4 border-t border-border px-6 py-12 text-center">
-      <h2 className="font-heading text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+    <footer aria-labelledby="support-heading" className="flex flex-col items-center gap-4 border-t border-border px-6 py-12 text-center">
+      <h2 id="support-heading" className="font-heading text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         Support
       </h2>
       <p className="max-w-xl text-sm text-muted-foreground">
@@ -77,6 +77,6 @@ export function SupportSection({
           </Button>
         )}
       </div>
-    </section>
+    </footer>
   );
 }

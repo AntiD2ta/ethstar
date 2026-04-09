@@ -76,6 +76,13 @@ export function StarModal({
     onOpenManualModal();
   }, [onOpenChange, onOpenManualModal]);
 
+  const stepAnnouncement =
+    step === "warning" ? "Authorization required"
+    : step === "authorizing" ? "Authorizing with GitHub"
+    : step === "progress" ? "Starring repositories in progress"
+    : starResult ? `Complete: ${starResult.starred} starred, ${starResult.failed} failed`
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -91,6 +98,9 @@ export function StarModal({
           }
         }}
       >
+        {/* Visually-hidden live region announces step transitions to screen readers */}
+        <div aria-live="assertive" className="sr-only">{stepAnnouncement}</div>
+
         {step === "warning" && (
           <>
             <DialogHeader>
@@ -132,7 +142,7 @@ export function StarModal({
             </div>
 
             {authError && (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 {authError}
               </div>
@@ -166,7 +176,7 @@ export function StarModal({
             </div>
 
             {authError && (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 {authError}
               </div>
@@ -225,7 +235,7 @@ export function StarModal({
               </div>
 
               {progress.current && (
-                <p className="truncate text-center text-sm text-muted-foreground">
+                <p aria-live="polite" className="truncate text-center text-sm text-muted-foreground">
                   Starring {progress.current}…
                 </p>
               )}

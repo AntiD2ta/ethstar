@@ -135,7 +135,7 @@ export default function HomePage() {
     progress.total > 0 && progress.starred === progress.total;
 
   return (
-    <div className="flex flex-col overflow-x-hidden">
+    <main className="flex flex-col overflow-x-hidden">
       {/* Skip link — visually hidden until focused so keyboard users can
           bypass the hero and controls and land directly on the repo list. */}
       <a href="#repos" className="skip-link">
@@ -270,6 +270,6 @@ export default function HomePage() {
         starStatuses={starStatuses}
         onRecheckRepo={recheckRepo}
       />
-    </div>
+    </main>
   );
 }

@@ -32,8 +32,8 @@ export const HowItWorksSection = memo(function HowItWorksSection({
   onViewRepositories,
 }: HowItWorksSectionProps) {
   return (
-    <section className="flex min-h-dvh flex-col items-center justify-center gap-10 px-4 py-16 md:px-6">
-      <h2 className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
+    <section aria-labelledby="how-it-works-heading" className="flex min-h-dvh flex-col items-center justify-center gap-10 px-4 py-16 md:px-6">
+      <h2 id="how-it-works-heading" className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
         How It Works
       </h2>
 

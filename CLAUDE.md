@@ -199,6 +199,10 @@ Configured in `frontend/vite.config.ts` (`outDir: "../web/static"`). The `web/em
 - **Use correctly-sized image assets**: Reference sized variants (`logo-128.png` for header, `logo-512.png` for hero). Always add explicit `width`/`height` attributes to prevent layout shift.
 - **Suspense placeholder paradox**: Visible loading placeholders make fast-loading lazy components feel *slower*. Prefer `fallback={null}` for chunks that load in under a second.
 - **`rollup-plugin-visualizer` for bundle analysis**: Add as devDependency and conditionally include in Vite config via `process.env.ANALYZE === "true"`. Run with `npm run analyze` to generate an interactive treemap HTML report showing gzip sizes.
+- **`aria-live` on rapidly-updating containers causes screen-reader spam**: Don't put `aria-live` + `aria-atomic="true"` on a container that re-renders per-repo during `starAll`. Place `aria-live="polite"` only on the leaf `<p>` showing the current action. For step-transition announcements, use a static string (not dynamic counts) so `aria-live="assertive"` fires once per step change.
+- **`inert` attribute on marquee clone for a11y**: `aria-hidden="true"` alone doesn't prevent keyboard focus on child `<a>` elements. Add `inert={true}` to make the duplicate container fully non-interactive. Use explicit `inert={true}` (not bare `inert`) for React prop consistency.
+- **Heading hierarchy requires sr-only h2 for Saturn carousel**: The Saturn carousel section contains h3 repo cards but sits between the hero h1 and later h2 sections. Add `<h2 className="sr-only">` in both mobile and desktop branches to prevent axe-core "heading-order" violations.
+- **`eslint-plugin-jsx-a11y` flat config**: Import as `jsxA11y` and add `jsxA11y.flatConfigs.recommended` to the extends array. Runs cleanly with existing shadcn/ui components (shadcn files are already in globalIgnores).
 
 ### Security
 
