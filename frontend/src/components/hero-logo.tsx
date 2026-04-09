@@ -7,21 +7,6 @@ import { supportsWebGL } from "@/lib/webgl";
 const sceneChunk = import("./hero-logo-3d/ethereum-scene");
 const EthereumScene = lazy(() => sceneChunk);
 
-/** Lightweight shimmer placeholder shown while the Three.js chunk loads. */
-function HeroPlaceholder() {
-  return (
-    <div className="flex h-full w-full items-center justify-center">
-      <img
-        src="/logo-64.png"
-        alt=""
-        width={64}
-        height={64}
-        className="h-3/5 w-3/5 object-contain opacity-40 animate-pulse"
-      />
-    </div>
-  );
-}
-
 /** Original 2D logo — used as fallback when WebGL is unavailable. */
 function FallbackLogo() {
   return (
@@ -66,7 +51,7 @@ export function HeroLogo() {
     >
       {webgl ? (
         <div data-testid="hero-logo" className="h-[250px] w-[250px] md:h-[375px] md:w-[375px] lg:h-[500px] lg:w-[500px] opacity-30">
-          <Suspense fallback={<HeroPlaceholder />}>
+          <Suspense fallback={null}>
             <EthereumScene />
           </Suspense>
         </div>
