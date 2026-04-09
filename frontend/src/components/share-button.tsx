@@ -156,7 +156,7 @@ function renderShareImage(
   // ── Footer / branding ──
   ctx.fillStyle = "rgba(255,255,255,0.3)";
   ctx.font = "20px system-ui, -apple-system, sans-serif";
-  ctx.fillText("ethstar.org", W / 2, H - 32);
+  ctx.fillText("ethstar.dev", W / 2, H - 32);
 
   return canvas;
 }

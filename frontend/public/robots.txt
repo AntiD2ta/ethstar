@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ethstar.org/sitemap.xml
+Sitemap: https://ethstar.dev/sitemap.xml

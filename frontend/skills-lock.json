@@ -26,6 +26,11 @@
       "sourceType": "github",
       "computedHash": "bc23e4931f4ed38cc4ae3450e6d350a49fdae686f008b3a048018c78a02c55ee"
     },
+    "seo-audit": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "1eef04180a5278a6869fab117c75fa2acf512bfda0a4b16569409b88b7bcb343"
+    },
     "tailwind-theme-builder": {
       "source": "jezweb/claude-skills",
       "sourceType": "github",
