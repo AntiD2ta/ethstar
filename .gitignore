@@ -5,7 +5,8 @@ bin/
 web/static/*
 !web/static/.gitkeep
 
-# Frontend dependencies
+# Dependencies
+node_modules/
 frontend/node_modules/
 
 # Frontend test artifacts

@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 import { CATEGORIES, REPOSITORIES } from "./repos";
 import type { RepoCategory } from "./types";
@@ -43,6 +44,13 @@ describe("REPOSITORIES", () => {
     const keys = REPOSITORIES.map((r) => `${r.owner}/${r.name}`);
     const unique = new Set(keys);
     expect(unique.size).toBe(keys.length);
+  });
+
+  it("REPO_COUNT in api/og matches REPOSITORIES.length", () => {
+    const ogSource = readFileSync("../api/og/index.tsx", "utf-8");
+    const match = ogSource.match(/REPO_COUNT\s*=\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(Number(match![1])).toBe(REPOSITORIES.length);
   });
 });
 
