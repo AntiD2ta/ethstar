@@ -33,8 +33,8 @@ interface SaturnCarouselProps {
 // Must stay in the same order as CATEGORIES in repos.ts
 const RING_CONFIGS: RingConfig[] = [
   { radius: 240, speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0, chipCount: REPOS_BY_CATEGORY["Ethereum Core"].length },
-  { radius: 350, speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4, chipCount: REPOS_BY_CATEGORY["Consensus Clients"].length },
-  { radius: 460, speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3, chipCount: REPOS_BY_CATEGORY["Execution Clients"].length },
+  { radius: 350, speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4, chipCount: REPOS_BY_CATEGORY["Execution Clients"].length },
+  { radius: 460, speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3, chipCount: REPOS_BY_CATEGORY["Consensus Clients"].length },
   { radius: 570, speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2, chipCount: REPOS_BY_CATEGORY["Validator Tooling"].length },
 ];
 
