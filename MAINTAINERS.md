@@ -6,19 +6,34 @@ Recurring tasks to keep Ethstar's assets, metadata, and content up to date.
 
 ## Repo List Changes
 
-When adding or removing repositories from `frontend/src/lib/repos.ts`:
+Want to add a repository? Fork the repo, make the changes below, and open a Pull Request. The [PR template](/.github/pull_request_template.md) includes a checklist to make sure nothing is missed.
 
-1. **Update the repo list** — edit the `REPOSITORIES` array and `CATEGORIES` if needed.
-2. **Regenerate the OG image** if the count crosses a new threshold (see below).
-3. **Update `index.html` meta description** — the text says "20+ core protocol repositories". Keep it accurate.
-4. **Update `index.html` JSON-LD** — the `description` field mentions the repo count.
-5. **Update `frontend/public/sitemap.xml`** — bump the `<lastmod>` date.
+### How to contribute a new repo
 
-Files to touch:
-- `frontend/src/lib/repos.ts` — repo list
-- `frontend/index.html` — meta description, JSON-LD description
-- `frontend/public/sitemap.xml` — `<lastmod>`
-- `frontend/public/og-image.png` — regenerate if count changed visibly
+1. **Fork** this repository on GitHub.
+2. Pick the right **category** for the repo (see table below).
+3. Edit the files listed under "Files to update".
+4. Run `cd frontend && npx vitest run src/lib/repos.test.ts` to verify the repo count stays in sync.
+5. Open a **Pull Request** against `main` — the PR template will guide you through the final checklist.
+
+### Categories
+
+Repos are organized into four categories. Use these descriptions to decide where a new repo belongs:
+
+| Category | What belongs here |
+|---|---|
+| **Ethereum Core** | Foundational protocol repositories: the EVM specification, EIPs, core protocol libraries, and cross-layer API clients. |
+| **Consensus Clients** | Beacon chain / consensus layer client implementations (Prysm, Lighthouse, Teku, Lodestar, Nimbus, Grandine). |
+| **Execution Clients** | Execution layer client implementations (Geth, Nethermind, Besu, Erigon, Reth). |
+| **Validator Tooling** | Validator clients, remote signers, distributed validator middleware, node setup/management tools, monitoring, and infrastructure utilities for stakers and operators. |
+
+### Files to update
+
+- `frontend/src/lib/repos.ts` — add the entry to the `REPOSITORIES` array
+- `api/og/index.tsx` — update `REPO_COUNT` to match the new `REPOSITORIES.length`
+- `README.md` — add the repo to the appropriate table
+- `frontend/index.html` — update meta description and JSON-LD if the count crosses a round number
+- `frontend/public/sitemap.xml` — bump the `<lastmod>` date
 
 ---
 
