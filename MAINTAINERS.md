@@ -22,41 +22,33 @@ Files to touch:
 
 ---
 
-## Regenerating the OG Image
+## OG Image (Social Preview)
 
-The social preview image (`frontend/public/og-image.png`, 1200x630) is generated from `frontend/scripts/og-image-gen.html`. It uses the browser Canvas API and loads Google Fonts.
+The social preview image is **dynamically generated** by a Vercel serverless function at `/api/og` using `@vercel/og` (Satori). It renders the Ethereum diamond, title, repo count subtitle, and domain at 1200x630.
 
-### Steps
+### How it works
 
-1. Edit `frontend/scripts/og-image-gen.html` — update the subtitle text on this line:
-   ```js
-   ctx.fillText('Support 17+ core protocol repositories in a single click', W / 2, titleY + 55);
-   ```
-   Change `17+` to the current count.
+- **Endpoint**: `api/og/index.tsx` — Node.js Vercel Function using `@vercel/og`
+- **Repo count**: Hardcoded as `REPO_COUNT` in `api/og/index.tsx`
+- **Sync check**: A Vitest test in `frontend/src/lib/repos.test.ts` verifies `REPO_COUNT` matches `REPOSITORIES.length`
+- **Fonts**: Space Grotesk 700 and Inter 400, fetched from Google Fonts at cold start
+- **Cache**: CDN caches for 24 hours; cache purges automatically on each Vercel deploy
 
-2. Serve the file locally:
-   ```bash
-   cd frontend/scripts && python3 -m http.server 8899
-   ```
+### Updating the repo count
 
-3. Open `http://localhost:8899/og-image-gen.html` in Chrome. Wait for fonts to load (status text at the bottom changes to "Ready").
+1. Edit `REPO_COUNT` in `api/og/index.tsx` to match the new `REPOSITORIES.length`.
+2. Run `cd frontend && npx vitest run src/lib/repos.test.ts` — the sync test will fail if the values don't match.
+3. Deploy. The OG image updates automatically.
 
-4. Click the canvas to download `og-image.png`.
+### Static fallback
 
-5. Move the downloaded file to replace the existing one:
-   ```bash
-   mv ~/Downloads/og-image.png frontend/public/og-image.png
-   ```
+`frontend/public/og-image.png` is kept as a static fallback and design reference. It can be regenerated with `frontend/scripts/og-image-gen.html` if needed (see instructions in that file's comments).
 
-6. Kill the temp server: `Ctrl+C` in the terminal, or `kill $(lsof -ti :8899)`.
+### Previewing in production
 
-7. Verify in dev: `cd frontend && npm run dev`, then visit `http://localhost:5173/og-image.png`.
-
-### When to regenerate
-
-- Repo count changes visibly (e.g., 17+ to 20+, 20+ to 25+)
-- Domain changes
-- Branding/design changes
+- Visit `https://ethstar.dev/api/og` directly in a browser to see the rendered PNG
+- Use [Open Graph Debugger](https://en.rakko.tools/tools/9/) to test how social platforms will render the preview
+- Twitter, Facebook, and Slack cache OG images aggressively — use each platform's debug tool to force a re-scrape after changes
 
 ---
 
@@ -128,12 +120,13 @@ If the domain changes (currently `ethstar.dev`), update these files:
 
 | File | What to change |
 |------|----------------|
-| `frontend/index.html` | canonical, og:url, og:image, twitter:image, JSON-LD url |
+| `frontend/index.html` | canonical, og:url, JSON-LD url (og:image and twitter:image point to `/api/og`) |
 | `frontend/public/robots.txt` | Sitemap URL |
 | `frontend/public/sitemap.xml` | `<loc>` URL |
 | `frontend/src/components/share-button.tsx` | Branding text in share image canvas |
-| `frontend/scripts/og-image-gen.html` | Domain text in generator |
-| `frontend/public/og-image.png` | Regenerate (domain is baked into the image) |
+| `api/og/index.tsx` | `DOMAIN` constant |
+| `frontend/scripts/og-image-gen.html` | Domain text in static generator |
+| `frontend/public/og-image.png` | Regenerate static fallback if needed (domain is baked in) |
 | `.env.example` | BASE_URL comment |
 
 Quick find-and-replace:
