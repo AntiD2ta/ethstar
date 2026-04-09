@@ -103,7 +103,7 @@ export function SaturnCarousel({
   return (
     <section
       aria-label="Ethereum ecosystem repositories"
-      className="relative mx-auto flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden"
+      className="relative mx-auto flex min-h-dvh w-full flex-col items-center justify-center"
       style={{ perspective: "1200px" }}
     >
       <h2 className="sr-only">Ethereum Ecosystem</h2>

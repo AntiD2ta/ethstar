@@ -12,6 +12,7 @@
 // limitations under the License.
 
 import type { ReactNode } from "react";
+import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HeroLogo } from "./hero-logo";
 
@@ -54,9 +55,16 @@ export function HeroSection({
         </h1>
 
         <p className="max-w-2xl text-lg text-muted-foreground">
-          Strengthen the decentralization of the core protocol. Authenticate
-          with GitHub to support {repoCount}+ fundamental repositories in a
-          single action.
+          Support the teams and devs building a decentralized world. Authenticate
+          with GitHub to{" "}
+          <Star
+            size={18}
+            className="inline-block align-text-bottom text-star-gold"
+            fill="currentColor"
+            strokeWidth={0}
+            aria-hidden="true"
+          />{" "}
+          {repoCount}+ fundamental repositories in a single action.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
