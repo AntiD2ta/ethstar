@@ -28,7 +28,7 @@ const repo: Repository = {
 describe("RepoCard", () => {
   it("renders owner, name, and description", () => {
     render(<RepoCard repo={repo} status="unstarred" />);
-    expect(screen.getByText("go-ethereum")).toBeInTheDocument();
+    expect(screen.getByText("ethereum/go-ethereum")).toBeInTheDocument();
     expect(screen.getByText(/Official Go implementation/)).toBeInTheDocument();
   });
 

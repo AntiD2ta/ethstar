@@ -27,8 +27,7 @@ const repo: Repository = {
 describe("SaturnCard", () => {
   it("renders owner and repo name", () => {
     render(<SaturnCard repo={repo} status="unknown" />);
-    expect(screen.getByText("ethereum/")).toBeInTheDocument();
-    expect(screen.getByText("go-ethereum")).toBeInTheDocument();
+    expect(screen.getByText("ethereum/go-ethereum")).toBeInTheDocument();
   });
 
   it("renders the description", () => {

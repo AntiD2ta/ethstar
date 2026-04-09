@@ -55,11 +55,8 @@ export const RepoCard = memo(function RepoCard({
           rel="noopener noreferrer"
           className="min-w-0 flex-1"
         >
-          <h3 className="truncate font-heading text-base font-semibold">
-            <span className="text-muted-foreground">{repo.owner}/</span>
-            <span className="text-primary group-hover:underline">
-              {repo.name}
-            </span>
+          <h3 className="truncate font-heading text-base font-semibold text-primary group-hover:underline">
+            {repo.owner}/{repo.name}
           </h3>
         </a>
         {typeof starCount === "number" ? (

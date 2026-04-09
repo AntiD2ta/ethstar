@@ -42,11 +42,8 @@ export const SaturnCard = memo(function SaturnCard({
       className="saturn-card group"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="truncate font-heading text-xs font-semibold leading-tight">
-          <span className="text-muted-foreground">{repo.owner}/</span>
-          <span className="text-primary group-hover:underline">
-            {repo.name}
-          </span>
+        <h3 className="truncate font-heading text-xs font-semibold leading-tight text-primary group-hover:underline">
+          {repo.owner}/{repo.name}
         </h3>
         <CompactStarIndicator status={status} />
       </div>
