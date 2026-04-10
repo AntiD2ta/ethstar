@@ -127,6 +127,21 @@ jobs:
       - name: Build Go binary
         run: go build -o bin/server ./cmd/server
 
+  # ── Gate: single required check for branch protection ───────
+  # Always runs, reports failure if any upstream job failed.
+  # Require only this check in branch protection rules.
+  ci-pass:
+    needs: [go-checks, fe-checks, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check upstream results
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+
   # ── Job 4: E2E tests (main branch only) ────────────────────
   e2e:
     needs: [build]
