@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"ethstar/internal/api"
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 
 	"github.com/stretchr/testify/require"
 )

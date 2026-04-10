@@ -21,7 +21,7 @@ import (
 	"net/url"
 	"os"
 
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 )
 
 // secureCookie is derived once per cold start from BASE_URL scheme.

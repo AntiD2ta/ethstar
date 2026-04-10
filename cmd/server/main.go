@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"ethstar/internal/api"
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 	"ethstar/internal/middleware"
 	"ethstar/web"
 )

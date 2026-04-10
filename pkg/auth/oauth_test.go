@@ -20,7 +20,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 
 	"github.com/stretchr/testify/require"
 )

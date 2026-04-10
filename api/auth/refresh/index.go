@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"os"
 
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 )
 
 type refreshRequest struct {

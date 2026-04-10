@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 )
 
 // Config configures the API handlers with the values that differ between

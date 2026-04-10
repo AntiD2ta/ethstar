@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 )
 
 // handleAuthStar generates a random state, sets it in a star_oauth_state

@@ -41,3 +41,4 @@ frontend/bundle-report.html
 
 # Serena files
 .serena/
+.vercel

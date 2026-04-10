@@ -21,7 +21,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"ethstar/internal/auth"
+	"ethstar/pkg/auth"
 )
 
 // handleAuthGitHub generates a random state, sets it in an HttpOnly cookie,

@@ -14,6 +14,7 @@ Go + React monorepo producing a single binary. The Go backend serves both the AP
 - **`internal/middleware/`** — HTTP middleware (recovery, logging, CORS, content-type).
 - **`internal/ws/`** — WebSocket hub (scaffold, add as needed).
 - **`internal/integration/`** — Integration tests with real DB and mock externals.
+- **`pkg/auth/`** — Shared OAuth logic (state cookies, token exchange, URL builders). Lives in `pkg/` (not `internal/`) so Vercel serverless functions in `api/` can import it.
 - **`frontend/`** — Vite + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui. Builds into `../web/static/` so Go can embed it.
 - **`frontend/src/shared/`** — Generated TypeScript types from Go structs (never edit manually).
 
@@ -106,6 +107,7 @@ Configured in `frontend/vite.config.ts` (`outDir: "../web/static"`). The `web/em
 - **gosec G706 (log injection)**: Fires on `slog.Info/Error` calls with HTTP request data. Use `#nosec G706` for structured logging — slog uses key-value pairs, not string interpolation.
 - **Always run `go mod tidy` after adding imports**: After adding any new Go import, always run `go mod tidy` and verify with `go build ./cmd/...`.
 - **Vercel Go serverless: directory-per-endpoint**: Multiple serverless functions in the same directory can't each export `Handler()` (Go package rule). Use one directory per endpoint: `api/auth/github/index.go`, `api/auth/callback/index.go`, etc. Each directory is its own package.
+- **Vercel Go serverless can't import `internal/` packages**: Vercel builds each `api/` function as an isolated Go binary with a generated `main` outside the module tree. Go's `internal` visibility rule blocks the import. Shared code used by both `cmd/server/` and `api/` must live in `pkg/` (not `internal/`).
 - **Makefile must exclude `api/` from Go commands**: The `api/` directory contains Vercel-only serverless functions. Add `grep -v '/api/'` alongside the existing `grep -v frontend` in `go list` pipelines. Also add `-exclude-dir=api` to `gosec`.
 - **gosec G704 (SSRF)**: `#nosec G704` must be on the `http.DefaultClient.Do(req)` line, not the function signature. gosec only reads annotations on the flagged line.
 - **gosec G101/G117 false positives**: `G101` fires on URL constants containing "Token" (e.g., GitHub OAuth endpoint). `G117` fires on struct fields with `json:"access_token"` or `json:"refresh_token"`. Use `#nosec G101` / `#nosec G117` with a comment explaining why.
