@@ -1,6 +1,22 @@
-# Ethstar — Star Every Ethereum Repo
+<div align="center">
+  <a href="https://ethstar.dev">
+    <img src="frontend/public/logo-256.png" alt="Ethstar logo" width="128" />
+  </a>
 
-One-click tool to star all core Ethereum protocol GitHub repositories. Authenticate with GitHub, click "Star All", and support the open-source ecosystem in seconds.
+  <h1>Ethstar</h1>
+  <p>One-click tool to star all core Ethereum protocol GitHub repositories.</p>
+
+  [![CI](https://github.com/AntiD2ta/ethstar/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AntiD2ta/ethstar/actions/workflows/ci.yml)
+  [![Go Report Card](https://goreportcard.com/badge/github.com/AntiD2ta/ethstar)](https://goreportcard.com/report/github.com/AntiD2ta/ethstar)
+  [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AntiD2ta/ethstar/badge)](https://scorecard.dev/viewer/?uri=github.com/AntiD2ta/ethstar)
+  [![Go](https://img.shields.io/github/go-mod/go-version/AntiD2ta/ethstar)](https://go.dev/)
+  [![License](https://img.shields.io/github/license/AntiD2ta/ethstar)](LICENSE)
+  [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethstar.dev&label=ethstar.dev)](https://ethstar.dev)
+</div>
+
+---
+
+Authenticate with GitHub, click "Star All", and support the open-source ecosystem in seconds.
 
 **[ethstar.dev](https://ethstar.dev)**
 
