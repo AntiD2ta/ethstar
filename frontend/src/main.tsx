@@ -14,6 +14,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import App from "./App";
@@ -26,6 +27,7 @@ createRoot(document.getElementById("root")!).render(
         <TooltipProvider>
           <div className="bg-diamond-tile" aria-hidden="true" />
           <App />
+          <SpeedInsights />
         </TooltipProvider>
       </BrowserRouter>
     </AuthProvider>
