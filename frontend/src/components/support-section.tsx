@@ -22,9 +22,9 @@ interface SupportSectionProps {
 }
 
 export function SupportSection({
-  sponsorsUrl = "https://github.com/sponsors",
-  kofiUrl = "https://ko-fi.com",
-  ethAddress = "",
+  sponsorsUrl = "https://github.com/sponsors/AntiD2ta",
+  kofiUrl = "https://ko-fi.com/antid2ta",
+  ethAddress = "0x03574b4bbb883a790234d200b6c3c74f1c4a8bfd",
 }: SupportSectionProps) {
   const [copied, setCopied] = useState(false);
 
