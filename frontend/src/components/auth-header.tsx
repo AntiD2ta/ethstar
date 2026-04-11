@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { GitHubUser } from "@/lib/types";
+import { MAINTAINERS_URL } from "@/lib/constants";
 
 interface AuthHeaderProps {
   user: GitHubUser | null;
@@ -53,7 +54,7 @@ export function AuthHeader({
       </nav>
 
       <a
-        href="https://github.com/AntiD2ta/ethstar/blob/main/MAINTAINERS.md#repo-list-changes"
+        href={MAINTAINERS_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"

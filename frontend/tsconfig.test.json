@@ -10,7 +10,8 @@
     "src/**/*.test.tsx",
     "src/**/*.integration.test.ts",
     "src/**/*.integration.test.tsx",
-    "src/test/**/*"
+    "src/test/**/*",
+    "src/types/**/*"
   ],
   "exclude": []
 }

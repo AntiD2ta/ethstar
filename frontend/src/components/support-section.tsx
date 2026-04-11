@@ -11,35 +11,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useState } from "react";
-import { Check, Coffee, Copy, Heart, ListPlus } from "lucide-react";
+import { Component, lazy, Suspense, useState } from "react";
+import type { ReactNode } from "react";
+import { Coffee, Heart, ListPlus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  ETH_ADDRESS_DISPLAY,
+  GITHUB_SPONSORS_URL,
+  KOFI_URL,
+  MAINTAINERS_URL,
+} from "@/lib/constants";
 
-interface SupportSectionProps {
-  sponsorsUrl?: string;
-  kofiUrl?: string;
-  ethAddress?: string;
+const TipDialog = lazy(() => import("@/components/tip-dialog"));
+
+/** Catches lazy chunk load failures and renders nothing — the dialog
+ *  simply won't open, which is acceptable degradation. */
+class ChunkErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
 }
 
-export function SupportSection({
-  sponsorsUrl = "https://github.com/sponsors/AntiD2ta",
-  kofiUrl = "https://ko-fi.com/antid2ta",
-  ethAddress = "0x03574b4bbb883a790234d200b6c3c74f1c4a8bfd",
-}: SupportSectionProps) {
-  const [copied, setCopied] = useState(false);
-
-  function handleCopy() {
-    if (!ethAddress) return;
-    navigator.clipboard
-      .writeText(ethAddress)
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {
-        // Clipboard unavailable — ignore silently.
-      });
-  }
+export function SupportSection() {
+  const [tipOpen, setTipOpen] = useState(false);
 
   return (
     <footer aria-labelledby="support-heading" className="flex flex-col items-center gap-4 border-t border-border px-6 py-12 text-center">
@@ -54,7 +55,7 @@ export function SupportSection({
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button variant="outline" asChild className="rounded-full">
           <a
-            href={sponsorsUrl}
+            href={GITHUB_SPONSORS_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub Sponsors"
@@ -65,7 +66,7 @@ export function SupportSection({
         </Button>
         <Button variant="outline" asChild className="rounded-full">
           <a
-            href={kofiUrl}
+            href={KOFI_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Ko-fi"
@@ -76,7 +77,7 @@ export function SupportSection({
         </Button>
         <Button variant="outline" asChild className="rounded-full">
           <a
-            href="https://github.com/AntiD2ta/ethstar/blob/main/MAINTAINERS.md#repo-list-changes"
+            href={MAINTAINERS_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Propose more repos"
@@ -85,22 +86,22 @@ export function SupportSection({
             Propose more repos
           </a>
         </Button>
-        {ethAddress && (
-          <Button
-            variant="outline"
-            onClick={handleCopy}
-            className="rounded-full font-mono text-xs"
-            aria-label="Copy Ethereum address"
-          >
-            {copied ? (
-              <Check aria-hidden="true" />
-            ) : (
-              <Copy aria-hidden="true" />
-            )}
-            {copied ? "Copied!" : `${ethAddress.slice(0, 6)}…${ethAddress.slice(-4)}`}
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          onClick={() => setTipOpen(true)}
+          className="rounded-full font-mono text-xs"
+          aria-label="Send ETH tip"
+        >
+          <Wallet aria-hidden="true" />
+          {ETH_ADDRESS_DISPLAY}
+        </Button>
       </div>
+
+      <ChunkErrorBoundary>
+        <Suspense fallback={null}>
+          {tipOpen && <TipDialog open={tipOpen} onOpenChange={setTipOpen} />}
+        </Suspense>
+      </ChunkErrorBoundary>
     </footer>
   );
 }
