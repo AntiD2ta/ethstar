@@ -87,6 +87,36 @@ Validator clients, remote signers, distributed validator middleware, node setup/
 
 Open a PR! The [PR template](.github/pull_request_template.md) includes a checklist, and the [category descriptions](MAINTAINERS.md#categories) explain where each repo belongs.
 
+## Token Transparency
+
+Ethstar uses **two separate OAuth flows** with different permission scopes:
+
+| Flow | Type | Scope | Stored? | Purpose |
+|---|---|---|---|---|
+| **Sign in** | GitHub App | `Starring` (read-only) | localStorage | Check which repos you've already starred |
+| **Star All** | Classic OAuth | `public_repo` | Never | Star repos on your behalf, then discard |
+
+### Ephemeral star token lifecycle
+
+When you click "Star All", a **one-time popup OAuth flow** obtains a token that is used immediately and discarded. Here is the exact code path — every step links to the source so you can verify:
+
+1. **Popup opens** — [`use-star-oauth.ts`](frontend/src/hooks/use-star-oauth.ts) calls `window.open("/api/auth/star")`
+2. **Server redirects to GitHub** — [`api/auth/star/index.go`](api/auth/star/index.go) generates a CSRF state cookie and redirects to GitHub's OAuth page with `scope=public_repo`
+3. **You authorize** — GitHub shows what permissions are requested (starring public repos)
+4. **GitHub redirects back** — [`api/auth/star-callback/index.go`](api/auth/star-callback/index.go) exchanges the authorization code for an access token via [`pkg/auth/oauth.go`](pkg/auth/oauth.go), then renders an HTML page that posts the token to the opener window
+5. **Token delivered via `postMessage`** — [`pkg/auth/starhtml.go`](pkg/auth/starhtml.go) sends `{type: "ethstar-star-token", access_token}` to the parent window; [`use-star-oauth.ts`](frontend/src/hooks/use-star-oauth.ts) validates the origin and message type
+6. **Token used to star repos** — [`use-stars.ts`](frontend/src/hooks/use-stars.ts) passes the token to [`github.ts`](frontend/src/lib/github.ts), which calls `PUT /user/starred/{owner}/{repo}` on GitHub's API for each unstarred repo
+7. **Token discarded** — the token is a local JavaScript variable; once `starAll()` returns, it falls out of scope and is garbage collected. It is **never** stored in localStorage, sent to any backend, or logged
+
+### What the token is NOT used for
+
+- **Not stored** — not written to localStorage, cookies, or any persistent storage
+- **Not sent to our servers** — all starring API calls go directly from your browser to `api.github.com`
+- **Not logged** — no `console.log`, no analytics, no telemetry
+- **Not refreshable** — if the token expires mid-operation, the flow fails gracefully (no refresh attempt for ephemeral tokens)
+
+The UI explicitly confirms this: after starring completes, the [`star-modal.tsx`](frontend/src/components/star-modal.tsx) dialog displays "Your GitHub token has been discarded."
+
 ## Development
 
 ```bash

@@ -31,3 +31,9 @@ export const GITHUB_SPONSORS_URL = "https://github.com/sponsors/AntiD2ta";
 
 /** Ko-fi profile URL. */
 export const KOFI_URL = "https://ko-fi.com/antid2ta";
+
+/** GitHub repository URL. */
+export const GITHUB_REPO_URL = "https://github.com/AntiD2ta/ethstar";
+
+/** X (Twitter) profile URL. */
+export const X_PROFILE_URL = "https://x.com/AntiD2ta";
