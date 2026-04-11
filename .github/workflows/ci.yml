@@ -90,7 +90,7 @@ jobs:
         run: npm run lint
 
       - name: Typecheck
-        run: npx tsc -b --noEmit
+        run: npm run typecheck
 
       - name: Unit tests
         run: npm run test:unit
@@ -127,6 +127,14 @@ jobs:
       - name: Build Go binary
         run: go build -o bin/server ./cmd/server
 
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-binary
+          path: bin/server
+          retention-days: 1
+          if-no-files-found: error
+
   # ── Gate: single required check for branch protection ───────
   # Always runs, reports failure if any upstream job failed.
   # Require only this check in branch protection rules.
@@ -143,6 +151,9 @@ jobs:
           fi
 
   # ── Job 4: E2E tests (main branch only) ────────────────────
+  # Uses the pre-built server binary from the build job to avoid
+  # redundant Go compilation. Playwright runs against the production
+  # binary on :8080 (serves both API and embedded frontend).
   e2e:
     needs: [build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -168,6 +179,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download server binary
+        uses: actions/download-artifact@v4
+        with:
+          name: server-binary
+          # path is relative to workspace root (not working-directory)
+          path: bin
+
+      - name: Make server executable
+        run: chmod +x ../bin/server
 
       - name: Cache Playwright browsers
         id: playwright-cache
