@@ -11,16 +11,19 @@
     2. Open in browser:         http://localhost:5173/scripts/og-image-gen.html
     3. Click the image to download as og-image.png
 
-  Automated capture via Playwright (from repo root):
-    cd frontend && npx playwright screenshot \
+  Automated capture via Playwright (from frontend/):
+    npx playwright screenshot \
       --viewport-size="1280,640" --full-page \
       "http://localhost:5173/scripts/og-image-gen.html" \
       public/og-image.png
 
-  To also generate social-preview.png for GitHub repo settings:
-    cp public/og-image.png ../social-preview.png
+  NOTE: Requires the Vite dev server — the logo <img> loads from
+  Vite's public/ directory. Opening the file directly won't work.
+
+  When repos are added, update the subtitle count below to match.
 -->
 <meta charset="utf-8">
+<title>Ethstar OG Image</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
@@ -199,6 +202,7 @@
       <img src="/logo-512.png" alt="Ethstar">
     </div>
     <div class="title">Star Every <span class="highlight">Ethereum</span> Repo</div>
+    <!-- UPDATE when repos are added — keep in sync with REPOSITORIES in src/lib/repos.ts -->
     <div class="subtitle">Support 30+ core protocol repositories in a single click</div>
     <div class="url">ethstar.dev</div>
   </div>

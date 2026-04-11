@@ -34,6 +34,7 @@ Repos are organized into four categories. Use these descriptions to decide where
 - `README.md` — add the repo to the appropriate table
 - `frontend/index.html` — update meta description and JSON-LD if the count crosses a round number
 - `frontend/public/sitemap.xml` — bump the `<lastmod>` date
+- `frontend/scripts/og-image-gen.html` — update the subtitle count if it crosses a round number, then re-capture with Playwright (see "Static fallback" below)
 
 ---
 
@@ -181,7 +182,7 @@ Quick checks before a production deploy:
 
 - [ ] `make check` passes (lint, typecheck, security)
 - [ ] Meta tags in `index.html` are accurate (title, description, OG, Twitter)
-- [ ] `og-image.png` repo count matches reality
+- [ ] `og-image.png` and `og-image-gen.html` repo counts match reality
 - [ ] `sitemap.xml` `<lastmod>` is current
 - [ ] `robots.txt` sitemap URL uses the correct domain
 - [ ] JSON-LD description is accurate
