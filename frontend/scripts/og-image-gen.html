@@ -1,156 +1,212 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-  <style>
-    body { margin: 0; background: #0a0a14; display: flex; align-items: center; justify-content: center; height: 100vh; }
-    canvas { border: 1px solid #333; }
-    #status { color: #aaa; font-family: monospace; position: fixed; bottom: 10px; left: 10px; }
-  </style>
+<!--
+  Social Preview / OG Image Generator — Ethstar
+  =============================================
+  Renders the GitHub social preview (1280x640) in the browser.
+
+  Usage:
+    1. Start Vite dev server:   cd frontend && npm run dev
+    2. Open in browser:         http://localhost:5173/scripts/og-image-gen.html
+    3. Click the image to download as og-image.png
+
+  Automated capture via Playwright (from frontend/):
+    npx playwright screenshot \
+      --viewport-size="1280,640" --full-page \
+      "http://localhost:5173/scripts/og-image-gen.html" \
+      public/og-image.png
+
+  NOTE: Requires the Vite dev server — the logo <img> loads from
+  Vite's public/ directory. Opening the file directly won't work.
+
+  When repos are added, update the subtitle count below to match.
+-->
+<meta charset="utf-8">
+<title>Ethstar OG Image</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+    background: #0a0a14;
+  }
+
+  .card {
+    width: 1280px;
+    height: 640px;
+    background: #111125;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  /* Subtle gradient overlay */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 30% 40%, rgba(98, 126, 234, 0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 50% at 75% 55%, rgba(123, 63, 228, 0.10) 0%, transparent 70%);
+    z-index: 1;
+  }
+
+  /* Diamond tile pattern */
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d='M60 5 L95 60 L60 115 L25 60 Z' fill='%23ffffff' fill-opacity='0.02'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+    z-index: 2;
+  }
+
+  .content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .logo-container {
+    width: 180px;
+    height: 180px;
+    filter: drop-shadow(0 0 40px rgba(98, 126, 234, 0.35))
+            drop-shadow(0 0 80px rgba(123, 63, 228, 0.15));
+  }
+
+  .logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 72px;
+    font-weight: 700;
+    color: #e8e8f0;
+    letter-spacing: -1.5px;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .title .highlight {
+    color: #627EEA;
+    text-shadow:
+      0 0 10px rgba(98, 126, 234, 0.6),
+      0 0 30px rgba(98, 126, 234, 0.4),
+      0 0 60px rgba(98, 126, 234, 0.25);
+  }
+
+  .subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 24px;
+    font-weight: 400;
+    color: rgba(232, 232, 240, 0.55);
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+
+  .url {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: rgba(98, 126, 234, 0.7);
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+
+  /* Decorative stars */
+  .star {
+    position: absolute;
+    z-index: 5;
+    width: 8px;
+    height: 8px;
+    transform: rotate(45deg);
+  }
+
+  .star-blue {
+    background: #627EEA;
+    box-shadow: 0 0 12px rgba(98, 126, 234, 0.5);
+  }
+
+  .star-purple {
+    background: #7B3FE4;
+    box-shadow: 0 0 10px rgba(123, 63, 228, 0.5);
+  }
+
+  /* Glass accent lines */
+  .accent-line {
+    position: absolute;
+    z-index: 5;
+    background: linear-gradient(135deg, rgba(98, 126, 234, 0.3), rgba(123, 63, 228, 0.15), transparent);
+    border-radius: 2px;
+  }
+
+  .accent-line-1 {
+    top: 60px;
+    left: -20px;
+    width: 200px;
+    height: 2px;
+    transform: rotate(-15deg);
+  }
+
+  .accent-line-2 {
+    bottom: 80px;
+    right: -10px;
+    width: 160px;
+    height: 2px;
+    transform: rotate(15deg);
+  }
+
+  /* Subtle border glow */
+  .border-glow {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border: 1px solid rgba(98, 126, 234, 0.08);
+    background: linear-gradient(180deg, rgba(98, 126, 234, 0.04) 0%, transparent 30%, transparent 70%, rgba(123, 63, 228, 0.03) 100%);
+  }
+
+</style>
 </head>
 <body>
-  <canvas id="c" width="1200" height="630"></canvas>
-  <div id="status">Loading fonts...</div>
-  <script>
-    document.fonts.ready.then(() => {
-      const canvas = document.getElementById('c');
-      const ctx = canvas.getContext('2d');
-      const W = 1200, H = 630;
+<div class="card" id="card">
+  <div class="border-glow"></div>
+  <div class="accent-line accent-line-1"></div>
+  <div class="accent-line accent-line-2"></div>
 
-      // Background gradient
-      const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0, '#12122a');
-      bg.addColorStop(0.5, '#181838');
-      bg.addColorStop(1, '#141430');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
+  <!-- Decorative stars -->
+  <div class="star star-blue" style="top: 150px; right: 280px; width: 4px; height: 4px; opacity: 0.4;"></div>
+  <div class="star star-blue" style="bottom: 100px; right: 150px; width: 5px; height: 5px; opacity: 0.5;"></div>
+  <div class="star star-purple" style="top: 250px; left: 120px; width: 4px; height: 4px; opacity: 0.35;"></div>
+  <div class="star star-purple" style="bottom: 180px; right: 100px; width: 6px; height: 6px; opacity: 0.3;"></div>
+  <div class="star star-blue" style="top: 320px; left: 80px; width: 5px; height: 5px; opacity: 0.3;"></div>
+  <div class="star star-purple" style="bottom: 200px; left: 400px; width: 3px; height: 3px; opacity: 0.25;"></div>
 
-      // Subtle radial glow
-      const glow = ctx.createRadialGradient(W / 2, H / 2 - 30, 0, W / 2, H / 2 - 30, 400);
-      glow.addColorStop(0, 'rgba(99, 102, 241, 0.12)');
-      glow.addColorStop(0.5, 'rgba(79, 70, 229, 0.05)');
-      glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, W, H);
+  <div class="content">
+    <div class="logo-container">
+      <img src="/logo-512.png" alt="Ethstar">
+    </div>
+    <div class="title">Star Every <span class="highlight">Ethereum</span> Repo</div>
+    <!-- UPDATE when repos are added — keep in sync with REPOSITORIES in src/lib/repos.ts -->
+    <div class="subtitle">Support 30+ core protocol repositories in a single click</div>
+    <div class="url">ethstar.dev</div>
+  </div>
+</div>
 
-      // Decorative dots (network graph feel)
-      ctx.globalAlpha = 0.08;
-      for (let i = 0; i < 60; i++) {
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        const r = 1 + Math.random() * 2;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#6366f1';
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
-      // Draw Ethereum diamond logo (from SVG viewBox 0 0 170 285)
-      const logoScale = 0.32;
-      const logoW = 170 * logoScale;
-      const logoH = 285 * logoScale;
-      const logoX = (W - logoW) / 2;
-      const logoY = 80;
-
-      function drawPolygon(points, color, opacity) {
-        ctx.globalAlpha = opacity;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        const pairs = points.split(' ').map(p => p.split(',').map(Number));
-        ctx.moveTo(logoX + pairs[0][0] * logoScale, logoY + pairs[0][1] * logoScale);
-        for (let i = 1; i < pairs.length; i++) {
-          ctx.lineTo(logoX + pairs[i][0] * logoScale, logoY + pairs[i][1] * logoScale);
-        }
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      // Upper kite
-      drawPolygon('85,0 85,120 0,120', '#6366f1', 0.85);
-      drawPolygon('85,0 170,120 85,120', '#4f46e5', 0.80);
-      drawPolygon('0,120 85,120 85,215', '#4338ca', 0.80);
-      drawPolygon('85,120 170,120 85,215', '#3730a3', 0.75);
-      // Lower chevron
-      drawPolygon('0,150 85,235 85,285', '#5b52d6', 0.80);
-      drawPolygon('85,235 170,150 85,285', '#3730a3', 0.75);
-      ctx.globalAlpha = 1;
-
-      // Title: "Star Every Ethereum Repo"
-      const titleY = logoY + logoH + 60;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Measure parts to position the colored word
-      ctx.font = '700 52px "Space Grotesk", sans-serif';
-      const prefix = 'Star Every ';
-      const highlight = 'Ethereum';
-      const suffix = ' Repo';
-      const prefixW = ctx.measureText(prefix).width;
-      const highlightW = ctx.measureText(highlight).width;
-      const suffixW = ctx.measureText(suffix).width;
-      const totalW = prefixW + highlightW + suffixW;
-      const startX = (W - totalW) / 2;
-
-      // "Star Every "
-      ctx.fillStyle = '#e4e4f0';
-      ctx.textAlign = 'left';
-      ctx.fillText(prefix, startX, titleY);
-
-      // "Ethereum" in primary color
-      ctx.fillStyle = '#6366f1';
-      ctx.fillText(highlight, startX + prefixW, titleY);
-
-      // " Repo"
-      ctx.fillStyle = '#e4e4f0';
-      ctx.fillText(suffix, startX + prefixW + highlightW, titleY);
-
-      // Subtitle
-      ctx.font = '400 22px "Inter", sans-serif';
-      ctx.fillStyle = '#8888a8';
-      ctx.textAlign = 'center';
-      ctx.fillText('Support 17+ core protocol repositories in a single click', W / 2, titleY + 55);
-
-      // Divider line
-      const divY = titleY + 95;
-      const lineGrad = ctx.createLinearGradient(W / 2 - 100, 0, W / 2 + 100, 0);
-      lineGrad.addColorStop(0, 'rgba(99, 102, 241, 0)');
-      lineGrad.addColorStop(0.5, 'rgba(99, 102, 241, 0.5)');
-      lineGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
-      ctx.strokeStyle = lineGrad;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - 120, divY);
-      ctx.lineTo(W / 2 + 120, divY);
-      ctx.stroke();
-
-      // Domain
-      ctx.font = '500 20px "Inter", sans-serif';
-      ctx.fillStyle = '#6366f1';
-      ctx.textAlign = 'center';
-      ctx.fillText('ethstar.dev', W / 2, divY + 35);
-
-      // Subtle border
-      ctx.strokeStyle = 'rgba(99, 102, 241, 0.15)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
-
-      document.getElementById('status').textContent = 'Ready — click canvas to download';
-
-      // Store data URL globally for extraction
-      window._ogDataUrl = canvas.toDataURL('image/png');
-
-      // Click to download
-      canvas.addEventListener('click', () => {
-        const a = document.createElement('a');
-        a.download = 'og-image.png';
-        a.href = window._ogDataUrl;
-        a.click();
-      });
-    });
-  </script>
 </body>
 </html>

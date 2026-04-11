@@ -34,6 +34,7 @@ Repos are organized into four categories. Use these descriptions to decide where
 - `README.md` — add the repo to the appropriate table
 - `frontend/index.html` — update meta description and JSON-LD if the count crosses a round number
 - `frontend/public/sitemap.xml` — bump the `<lastmod>` date
+- `frontend/scripts/og-image-gen.html` — update the subtitle count if it crosses a round number, then re-capture with Playwright (see "Static fallback" below)
 
 ---
 
@@ -57,7 +58,22 @@ The social preview image is **dynamically generated** by a Vercel serverless fun
 
 ### Static fallback
 
-`frontend/public/og-image.png` is kept as a static fallback and design reference. It can be regenerated with `frontend/scripts/og-image-gen.html` if needed (see instructions in that file's comments).
+`frontend/public/og-image.png` is kept as a static fallback, design reference, and GitHub social preview (upload via repo Settings).
+
+To regenerate:
+
+```bash
+# Start Vite dev server
+cd frontend && npm run dev &
+
+# Capture with Playwright
+npx playwright screenshot \
+  --viewport-size="1280,640" --full-page \
+  "http://localhost:5173/scripts/og-image-gen.html" \
+  public/og-image.png
+```
+
+The source template is `frontend/scripts/og-image-gen.html`. Edit it to change layout, colors, or text, then re-run the Playwright capture above.
 
 ### Previewing in production
 
@@ -166,7 +182,7 @@ Quick checks before a production deploy:
 
 - [ ] `make check` passes (lint, typecheck, security)
 - [ ] Meta tags in `index.html` are accurate (title, description, OG, Twitter)
-- [ ] `og-image.png` repo count matches reality
+- [ ] `og-image.png` and `og-image-gen.html` repo counts match reality
 - [ ] `sitemap.xml` `<lastmod>` is current
 - [ ] `robots.txt` sitemap URL uses the correct domain
 - [ ] JSON-LD description is accurate
