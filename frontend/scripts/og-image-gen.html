@@ -178,15 +178,6 @@
     background: linear-gradient(180deg, rgba(98, 126, 234, 0.04) 0%, transparent 30%, transparent 70%, rgba(123, 63, 228, 0.03) 100%);
   }
 
-  #status {
-    color: #aaa;
-    font-family: monospace;
-    font-size: 12px;
-    position: fixed;
-    bottom: 10px;
-    left: 10px;
-    z-index: 100;
-  }
 </style>
 </head>
 <body>
@@ -213,14 +204,5 @@
   </div>
 </div>
 
-<div id="status">Click image to download as og-image.png</div>
-
-<script>
-  document.getElementById('card').addEventListener('click', async () => {
-    // Use html2canvas if available, otherwise fall back to Playwright instructions
-    const status = document.getElementById('status');
-    status.textContent = 'Use Playwright to capture: npx playwright screenshot --viewport-size="1280,640" --full-page <url> og-image.png';
-  });
-</script>
 </body>
 </html>

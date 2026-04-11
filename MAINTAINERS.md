@@ -55,11 +55,11 @@ The social preview image is **dynamically generated** by a Vercel serverless fun
 2. Run `cd frontend && npx vitest run src/lib/repos.test.ts` — the sync test will fail if the values don't match.
 3. Deploy. The OG image updates automatically.
 
-### Static fallback & GitHub social preview
+### Static fallback
 
-`frontend/public/og-image.png` is kept as a static fallback and design reference. `social-preview.png` (repo root) is the same image, uploaded to GitHub repo Settings as the social preview.
+`frontend/public/og-image.png` is kept as a static fallback, design reference, and GitHub social preview (upload via repo Settings).
 
-To regenerate both:
+To regenerate:
 
 ```bash
 # Start Vite dev server
@@ -70,9 +70,6 @@ npx playwright screenshot \
   --viewport-size="1280,640" --full-page \
   "http://localhost:5173/scripts/og-image-gen.html" \
   public/og-image.png
-
-# Copy to repo root for GitHub social preview
-cp public/og-image.png ../social-preview.png
 ```
 
 The source template is `frontend/scripts/og-image-gen.html`. Edit it to change layout, colors, or text, then re-run the Playwright capture above.
