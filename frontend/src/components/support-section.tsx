@@ -13,13 +13,15 @@
 
 import { Component, lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
-import { Coffee, Heart, ListPlus, Wallet } from "lucide-react";
+import { Coffee, Github, Heart, ListPlus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ETH_ADDRESS_DISPLAY,
+  GITHUB_REPO_URL,
   GITHUB_SPONSORS_URL,
   KOFI_URL,
   MAINTAINERS_URL,
+  X_PROFILE_URL,
 } from "@/lib/constants";
 
 const TipDialog = lazy(() => import("@/components/tip-dialog"));
@@ -102,6 +104,39 @@ export function SupportSection() {
           {tipOpen && <TipDialog open={tipOpen} onOpenChange={setTipOpen} />}
         </Suspense>
       </ChunkErrorBoundary>
+
+      <nav aria-label="Social links" className="flex items-center gap-4">
+        <a
+          href={GITHUB_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub repository"
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Github aria-hidden="true" className="size-5" />
+        </a>
+        <a
+          href={X_PROFILE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="X (Twitter) profile"
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {/* X brand mark — not available in lucide-react */}
+          <svg
+            aria-hidden="true"
+            className="size-5"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </a>
+      </nav>
+
+      <p className="text-xs text-muted-foreground">
+        &copy; 2026 Miguel Tenorio Potrony
+      </p>
     </footer>
   );
 }
