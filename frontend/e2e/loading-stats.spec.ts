@@ -119,6 +119,18 @@ test("stats counter displays when API returns data", async ({ page }) => {
   await expect(
     page.getByText("stars given through Ethstar"),
   ).toBeVisible({ timeout: 5000 });
+
+  // Banner must sit between header (nav) and hero (h1) in DOM order
+  const bannerBetween = await page.evaluate(() => {
+    const banner = document.querySelector('[role="status"]');
+    const nav = document.querySelector("nav");
+    const hero = document.querySelector("h1");
+    if (!banner || !nav || !hero) return false;
+    const follows = (a: Node, b: Node) =>
+      !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return follows(nav, banner) && follows(banner, hero);
+  });
+  expect(bannerBetween).toBe(true);
 });
 
 test("stats counter hidden when API returns error", async ({ page }) => {

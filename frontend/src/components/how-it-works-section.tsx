@@ -54,12 +54,13 @@ export const HowItWorksSection = memo(function HowItWorksSection({
       </h2>
 
       <div
+        data-testid="how-it-works-cards"
         className="flex w-full max-w-4xl flex-col gap-3 md:grid md:grid-cols-3 md:gap-6"
       >
         {STEPS.map((step, i) => (
           <div
             key={step.title}
-            className="glass glass-hover flex w-full flex-col items-center gap-2 rounded-xl p-3 text-center transition-colors md:gap-4 md:rounded-2xl md:p-8"
+            className="glass glass-hover flex w-full flex-col items-center gap-3 rounded-xl p-3 text-center transition-colors md:gap-4 md:rounded-2xl md:p-8"
           >
             <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 md:size-12">
               <step.icon className="size-4 text-primary md:size-6" aria-hidden="true" />
