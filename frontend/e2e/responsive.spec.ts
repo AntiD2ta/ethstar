@@ -79,15 +79,15 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-// Mobile-specific: marquee duplicate is hidden
+// Mobile-specific: marquee duplicates visible + auto-scroll enabled
 test.describe("mobile marquee behavior", () => {
   test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
 
-  test("marquee duplicate content is hidden on mobile", async ({ page }) => {
+  test("marquee duplicate content is rendered on mobile", async ({ page }) => {
     await page.goto("/");
-    // With conditional rendering, duplicates are not in the DOM at all on mobile.
-    const dupes = page.locator('[aria-label*="Scrolling"] > div > div[aria-hidden="true"]');
-    await expect(dupes).toHaveCount(0);
+    // Mobile now shows duplicates for seamless auto-scroll looping.
+    const dupes = page.locator('[aria-label*="Scrolling"] > div > div[aria-hidden="true"]').first();
+    await expect(dupes).toBeAttached();
   });
 
   test("marquee container is horizontally scrollable", async ({ page }) => {
@@ -97,6 +97,17 @@ test.describe("mobile marquee behavior", () => {
       (el) => getComputedStyle(el).overflowX,
     );
     expect(overflowX).toBe("auto");
+  });
+
+  test("marquee auto-scrolls on mobile", async ({ page }) => {
+    await page.goto("/");
+    const marquee = page.locator('[aria-label*="Scrolling"]').first();
+    await expect(marquee).toBeVisible();
+    const initial = await marquee.evaluate((el) => el.scrollLeft);
+    // Give the useAutoScroll rAF loop a moment to advance scrollLeft.
+    await page.waitForTimeout(1200);
+    const after = await marquee.evaluate((el) => el.scrollLeft);
+    expect(after).toBeGreaterThan(initial);
   });
 });
 

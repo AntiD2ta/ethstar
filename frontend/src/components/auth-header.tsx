@@ -34,7 +34,7 @@ export function AuthHeader({
   onLogout,
 }: AuthHeaderProps) {
   return (
-    <header className="glass sticky top-0 z-50 flex items-center justify-between px-6 py-3">
+    <header className="glass sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6">
       <nav aria-label="Site">
         <a
           href="/"
@@ -49,7 +49,7 @@ export function AuthHeader({
             className="h-10 w-10 rounded-full object-cover"
             aria-hidden="true"
           />
-          <span>ethstar</span>
+          <span className="hidden sm:inline">ethstar</span>
         </a>
       </nav>
 
@@ -65,19 +65,19 @@ export function AuthHeader({
       </a>
 
       {isLoading ? (
-        <div className="flex items-center gap-3" role="status" aria-label="Loading account">
+        <div className="flex items-center gap-2 sm:gap-3" role="status" aria-label="Loading account">
           <Skeleton className="size-6 rounded-full" />
-          <Skeleton className="h-4 w-20 rounded" />
+          <Skeleton className="hidden h-4 w-20 rounded sm:block" />
         </div>
       ) : isAuthenticated && user ? (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Avatar size="sm">
             <AvatarImage src={user.avatar_url} alt={user.login} />
             <AvatarFallback>
               {user.login.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm text-foreground/90">
+          <span className="hidden text-sm text-foreground/90 sm:inline">
             {user.name ?? user.login}
           </span>
           <Button
@@ -95,7 +95,8 @@ export function AuthHeader({
           onClick={onLogin}
           className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
-          Connect via GitHub
+          <span className="hidden sm:inline">Connect via GitHub</span>
+          <span className="sm:hidden">Connect</span>
         </Button>
       )}
     </header>

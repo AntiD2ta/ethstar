@@ -44,7 +44,7 @@ export const RepoCard = memo(function RepoCard({
   return (
     <article
       className={cn(
-        "glass glass-hover group flex h-44 w-[320px] shrink-0 flex-col justify-between rounded-xl p-5 transition-all",
+        "glass glass-hover group flex h-36 w-[240px] shrink-0 flex-col justify-between rounded-xl p-4 transition-all md:h-44 md:w-[320px] md:p-5",
         "hover:eth-glow"
       )}
     >
@@ -55,7 +55,7 @@ export const RepoCard = memo(function RepoCard({
           rel="noopener noreferrer"
           className="min-w-0 flex-1"
         >
-          <h3 className="truncate font-heading text-base font-semibold text-primary group-hover:underline">
+          <h3 className="truncate font-heading text-sm font-semibold text-primary group-hover:underline md:text-base">
             {repo.owner}/{repo.name}
           </h3>
         </a>
@@ -80,7 +80,7 @@ export const RepoCard = memo(function RepoCard({
           <Skeleton className="h-3.5 w-3/4 rounded" />
         </div>
       ) : (
-        <p className="line-clamp-2 text-sm text-muted-foreground">
+        <p className="line-clamp-2 text-xs text-muted-foreground md:text-sm">
           {description}
         </p>
       )}

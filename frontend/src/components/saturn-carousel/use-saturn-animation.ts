@@ -18,9 +18,15 @@ export interface RingConfig {
   radius: number;
   speed: number;
   direction: 1 | -1;
+  /** Tilt angle in degrees. Applied around whichever axis `tiltAxis`
+   *  specifies — kept as `tiltX` for historical reasons. */
   tiltX: number;
   tiltZ: number;
   chipCount: number;
+  /** Axis of tilt — `"x"` (default) tilts the top of the ring back and
+   *  forward for a wide (landscape) ellipse; `"y"` tilts the right back
+   *  and left forward for a tall (portrait) ellipse. */
+  tiltAxis?: "x" | "y";
 }
 
 const TWO_PI = Math.PI * 2;
@@ -33,7 +39,8 @@ function positionChip(
   el: HTMLDivElement,
   theta: number,
   radius: number,
-  tiltX: number,
+  tilt: number,
+  tiltAxis: "x" | "y",
   depthFactor: number,
 ) {
   const t = (depthFactor + 1) / 2; // normalize -1..1 to 0..1
@@ -41,8 +48,12 @@ function positionChip(
   const opacity = 0.5 + 0.5 * t;
   const zIndex = Math.round(t * 100);
 
-  // Counter-rotate X to face the camera (undo the ring's rotateX tilt)
-  el.style.transform = `rotateZ(${theta}rad) translateX(${radius}px) rotateZ(${-theta}rad) rotateX(${-tiltX}deg) scale(${scale})`;
+  // Counter-rotate around the same axis the ring is tilted on so the chip
+  // faces the camera regardless of orientation.
+  const counter =
+    tiltAxis === "y" ? `rotateY(${-tilt}deg)` : `rotateX(${-tilt}deg)`;
+
+  el.style.transform = `rotateZ(${theta}rad) translateX(${radius}px) rotateZ(${-theta}rad) ${counter} scale(${scale})`;
   el.style.opacity = String(opacity);
 
   if (prevZIndex.get(el) !== zIndex) {
@@ -61,13 +72,18 @@ function positionAllChips(
     const chips = chipRefs[r];
     if (!chips) continue;
 
+    const tiltAxis = cfg.tiltAxis ?? "x";
+
     for (let c = 0; c < cfg.chipCount; c++) {
       const el = chips[c];
       if (!el) continue;
 
       const theta = angles[r] + (c / cfg.chipCount) * TWO_PI;
-      const depthFactor = Math.sin(theta);
-      positionChip(el, theta, cfg.radius, cfg.tiltX, depthFactor);
+      // For X-axis tilt: top of ring (θ=π/2) comes forward → sin(θ).
+      // For Y-axis tilt: left of ring (θ=π) comes forward → −cos(θ).
+      const depthFactor =
+        tiltAxis === "y" ? -Math.cos(theta) : Math.sin(theta);
+      positionChip(el, theta, cfg.radius, cfg.tiltX, tiltAxis, depthFactor);
     }
   }
 }

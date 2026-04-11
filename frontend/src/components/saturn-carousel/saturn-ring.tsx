@@ -14,12 +14,17 @@
 import { memo, useCallback } from "react";
 import type { MutableRefObject } from "react";
 import { SaturnCard } from "./saturn-card";
+import { SaturnChip } from "./saturn-chip";
 import type { RepoMeta } from "@/lib/github";
 import type { Repository, StarStatus } from "@/lib/types";
 import { repoKey } from "@/lib/repo-key";
 
 /** Card is 220x100 -- offset is half of each to center at position */
 const CARD_OFFSET = { x: -110, y: -50 };
+/** Chip is 180x36 -- offset is half of each to center at position */
+const CHIP_OFFSET = { x: -90, y: -18 };
+
+type SaturnRingVariant = "card" | "chip";
 
 interface SaturnRingProps {
   repos: Repository[];
@@ -35,6 +40,12 @@ interface SaturnRingProps {
   onChipEnter?: () => void;
   /** Resume animation when a card is unhovered/unfocused. */
   onChipLeave?: () => void;
+  /** Visual variant — `"card"` renders a SaturnCard (desktop, 220x100),
+   *  `"chip"` renders a SaturnChip (mobile, 180x36). Default: `"card"`. */
+  variant?: SaturnRingVariant;
+  /** Axis of tilt — `"x"` (default) produces a wide ellipse, `"y"` produces
+   *  a tall (portrait) ellipse. Must match the hook's `tiltAxis`. */
+  tiltAxis?: "x" | "y";
 }
 
 export const SaturnRing = memo(function SaturnRing({
@@ -49,6 +60,8 @@ export const SaturnRing = memo(function SaturnRing({
   chipRefs,
   onChipEnter,
   onChipLeave,
+  variant = "card",
+  tiltAxis = "x",
 }: SaturnRingProps) {
   const setChipRef = useCallback(
     (chipIndex: number) => (el: HTMLDivElement | null) => {
@@ -62,12 +75,17 @@ export const SaturnRing = memo(function SaturnRing({
     [chipRefs, ringIndex],
   );
 
+  const offset = variant === "chip" ? CHIP_OFFSET : CARD_OFFSET;
+
+  const parentTilt =
+    tiltAxis === "y" ? `rotateY(${tiltX}deg)` : `rotateX(${tiltX}deg)`;
+
   return (
     <div
       className="pointer-events-none absolute left-1/2 top-1/2"
       style={{
         transformStyle: "preserve-3d",
-        transform: `translate(-50%, -50%) rotateX(${tiltX}deg) rotateZ(${tiltZ}deg)`,
+        transform: `translate(-50%, -50%) ${parentTilt} rotateZ(${tiltZ}deg)`,
       }}
     >
       {/* Orbital path ellipse */}
@@ -83,14 +101,15 @@ export const SaturnRing = memo(function SaturnRing({
       {/* Repo items */}
       {repos.map((repo, chipIndex) => {
         const k = repoKey(repo);
+        const status = starStatuses[k] ?? "unknown";
         return (
           <div
             key={k}
             ref={setChipRef(chipIndex)}
             className="pointer-events-auto absolute left-0 top-0"
             style={{
-              marginLeft: CARD_OFFSET.x,
-              marginTop: CARD_OFFSET.y,
+              marginLeft: offset.x,
+              marginTop: offset.y,
               willChange: "transform, opacity",
             }}
             onMouseEnter={onChipEnter}
@@ -98,13 +117,17 @@ export const SaturnRing = memo(function SaturnRing({
             onFocus={onChipEnter}
             onBlur={onChipLeave}
           >
-            <SaturnCard
-              repo={repo}
-              status={starStatuses[k] ?? "unknown"}
-              starCount={repoMeta[k]?.stargazers_count}
-              liveDescription={repoMeta[k]?.description}
-              metaLoading={metaLoading}
-            />
+            {variant === "chip" ? (
+              <SaturnChip repo={repo} status={status} />
+            ) : (
+              <SaturnCard
+                repo={repo}
+                status={status}
+                starCount={repoMeta[k]?.stargazers_count}
+                liveDescription={repoMeta[k]?.description}
+                metaLoading={metaLoading}
+              />
+            )}
           </div>
         );
       })}

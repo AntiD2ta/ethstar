@@ -12,6 +12,7 @@
 // limitations under the License.
 
 import { memo } from "react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Repository, StarStatus } from "@/lib/types";
 
@@ -20,27 +21,35 @@ interface SaturnChipProps {
   status: StarStatus;
 }
 
-const STATUS_CONFIG: Record<StarStatus, { className: string; label: string }> =
-  {
-    starred: { className: "bg-star-gold", label: "Starred" },
-    unstarred: { className: "bg-primary", label: "Not starred" },
-    checking: {
-      className: "bg-muted-foreground animate-saturn-pulse",
-      label: "Checking",
-    },
-    starring: {
-      className: "bg-primary animate-saturn-pulse",
-      label: "Starring",
-    },
-    failed: { className: "bg-destructive", label: "Failed" },
-    unknown: { className: "bg-muted-foreground", label: "Unknown" },
-  };
+// `filled` controls whether the star glyph is rendered as a solid GitHub-style
+// star (starred/starring) or an outline (unstarred/checking/failed/unknown).
+// The color token is applied via Tailwind text classes so `fill-current` picks
+// it up on filled stars.
+const STATUS_CONFIG: Record<
+  StarStatus,
+  { className: string; label: string; filled: boolean }
+> = {
+  starred: { className: "text-star-gold", label: "Starred", filled: true },
+  unstarred: { className: "text-primary", label: "Not starred", filled: false },
+  checking: {
+    className: "text-muted-foreground animate-saturn-pulse",
+    label: "Checking",
+    filled: false,
+  },
+  starring: {
+    className: "text-primary animate-saturn-pulse",
+    label: "Starring",
+    filled: true,
+  },
+  failed: { className: "text-destructive", label: "Failed", filled: false },
+  unknown: { className: "text-muted-foreground", label: "Unknown", filled: false },
+};
 
 export const SaturnChip = memo(function SaturnChip({
   repo,
   status,
 }: SaturnChipProps) {
-  const { className, label } = STATUS_CONFIG[status];
+  const { className, label, filled } = STATUS_CONFIG[status];
 
   return (
     <a
@@ -49,8 +58,13 @@ export const SaturnChip = memo(function SaturnChip({
       rel="noopener noreferrer"
       className="saturn-chip"
     >
-      <span
-        className={cn("size-2 shrink-0 rounded-full", className)}
+      <Star
+        className={cn(
+          "size-3 shrink-0",
+          className,
+          filled && "fill-current",
+        )}
+        role="img"
         aria-label={label}
       />
       <span className="truncate">

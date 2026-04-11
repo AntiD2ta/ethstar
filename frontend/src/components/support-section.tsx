@@ -43,7 +43,7 @@ export function SupportSection() {
   const [tipOpen, setTipOpen] = useState(false);
 
   return (
-    <footer aria-labelledby="support-heading" className="flex flex-col items-center gap-4 border-t border-border px-6 py-12 text-center">
+    <footer aria-labelledby="support-heading" className="flex flex-col items-center gap-4 border-t border-border px-4 py-12 text-center sm:px-6">
       <h2 id="support-heading" className="font-heading text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         Support
       </h2>

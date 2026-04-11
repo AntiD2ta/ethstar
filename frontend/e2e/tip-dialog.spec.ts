@@ -25,7 +25,9 @@ test.describe("Tip Dialog", () => {
   test("opens dialog with title and three sections", async ({ page }) => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Send an ETH Tip")).toBeVisible();
+    await expect(
+      dialog.getByRole("heading", { name: "Send an ETH Tip", exact: true }),
+    ).toBeVisible();
     // Section 1: Thank you message
     await expect(dialog.getByText(/Your support will make me smile/)).toBeVisible();
     // Section 2: Why tips help
