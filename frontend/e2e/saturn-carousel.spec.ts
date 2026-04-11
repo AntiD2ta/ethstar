@@ -96,4 +96,61 @@ test.describe("Saturn Carousel — Mobile", () => {
     const hint = page.getByText(/pinch to explore/i);
     await expect(hint).toBeVisible();
   });
+
+  test("mobile ring is tall (portrait) — outer ellipse height > width", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const carousel = page.getByRole("region", {
+      name: /ethereum ecosystem/i,
+    });
+    // Wait for chips to be positioned by the rAF loop.
+    await page.waitForTimeout(500);
+    // The outer orbital path is the largest of the four .border ring elements.
+    const ringPaths = carousel.locator("div.rounded-full.border");
+    const dims = await ringPaths.evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { w: r.width, h: r.height };
+      }),
+    );
+    // Largest ring (by area) should be taller than wide.
+    const outer = dims.reduce((a, b) => (a.w * a.h > b.w * b.h ? a : b));
+    expect(outer.h).toBeGreaterThan(outer.w);
+    // And it should be noticeably elongated, not a near-circle. At
+    // `tiltX: 55` the observed aspect is ~1.7×; 1.3× is a conservative
+    // floor — if ring tilt is tuned, this floor may need to follow.
+    expect(outer.h).toBeGreaterThan(outer.w * 1.3);
+  });
+
+  test("mobile Saturn section is compact (no 100dvh empty space)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const section = page
+      .getByRole("region", { name: /ethereum ecosystem/i })
+      .first();
+    const box = await section.boundingBox();
+    expect(box).not.toBeNull();
+    // Previously the section was `min-h-dvh` (100% of the 812px viewport).
+    // After removing centering + min-height, it should fit its ring
+    // container (~540px) plus modest padding — well under the viewport.
+    expect(box!.height).toBeLessThan(700);
+  });
+
+  test("mobile chips render GitHub-style star icons (not dots)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const carousel = page.getByRole("region", {
+      name: /ethereum ecosystem/i,
+    });
+    // Each chip's status glyph is now a lucide Star SVG, not a colored dot.
+    const stars = carousel.locator("a.saturn-chip svg.lucide-star");
+    await expect(stars).toHaveCount(32);
+    // aria-label is preserved for accessibility.
+    await expect(
+      carousel.locator("a.saturn-chip svg[aria-label='Unknown']").first(),
+    ).toBeVisible();
+  });
 });

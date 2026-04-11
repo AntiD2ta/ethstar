@@ -91,4 +91,40 @@ describe("useSaturnAnimation", () => {
       expect(el.style.transform).not.toBe("");
     }
   });
+
+  it("uses rotateX counter-rotation by default (x-axis tilt)", () => {
+    const chipRefs = makeChipRefs(1, [2]);
+    const pausedRef = { current: false };
+    renderHook(() =>
+      useSaturnAnimation(configs, chipRefs, pausedRef, true),
+    );
+    // Default tilt axis is "x" — chips should be counter-rotated on X to
+    // face the camera after the ring's rotateX tilt.
+    const transform = chipRefs.current[0][0].style.transform;
+    expect(transform).toContain("rotateX(-65deg)");
+    expect(transform).not.toContain("rotateY(");
+  });
+
+  it("uses rotateY counter-rotation when tiltAxis is 'y' (vertical ring)", () => {
+    const verticalConfigs: RingConfig[] = [
+      {
+        radius: 140,
+        speed: 0.25,
+        direction: 1,
+        tiltX: 55,
+        tiltZ: 0,
+        chipCount: 2,
+        tiltAxis: "y",
+      },
+    ];
+    const chipRefs = makeChipRefs(1, [2]);
+    const pausedRef = { current: false };
+    renderHook(() =>
+      useSaturnAnimation(verticalConfigs, chipRefs, pausedRef, true),
+    );
+    // Tall ring — counter-rotation should be on Y, not X.
+    const transform = chipRefs.current[0][0].style.transform;
+    expect(transform).toContain("rotateY(-55deg)");
+    expect(transform).not.toContain("rotateX(");
+  });
 });

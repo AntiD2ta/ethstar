@@ -38,13 +38,14 @@ const RING_CONFIGS: RingConfig[] = [
   { radius: 570, speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2, chipCount: REPOS_BY_CATEGORY["Validator Tooling"].length },
 ];
 
-// Mobile ring configs — smaller radii for 375px viewports, flatter tilt
-// so the ellipse reads better in portrait. Order matches CATEGORIES.
+// Mobile ring configs — same radii as above but tilted around the Y axis
+// so the ellipse is tall (portrait) instead of wide, matching mobile's
+// narrow aspect ratio. Order matches CATEGORIES.
 const MOBILE_RING_CONFIGS: RingConfig[] = [
-  { radius: 100, speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, chipCount: REPOS_BY_CATEGORY["Ethereum Core"].length },
-  { radius: 145, speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, chipCount: REPOS_BY_CATEGORY["Execution Clients"].length },
-  { radius: 190, speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, chipCount: REPOS_BY_CATEGORY["Consensus Clients"].length },
-  { radius: 235, speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, chipCount: REPOS_BY_CATEGORY["Validator Tooling"].length },
+  { radius: 100, speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, chipCount: REPOS_BY_CATEGORY["Ethereum Core"].length, tiltAxis: "y" },
+  { radius: 145, speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, chipCount: REPOS_BY_CATEGORY["Execution Clients"].length, tiltAxis: "y" },
+  { radius: 190, speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, chipCount: REPOS_BY_CATEGORY["Consensus Clients"].length, tiltAxis: "y" },
+  { radius: 235, speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, chipCount: REPOS_BY_CATEGORY["Validator Tooling"].length, tiltAxis: "y" },
 ];
 
 if (RING_CONFIGS.length !== CATEGORIES.length) {
@@ -111,6 +112,7 @@ export function SaturnCarousel({
           onChipEnter={pause}
           onChipLeave={resume}
           variant={isDesktop ? "card" : "chip"}
+          tiltAxis={activeConfigs[ringIndex].tiltAxis}
         />
       ))}
     </>
@@ -120,7 +122,7 @@ export function SaturnCarousel({
     return (
       <section
         aria-label="Ethereum ecosystem repositories"
-        className="relative mx-auto flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden"
+        className="relative mx-auto flex w-full flex-col items-center justify-center overflow-hidden py-6"
         style={{ perspective: "800px" }}
       >
         <h2 className="sr-only">Ethereum Ecosystem</h2>
@@ -162,7 +164,10 @@ function MobileSaturnViewport({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="relative h-[70vh] w-full">
+    // Fixed height sized to the outer ring at mobile scale:
+    // 2 × 235 (radius) × 0.85 (initialScale) ≈ 400px visible ring +
+    // ~140px of pinch/pan headroom = 540px.
+    <div className="relative h-[540px] w-full">
       <TransformWrapper
         initialScale={0.85}
         minScale={0.5}

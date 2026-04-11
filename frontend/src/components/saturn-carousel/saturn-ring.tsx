@@ -43,6 +43,9 @@ interface SaturnRingProps {
   /** Visual variant — `"card"` renders a SaturnCard (desktop, 220x100),
    *  `"chip"` renders a SaturnChip (mobile, 180x36). Default: `"card"`. */
   variant?: SaturnRingVariant;
+  /** Axis of tilt — `"x"` (default) produces a wide ellipse, `"y"` produces
+   *  a tall (portrait) ellipse. Must match the hook's `tiltAxis`. */
+  tiltAxis?: "x" | "y";
 }
 
 export const SaturnRing = memo(function SaturnRing({
@@ -58,6 +61,7 @@ export const SaturnRing = memo(function SaturnRing({
   onChipEnter,
   onChipLeave,
   variant = "card",
+  tiltAxis = "x",
 }: SaturnRingProps) {
   const setChipRef = useCallback(
     (chipIndex: number) => (el: HTMLDivElement | null) => {
@@ -73,12 +77,15 @@ export const SaturnRing = memo(function SaturnRing({
 
   const offset = variant === "chip" ? CHIP_OFFSET : CARD_OFFSET;
 
+  const parentTilt =
+    tiltAxis === "y" ? `rotateY(${tiltX}deg)` : `rotateX(${tiltX}deg)`;
+
   return (
     <div
       className="pointer-events-none absolute left-1/2 top-1/2"
       style={{
         transformStyle: "preserve-3d",
-        transform: `translate(-50%, -50%) rotateX(${tiltX}deg) rotateZ(${tiltZ}deg)`,
+        transform: `translate(-50%, -50%) ${parentTilt} rotateZ(${tiltZ}deg)`,
       }}
     >
       {/* Orbital path ellipse */}
