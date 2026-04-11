@@ -20,8 +20,6 @@ interface HeroSectionProps {
   repoCount: number;
   formattedStars: string;
   categoryCount: number;
-  /** Community counter — total stars given through Ethstar. null = no data yet. */
-  communityStars: number | null;
   onLogin: () => void;
   onViewRepositories: () => void;
   isAuthenticated: boolean;
@@ -34,15 +32,12 @@ export function HeroSection({
   repoCount,
   formattedStars,
   categoryCount,
-  communityStars,
   onLogin,
   onViewRepositories,
   isAuthenticated,
   isLoading,
   children,
 }: HeroSectionProps) {
-  const showCommunityStars = communityStars !== null && communityStars > 0;
-
   return (
     <section className="relative flex min-h-dvh flex-col items-center px-4 py-12 text-center md:px-6 md:py-20">
       <HeroLogo />
@@ -54,7 +49,7 @@ export function HeroSection({
           <span className="text-foreground">Repo</span>
         </h1>
 
-        <p className="max-w-2xl text-lg text-muted-foreground">
+        <p className="max-w-2xl text-base text-muted-foreground min-[375px]:text-lg">
           Support the teams and devs building a decentralized world. Authenticate
           with GitHub to{" "}
           <Star
@@ -87,7 +82,7 @@ export function HeroSection({
           </Button>
         </div>
 
-        <div className="flex items-center gap-6 text-center md:gap-10" aria-label="Site statistics" role="group">
+        <div className="flex items-center gap-3 text-center min-[375px]:gap-6 md:gap-10" aria-label="Site statistics" role="group">
           <div aria-label={`${repoCount}+ repositories`}>
             <span className="text-2xl font-bold text-primary">{repoCount}+</span>
             <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -108,19 +103,6 @@ export function HeroSection({
               Categories
             </span>
           </div>
-          {showCommunityStars && (
-            <>
-              <span className="text-border" aria-hidden="true">·</span>
-              <div aria-label={`${communityStars!.toLocaleString()} stars given through Ethstar`}>
-                <span className="text-2xl font-bold text-primary">
-                  {communityStars!.toLocaleString()}
-                </span>
-                <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Ethstar Stars
-                </span>
-              </div>
-            </>
-          )}
         </div>
       </div>
 

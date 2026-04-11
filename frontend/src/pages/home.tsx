@@ -14,6 +14,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AuthHeader } from "@/components/auth-header";
+import { CommunityStarsBanner } from "@/components/community-stars-banner";
 import { HeroSection } from "@/components/hero-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
@@ -162,12 +163,13 @@ export default function HomePage() {
         onLogout={logout}
       />
 
+      <CommunityStarsBanner totalStars={stats?.totalStars ?? null} />
+
       {/* Slide 1 — Hero */}
       <HeroSection
         repoCount={REPOSITORIES.length}
         formattedStars={formattedStars}
         categoryCount={CATEGORIES.length}
-        communityStars={stats?.totalStars ?? null}
         onLogin={login}
         onViewRepositories={scrollToRepos}
         isAuthenticated={isAuthenticated}

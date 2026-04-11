@@ -114,11 +114,23 @@ test("stats counter displays when API returns data", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("group", { name: "Site statistics" }).getByText("1,234"),
+    page.getByRole("status").getByText("1,234"),
   ).toBeVisible({ timeout: 5000 });
   await expect(
-    page.getByText("Ethstar Stars"),
+    page.getByText("stars given through Ethstar"),
   ).toBeVisible({ timeout: 5000 });
+
+  // Banner must sit between header (nav) and hero (h1) in DOM order
+  const bannerBetween = await page.evaluate(() => {
+    const banner = document.querySelector('[role="status"]');
+    const nav = document.querySelector("nav");
+    const hero = document.querySelector("h1");
+    if (!banner || !nav || !hero) return false;
+    const follows = (a: Node, b: Node) =>
+      !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return follows(nav, banner) && follows(banner, hero);
+  });
+  expect(bannerBetween).toBe(true);
 });
 
 test("stats counter hidden when API returns error", async ({ page }) => {
@@ -128,10 +140,10 @@ test("stats counter hidden when API returns error", async ({ page }) => {
 
   await page.goto("/");
 
-  // Wait for the page to load, then confirm no stats ribbon.
+  // Wait for the page to load, then confirm no stats banner.
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
-    page.getByText("Ethstar Stars"),
+    page.getByText("stars given through Ethstar"),
   ).toHaveCount(0);
 });
 
@@ -259,6 +271,6 @@ test("stats counter hidden when total is zero", async ({ page }) => {
 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
-    page.getByText("Ethstar Stars"),
+    page.getByText("stars given through Ethstar"),
   ).toHaveCount(0);
 });

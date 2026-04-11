@@ -54,21 +54,22 @@ export const HowItWorksSection = memo(function HowItWorksSection({
       </h2>
 
       <div
-        className="scrollbar-none flex w-full max-w-4xl snap-x snap-mandatory gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0"
+        data-testid="how-it-works-cards"
+        className="flex w-full max-w-4xl flex-col gap-3 md:grid md:grid-cols-3 md:gap-6"
       >
         {STEPS.map((step, i) => (
           <div
             key={step.title}
-            className="glass glass-hover flex w-[80vw] max-w-[300px] shrink-0 snap-center flex-col items-center gap-4 rounded-2xl p-5 text-center transition-colors md:w-auto md:max-w-none md:shrink md:p-8"
+            className="glass glass-hover flex w-full flex-col items-center gap-3 rounded-xl p-3 text-center transition-colors md:gap-4 md:rounded-2xl md:p-8"
           >
-            <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-              <step.icon className="size-6 text-primary" aria-hidden="true" />
+            <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 md:size-12">
+              <step.icon className="size-4 text-primary md:size-6" aria-hidden="true" />
             </div>
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground md:text-xs">
               Step {i + 1}
             </span>
-            <h3 className="font-heading text-xl font-semibold">{step.title}</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <h3 className="font-heading text-base font-semibold md:text-xl">{step.title}</h3>
+            <p className="text-xs leading-relaxed text-muted-foreground md:text-sm">
               {step.description}
             </p>
           </div>
