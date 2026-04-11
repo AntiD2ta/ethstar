@@ -10,6 +10,7 @@
   [![Go Report Card](https://goreportcard.com/badge/github.com/AntiD2ta/ethstar)](https://goreportcard.com/report/github.com/AntiD2ta/ethstar)
   [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AntiD2ta/ethstar/badge)](https://scorecard.dev/viewer/?uri=github.com/AntiD2ta/ethstar)
   [![Go](https://img.shields.io/github/go-mod/go-version/AntiD2ta/ethstar)](https://go.dev/)
+  [![Snyk](https://snyk.io/test/github/AntiD2ta/ethstar/badge.svg)](https://snyk.io/test/github/AntiD2ta/ethstar)
   [![License](https://img.shields.io/github/license/AntiD2ta/ethstar)](LICENSE)
   [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethstar.dev&label=ethstar.dev)](https://ethstar.dev)
 </div>
