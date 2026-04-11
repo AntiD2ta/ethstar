@@ -206,6 +206,7 @@ test.describe("mobile how-it-works layout", () => {
 
     // The card container should not be horizontally scrollable
     const container = page.getByTestId("how-it-works-cards");
+    await expect(container).toBeVisible();
     const overflowX = await container.evaluate((el) => getComputedStyle(el).overflowX);
     expect(overflowX).not.toBe("auto");
     expect(overflowX).not.toBe("scroll");
