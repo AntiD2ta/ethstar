@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { memo, useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { RepoCard } from "@/components/repo-card";
 import type { RepoMeta } from "@/lib/github";
 import type { Repository, StarStatus } from "@/lib/types";
@@ -33,11 +33,13 @@ interface RepoMarqueeProps {
   label?: string;
 }
 
-// Minimum content width (px) for a seamless marquee loop.
-// Set to 2560 to cover ultrawide monitors without visible gaps.
-const MIN_LOOP_PX = 2560;
-// Width of one card slot: 320px card + 32px gap.
-const CARD_SLOT_PX = 352;
+// Minimum content width (px) for a seamless marquee loop — sized per breakpoint
+// to avoid over-inflating mobile DOM.
+const MIN_LOOP_DESKTOP_PX = 2560;
+const MIN_LOOP_MOBILE_PX = 1024;
+// Width of one card slot — desktop: 320px card + 32px gap; mobile: 240px + 16px.
+const CARD_SLOT_DESKTOP_PX = 352;
+const CARD_SLOT_MOBILE_PX = 256;
 // Auto-scroll speed in pixels per second.
 const SCROLL_SPEED = 50;
 
@@ -78,15 +80,22 @@ export const RepoMarquee = memo(function RepoMarquee({
 }: RepoMarqueeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Duplication factor so categories produce enough cards for a seamless loop.
-  const dupFactor = Math.max(1, Math.ceil(MIN_LOOP_PX / (repos.length * CARD_SLOT_PX)));
+  // Duplication factor sized to the active card slot so small categories
+  // still produce enough content for a seamless loop on both breakpoints.
+  const cardSlotPx = isDesktop ? CARD_SLOT_DESKTOP_PX : CARD_SLOT_MOBILE_PX;
+  const minLoopPx = isDesktop ? MIN_LOOP_DESKTOP_PX : MIN_LOOP_MOBILE_PX;
+  const dupFactor = Math.max(1, Math.ceil(minLoopPx / (repos.length * cardSlotPx)));
 
-  const expandedRepos: Repository[] = dupFactor > 1
-    ? Array.from({ length: dupFactor }, () => repos).flat()
-    : repos;
+  const expandedRepos = useMemo<Repository[]>(
+    () =>
+      dupFactor > 1
+        ? Array.from({ length: dupFactor }, () => repos).flat()
+        : repos,
+    [repos, dupFactor],
+  );
 
-  // Auto-scroll on desktop when motion is allowed
-  useAutoScroll(scrollRef, SCROLL_SPEED, isDesktop && !prefersReducedMotion);
+  // Auto-scroll whenever motion is allowed — both mobile and desktop.
+  useAutoScroll(scrollRef, SCROLL_SPEED, !prefersReducedMotion);
 
   const cards = expandedRepos.map((repo, i) => {
     const k = repoKey(repo);
@@ -103,10 +112,9 @@ export const RepoMarquee = memo(function RepoMarquee({
     );
   });
 
-  // Duplicate content is always needed for desktop seamless loop (JS scroll
-  // resets scrollLeft to 0 when past the midpoint). On mobile, no duplication
-  // since there's no auto-scroll — the user scrolls manually.
-  const showDuplicate = isDesktop && !prefersReducedMotion;
+  // Duplicate content is needed on both breakpoints for the seamless loop
+  // (JS scroll resets scrollLeft to 0 when past the midpoint).
+  const showDuplicate = !prefersReducedMotion;
 
   return (
     <div
@@ -116,11 +124,11 @@ export const RepoMarquee = memo(function RepoMarquee({
       aria-label={label}
     >
       <div className="flex w-max">
-        <div className="flex gap-6 md:gap-8">
+        <div className="flex gap-4 md:gap-8">
           {cards}
         </div>
         {showDuplicate && (
-          <div aria-hidden="true" inert={true} className="flex gap-6 md:gap-8">
+          <div aria-hidden="true" inert={true} className="flex gap-4 md:gap-8">
             {cards}
           </div>
         )}

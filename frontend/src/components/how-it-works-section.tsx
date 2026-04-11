@@ -45,16 +45,21 @@ export const HowItWorksSection = memo(function HowItWorksSection({
   onViewRepositories,
 }: HowItWorksSectionProps) {
   return (
-    <section aria-labelledby="how-it-works-heading" className="flex min-h-dvh flex-col items-center justify-center gap-10 px-4 py-16 md:px-6">
+    <section
+      aria-labelledby="how-it-works-heading"
+      className="flex min-h-0 flex-col items-center justify-center gap-6 px-4 py-12 md:min-h-dvh md:gap-10 md:px-6 md:py-16"
+    >
       <h2 id="how-it-works-heading" className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
         How It Works
       </h2>
 
-      <div className="grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
+      <div
+        className="scrollbar-none flex w-full max-w-4xl snap-x snap-mandatory gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0"
+      >
         {STEPS.map((step, i) => (
           <div
             key={step.title}
-            className="glass glass-hover flex flex-col items-center gap-4 rounded-2xl p-8 text-center transition-colors"
+            className="glass glass-hover flex w-[80vw] max-w-[300px] shrink-0 snap-center flex-col items-center gap-4 rounded-2xl p-5 text-center transition-colors md:w-auto md:max-w-none md:shrink md:p-8"
           >
             <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
               <step.icon className="size-6 text-primary" aria-hidden="true" />

@@ -89,20 +89,19 @@ describe("SaturnCarousel", () => {
     expect(screen.queryByText("Ethereum Core")).not.toBeInTheDocument();
   });
 
-  it("renders category-labeled rows on mobile", () => {
+  it("renders 3D ring on mobile (no category labels)", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
         repoMeta={{}}
         metaLoading={false}
         isDesktop={false}
-        prefersReducedMotion={false}
+        prefersReducedMotion={true}
       />,
     );
-    expect(screen.getByText("Ethereum Core")).toBeInTheDocument();
-    expect(screen.getByText("Consensus Clients")).toBeInTheDocument();
-    expect(screen.getByText("Execution Clients")).toBeInTheDocument();
-    expect(screen.getByText("Validator Tooling")).toBeInTheDocument();
+    // Mobile now uses the 3D ring, not flat rows — no category headings.
+    expect(screen.queryByText("Ethereum Core")).not.toBeInTheDocument();
+    expect(screen.queryByText("Consensus Clients")).not.toBeInTheDocument();
   });
 
   it("renders all 32 repo chips on mobile", () => {
@@ -112,11 +111,24 @@ describe("SaturnCarousel", () => {
         repoMeta={{}}
         metaLoading={false}
         isDesktop={false}
-        prefersReducedMotion={false}
+        prefersReducedMotion={true}
       />,
     );
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(32);
+  });
+
+  it("renders a pinch-to-zoom hint on mobile", () => {
+    render(
+      <SaturnCarousel
+        starStatuses={{}}
+        repoMeta={{}}
+        metaLoading={false}
+        isDesktop={false}
+        prefersReducedMotion={true}
+      />,
+    );
+    expect(screen.getByText(/pinch to explore/i)).toBeInTheDocument();
   });
 
   it("passes star status through to chips", () => {

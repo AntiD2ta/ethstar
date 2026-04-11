@@ -69,23 +69,17 @@ test.describe("Saturn Carousel", () => {
 test.describe("Saturn Carousel — Mobile", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test("shows mobile layout with category labels", async ({ page }) => {
+  test("mobile renders the 3D ring (no flat category labels)", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
       name: /ethereum ecosystem/i,
     });
+    // Category headings from the old flat grid should not appear on mobile.
     await expect(
       carousel.getByRole("heading", { name: "Ethereum Core" }),
-    ).toBeVisible();
-    await expect(
-      carousel.getByRole("heading", { name: "Consensus Clients" }),
-    ).toBeVisible();
-    await expect(
-      carousel.getByRole("heading", { name: "Execution Clients" }),
-    ).toBeVisible();
-    await expect(
-      carousel.getByRole("heading", { name: "Validator Tooling" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
+    // Saturn chips rendered inside the ring use the `.saturn-chip` class.
+    await expect(carousel.locator(".saturn-chip").first()).toBeVisible();
   });
 
   test("renders all 32 repo chips on mobile", async ({ page }) => {
@@ -95,5 +89,11 @@ test.describe("Saturn Carousel — Mobile", () => {
     });
     const links = carousel.getByRole("link");
     await expect(links).toHaveCount(32);
+  });
+
+  test("mobile shows the pinch-to-zoom hint initially", async ({ page }) => {
+    await page.goto("/");
+    const hint = page.getByText(/pinch to explore/i);
+    await expect(hint).toBeVisible();
   });
 });

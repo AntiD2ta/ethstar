@@ -340,9 +340,11 @@
         border: 1px solid oklch(0.380 0.028 280 / 25%);
     }
 
-    .glass-hover:hover {
-        background: oklch(0.230 0.022 280 / 65%);
-        border-color: oklch(0.400 0.040 270 / 40%);
+    @media (hover: hover) {
+        .glass-hover:hover {
+            background: oklch(0.230 0.022 280 / 65%);
+            border-color: oklch(0.400 0.040 270 / 40%);
+        }
     }
 
     .eth-glow {
@@ -375,12 +377,14 @@
         transition: box-shadow 0.2s, border-color 0.2s;
     }
 
-    .saturn-card:hover {
-        /* Overrides inline opacity set by the rAF animation loop */
-        opacity: 1 !important;
-        box-shadow: 0 0 30px oklch(0.620 0.140 270 / 20%),
-                    inset 0 0 30px oklch(0.620 0.140 270 / 5%);
-        border-color: oklch(0.400 0.040 270 / 40%);
+    @media (hover: hover) {
+        .saturn-card:hover {
+            /* Overrides inline opacity set by the rAF animation loop */
+            opacity: 1 !important;
+            box-shadow: 0 0 30px oklch(0.620 0.140 270 / 20%),
+                        inset 0 0 30px oklch(0.620 0.140 270 / 5%);
+            border-color: oklch(0.400 0.040 270 / 40%);
+        }
     }
 
     .saturn-card:focus-visible {
@@ -388,7 +392,17 @@
         outline-offset: 2px;
     }
 
-    /* Saturn carousel: pill-shaped repo chip (mobile) */
+    /* Touch feedback — mirrors :hover for devices without hover. */
+    .saturn-card:active {
+        opacity: 1 !important;
+        box-shadow: 0 0 30px oklch(0.620 0.140 270 / 20%),
+                    inset 0 0 30px oklch(0.620 0.140 270 / 5%);
+        border-color: oklch(0.400 0.040 270 / 40%);
+    }
+
+    /* Saturn carousel: pill-shaped repo chip (mobile).
+       `blur(4px)` instead of `blur(8px)` reduces GPU cost on touch devices
+       where 32 chips compete with the pinch-to-zoom transform for frames. */
     .saturn-chip {
         display: inline-flex;
         align-items: center;
@@ -397,7 +411,7 @@
         height: 36px;
         padding: 0 12px;
         background: oklch(0.230 0.022 280 / 60%);
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(4px);
         border: 1px solid oklch(0.380 0.028 280 / 25%);
         border-radius: 9999px;
         font-family: var(--font-mono);
@@ -410,8 +424,17 @@
         transition: box-shadow 0.2s, border-color 0.2s;
     }
 
-    .saturn-chip:hover {
-        /* Overrides inline opacity set by the rAF animation loop */
+    @media (hover: hover) {
+        .saturn-chip:hover {
+            /* Overrides inline opacity set by the rAF animation loop */
+            opacity: 1 !important;
+            box-shadow: 0 0 20px oklch(0.620 0.140 270 / 25%);
+            border-color: oklch(0.400 0.040 270 / 50%);
+        }
+    }
+
+    /* Touch feedback — mirrors :hover for devices without hover. */
+    .saturn-chip:active {
         opacity: 1 !important;
         box-shadow: 0 0 20px oklch(0.620 0.140 270 / 25%);
         border-color: oklch(0.400 0.040 270 / 50%);
