@@ -20,8 +20,6 @@ interface HeroSectionProps {
   repoCount: number;
   formattedStars: string;
   categoryCount: number;
-  /** Community counter — total stars given through Ethstar. null = no data yet. */
-  communityStars: number | null;
   onLogin: () => void;
   onViewRepositories: () => void;
   isAuthenticated: boolean;
@@ -34,15 +32,12 @@ export function HeroSection({
   repoCount,
   formattedStars,
   categoryCount,
-  communityStars,
   onLogin,
   onViewRepositories,
   isAuthenticated,
   isLoading,
   children,
 }: HeroSectionProps) {
-  const showCommunityStars = communityStars !== null && communityStars > 0;
-
   return (
     <section className="relative flex min-h-dvh flex-col items-center px-4 py-12 text-center md:px-6 md:py-20">
       <HeroLogo />
@@ -108,19 +103,6 @@ export function HeroSection({
               Categories
             </span>
           </div>
-          {showCommunityStars && (
-            <>
-              <span className="text-border" aria-hidden="true">·</span>
-              <div aria-label={`${communityStars!.toLocaleString()} stars given through Ethstar`}>
-                <span className="text-2xl font-bold text-primary">
-                  {communityStars!.toLocaleString()}
-                </span>
-                <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Ethstar Stars
-                </span>
-              </div>
-            </>
-          )}
         </div>
       </div>
 

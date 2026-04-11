@@ -191,6 +191,27 @@ test.describe("mobile starring controls", () => {
   });
 });
 
+// How It Works cards fit on mobile without horizontal scroll
+test.describe("mobile how-it-works layout", () => {
+  test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
+
+  test("all 3 how-it-works cards visible without horizontal scroll", async ({ page }) => {
+    await page.goto("/");
+    const heading = page.getByRole("heading", { name: "How It Works" });
+    await heading.scrollIntoViewIfNeeded();
+
+    for (const step of ["Authenticate", "Star Repositories", "Support Ethereum"]) {
+      await expect(page.getByRole("heading", { name: step, level: 3 })).toBeVisible();
+    }
+
+    // The card container should not be horizontally scrollable
+    const container = heading.locator("..").locator("> div").first();
+    const overflowX = await container.evaluate((el) => getComputedStyle(el).overflowX);
+    expect(overflowX).not.toBe("auto");
+    expect(overflowX).not.toBe("scroll");
+  });
+});
+
 // AC6: Support section buttons stack vertically on mobile
 test.describe("mobile support section layout", () => {
   test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
