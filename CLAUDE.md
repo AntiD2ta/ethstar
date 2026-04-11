@@ -210,6 +210,13 @@ Configured in `frontend/vite.config.ts` (`outDir: "../web/static"`). The `web/em
 - **E2E popup OAuth mock via `addInitScript`**: Mock `window.open` to intercept `/api/auth/star` requests and immediately `postMessage` a fake token back. Return `{ closed: false, close: () => {} }` as the fake popup to prevent the closed-popup poller from rejecting prematurely.
 - **WebGL canvas sizing in Playwright is highly variable**: Compositor timing causes canvas dimensions to vary ±80px+ from expected values. Use proportional tolerances (e.g., 50%-200% of expected) instead of absolute ±N px ranges.
 
+### CI / GitHub Actions
+
+- **`ci-pass` gate job for path-filtered CI**: When individual check jobs have `if:` conditions that can skip them, branch protection can't require those jobs directly (they'd permanently block when skipped). Use a single `ci-pass` gate job with `if: always()` that checks `contains(needs.*.result, 'failure')`. Require only `ci-pass` in branch protection settings.
+- **`!cancelled() && !failure()` for downstream jobs with skippable parents**: The `build` job needs both `go-checks` and `fe-checks` in `needs`, but those may be skipped. Use `if: !cancelled() && !failure()` so build still runs when parents are skipped (not failed).
+- **Playwright `webServer` auto-starts Go + Vite in CI**: The `reuseExistingServer: !process.env.CI` setting means Playwright starts fresh servers in CI. No manual server startup needed in the E2E workflow job.
+- **`go-version-file: go.mod`**: `actions/setup-go@v5` reads the Go version from `go.mod`, keeping CI in sync with local dev without hardcoding.
+
 ### Security
 
 - **Bind to localhost by default**: Use `127.0.0.1:8080` not `:8080` — the latter binds to all interfaces.
