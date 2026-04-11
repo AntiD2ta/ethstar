@@ -11,7 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { lazy, Suspense, useState } from "react";
+import { Component, lazy, Suspense, useState } from "react";
+import type { ReactNode } from "react";
 import { Coffee, Heart, ListPlus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,21 @@ import {
 } from "@/lib/constants";
 
 const TipDialog = lazy(() => import("@/components/tip-dialog"));
+
+/** Catches lazy chunk load failures and renders nothing — the dialog
+ *  simply won't open, which is acceptable degradation. */
+class ChunkErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
 
 export function SupportSection() {
   const [tipOpen, setTipOpen] = useState(false);
@@ -81,9 +97,11 @@ export function SupportSection() {
         </Button>
       </div>
 
-      <Suspense fallback={null}>
-        {tipOpen && <TipDialog open={tipOpen} onOpenChange={setTipOpen} />}
-      </Suspense>
+      <ChunkErrorBoundary>
+        <Suspense fallback={null}>
+          {tipOpen && <TipDialog open={tipOpen} onOpenChange={setTipOpen} />}
+        </Suspense>
+      </ChunkErrorBoundary>
     </footer>
   );
 }
