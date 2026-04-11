@@ -119,7 +119,7 @@ lint-frontend: ## Run ESLint on frontend
 	cd frontend && npm run lint
 
 typecheck: ## Run TypeScript type checking
-	cd frontend && npx tsc -b --noEmit
+	cd frontend && npm run typecheck
 
 security: ## Run gosec security scanner on Go code
 	gosec -exclude-dir=frontend -exclude-dir=.claude -exclude-dir=api -quiet ./...
