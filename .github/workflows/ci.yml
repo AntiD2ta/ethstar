@@ -133,6 +133,7 @@ jobs:
           name: server-binary
           path: bin/server
           retention-days: 1
+          if-no-files-found: error
 
   # ── Gate: single required check for branch protection ───────
   # Always runs, reports failure if any upstream job failed.
