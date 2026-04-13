@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 import { Loader2, Star } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatStarCount } from "@/lib/utils";
 import type { Repository, StarStatus } from "@/lib/types";
@@ -86,15 +86,7 @@ export const RepoCard = memo(function RepoCard({
       )}
 
       <div className="flex items-center justify-between">
-        <Avatar size="sm">
-          <AvatarImage
-            src={`https://github.com/${repo.owner}.png?size=40`}
-            alt={repo.owner}
-          />
-          <AvatarFallback>
-            {repo.owner.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <RepoAvatar owner={repo.owner} />
 
         <StarIndicator
           status={status}
@@ -102,6 +94,42 @@ export const RepoCard = memo(function RepoCard({
         />
       </div>
     </article>
+  );
+});
+
+const RepoAvatar = memo(function RepoAvatar({ owner }: { owner: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  const avatarSrc = `https://github.com/${owner}.png?size=40`;
+
+  return (
+    <Avatar size="sm">
+      {!loaded && !errored ? (
+        <Skeleton className="absolute inset-0 rounded-full" aria-hidden="true" />
+      ) : null}
+      {errored ? (
+        <span className="flex size-full items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+          {owner.slice(0, 2).toUpperCase()}
+        </span>
+      ) : (
+        <img
+          src={avatarSrc}
+          srcSet={`${avatarSrc} 1x, https://github.com/${owner}.png?size=80 2x`}
+          alt={owner}
+          width={40}
+          height={40}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+          className={cn(
+            "aspect-square size-full object-cover transition-opacity",
+            loaded ? "opacity-100" : "opacity-0",
+          )}
+        />
+      )}
+    </Avatar>
   );
 });
 
