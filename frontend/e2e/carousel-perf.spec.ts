@@ -18,12 +18,27 @@ test.describe("carousel avatar performance", () => {
     page,
   }) => {
     await page.goto("/");
+    // Wait for the marquee to mount before snapshotting attributes.
+    await page.waitForSelector("img[alt='ethereum']", { timeout: 10000 });
 
     // Avatar imgs are inside the Radix Avatar wrapper. Filter to GitHub-avatar URLs
     // so we don't accidentally pick up the ETH logo or other site imagery.
     const avatarAttrs = await page.evaluate(() => {
-      const imgs = Array.from(document.querySelectorAll("img"))
-        .filter((img) => img.src.includes("github.com/") && img.src.includes(".png"));
+      const isMarqueeAvatar = (src: string) => {
+        try {
+          const u = new URL(src);
+          return (
+            u.hostname === "github.com" &&
+            u.pathname.endsWith(".png") &&
+            u.searchParams.get("size") === "40"
+          );
+        } catch {
+          return false;
+        }
+      };
+      const imgs = Array.from(document.querySelectorAll("img")).filter((img) =>
+        isMarqueeAvatar(img.src),
+      );
       return imgs.map((img) => ({
         loading: img.getAttribute("loading"),
         decoding: img.getAttribute("decoding"),
@@ -46,11 +61,26 @@ test.describe("carousel avatar performance", () => {
 
   test("below-the-fold avatars are deferred on first paint", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    // Wait for the marquee to mount so avatar imgs exist; lazy-loading still
+    // defers below-fold fetches even after mount.
+    await page.waitForSelector("img[alt='ethereum']", { timeout: 10000 });
 
     // Snapshot complete state immediately (don't wait for "load" to settle).
     const completeStates = await page.evaluate(() => {
+      const isMarqueeAvatar = (src: string) => {
+        try {
+          const u = new URL(src);
+          return (
+            u.hostname === "github.com" &&
+            u.pathname.endsWith(".png") &&
+            u.searchParams.get("size") === "40"
+          );
+        } catch {
+          return false;
+        }
+      };
       const imgs = Array.from(document.querySelectorAll("img")).filter((img) =>
-        img.src.includes("github.com/") && img.src.includes(".png"),
+        isMarqueeAvatar(img.src),
       );
       // Pair each image with its vertical position to distinguish above/below the fold.
       return imgs.map((img) => ({
