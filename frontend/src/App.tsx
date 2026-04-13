@@ -15,12 +15,16 @@ import { Routes, Route } from "react-router";
 import { RootLayout } from "@/components/layout/root-layout";
 import HomePage from "@/pages/home";
 import NotFoundPage from "@/pages/not-found";
+import PrivacyPage from "@/pages/privacy";
+import CookiesPage from "@/pages/cookies";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<RootLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="privacy" element={<PrivacyPage />} />
+        <Route path="cookies" element={<CookiesPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

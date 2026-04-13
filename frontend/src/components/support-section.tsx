@@ -13,8 +13,10 @@
 
 import { Component, lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import { Coffee, Github, Heart, ListPlus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConsent } from "@/lib/consent-context";
 import {
   ETH_ADDRESS_DISPLAY,
   GITHUB_REPO_URL,
@@ -43,6 +45,7 @@ class ChunkErrorBoundary extends Component<
 
 export function SupportSection() {
   const [tipOpen, setTipOpen] = useState(false);
+  const { openBanner } = useConsent();
 
   return (
     <footer aria-labelledby="support-heading" className="flex flex-col items-center gap-4 border-t border-border px-4 py-12 text-center sm:px-6">
@@ -132,6 +135,32 @@ export function SupportSection() {
             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
           </svg>
         </a>
+      </nav>
+
+      <nav
+        aria-label="Legal links"
+        className="flex flex-wrap items-center justify-center gap-4 text-xs"
+      >
+        <Link
+          to="/privacy"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Privacy
+        </Link>
+        <Link
+          to="/cookies"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Cookies
+        </Link>
+        <button
+          type="button"
+          onClick={openBanner}
+          className="text-muted-foreground hover:text-foreground"
+          data-testid="footer-cookie-preferences"
+        >
+          Cookie preferences
+        </button>
       </nav>
 
       <p className="text-xs text-muted-foreground">
