@@ -16,8 +16,16 @@ import { test, expect, type Page } from "@playwright/test";
 /** Matches any URL associated with Vercel Web Analytics or Speed Insights —
  * the actual beacon in production OR the lazily-loaded module chunk in dev. */
 function isAnalyticsUrl(url: string): boolean {
+  let isVercelAnalyticsHost = false;
+  try {
+    const parsed = new URL(url);
+    isVercelAnalyticsHost = parsed.hostname === "va.vercel-scripts.com";
+  } catch {
+    // Ignore parsing errors and fall back to non-host indicators below.
+  }
+
   return (
-    url.includes("va.vercel-scripts.com") ||
+    isVercelAnalyticsHost ||
     url.includes("/_vercel/insights") ||
     url.includes("/_vercel/speed-insights") ||
     url.includes("@vercel/analytics") ||
