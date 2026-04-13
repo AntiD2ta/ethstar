@@ -12,6 +12,7 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
+import { REPOSITORIES } from "../src/lib/repos";
 
 test.describe("Saturn Carousel", () => {
   test("renders the carousel section on desktop", async ({ page }) => {
@@ -22,13 +23,13 @@ test.describe("Saturn Carousel", () => {
     await expect(carousel).toBeVisible();
   });
 
-  test("renders all 54 repo cards as links", async ({ page }) => {
+  test("renders one link per repository", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
       name: /ethereum ecosystem/i,
     });
     const links = carousel.getByRole("link");
-    await expect(links).toHaveCount(54);
+    await expect(links).toHaveCount(REPOSITORIES.length);
   });
 
   test("cards link to GitHub repos", async ({ page }) => {
@@ -62,7 +63,7 @@ test.describe("Saturn Carousel", () => {
     });
     // All cards should have an "Unknown" star indicator (not authenticated)
     const unknownStars = carousel.getByLabel("Unknown");
-    await expect(unknownStars).toHaveCount(54);
+    await expect(unknownStars).toHaveCount(REPOSITORIES.length);
   });
 });
 
@@ -82,13 +83,13 @@ test.describe("Saturn Carousel — Mobile", () => {
     await expect(carousel.locator(".saturn-chip").first()).toBeVisible();
   });
 
-  test("renders all 54 repo chips on mobile", async ({ page }) => {
+  test("renders one link per repository on mobile", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
       name: /ethereum ecosystem/i,
     });
     const links = carousel.getByRole("link");
-    await expect(links).toHaveCount(54);
+    await expect(links).toHaveCount(REPOSITORIES.length);
   });
 
   test("mobile shows the pinch-to-zoom hint initially", async ({ page }) => {
@@ -147,7 +148,7 @@ test.describe("Saturn Carousel — Mobile", () => {
     });
     // Each chip's status glyph is now a lucide Star SVG, not a colored dot.
     const stars = carousel.locator("a.saturn-chip svg.lucide-star");
-    await expect(stars).toHaveCount(54);
+    await expect(stars).toHaveCount(REPOSITORIES.length);
     // aria-label is preserved for accessibility.
     await expect(
       carousel.locator("a.saturn-chip svg[aria-label='Unknown']").first(),

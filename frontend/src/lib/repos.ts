@@ -409,6 +409,34 @@ export const REPOSITORIES: Repository[] = [
     category: "DeFi & Smart Contracts",
     url: "https://github.com/lidofinance/core",
   },
+  {
+    owner: "compound-finance",
+    name: "compound-protocol",
+    description: "The Compound on-chain lending protocol",
+    category: "DeFi & Smart Contracts",
+    url: "https://github.com/compound-finance/compound-protocol",
+  },
+  {
+    owner: "cowprotocol",
+    name: "cowswap",
+    description: "CowSwap UI for CoW Protocol",
+    category: "DeFi & Smart Contracts",
+    url: "https://github.com/cowprotocol/cowswap",
+  },
+  {
+    owner: "euler-xyz",
+    name: "ethereum-vault-connector",
+    description: "Mediator between Euler vaults with borrowing functionality",
+    category: "DeFi & Smart Contracts",
+    url: "https://github.com/euler-xyz/ethereum-vault-connector",
+  },
+  {
+    owner: "euler-xyz",
+    name: "euler-vault-kit",
+    description: "Build lending vaults connected via the Ethereum Vault Connector",
+    category: "DeFi & Smart Contracts",
+    url: "https://github.com/euler-xyz/euler-vault-kit",
+  },
 ];
 
 export const REPOS_BY_CATEGORY: Record<RepoCategory, Repository[]> =

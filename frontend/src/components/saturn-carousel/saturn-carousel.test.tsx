@@ -14,6 +14,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SaturnCarousel } from "./saturn-carousel";
+import { REPOSITORIES } from "@/lib/repos";
 
 let rafSpy: ReturnType<typeof vi.spyOn>;
 let cafSpy: ReturnType<typeof vi.spyOn>;
@@ -44,7 +45,7 @@ describe("SaturnCarousel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders all 54 repo chips on desktop", () => {
+  it("renders one chip per repository on desktop", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -55,7 +56,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(54);
+    expect(links).toHaveLength(REPOSITORIES.length);
   });
 
   it("renders the central diamond container", () => {
@@ -104,7 +105,7 @@ describe("SaturnCarousel", () => {
     expect(screen.queryByText("Consensus Clients")).not.toBeInTheDocument();
   });
 
-  it("renders all 54 repo chips on mobile", () => {
+  it("renders one chip per repository on mobile", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -115,7 +116,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(54);
+    expect(links).toHaveLength(REPOSITORIES.length);
   });
 
   it("renders a pinch-to-zoom hint on mobile", () => {

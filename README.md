@@ -21,7 +21,7 @@ Authenticate with GitHub, click "Star All", and support the open-source ecosyste
 
 **[ethstar.dev](https://ethstar.dev)**
 
-## Repositories (32)
+## Repositories (58)
 
 ### Ethereum Core
 
@@ -111,6 +111,10 @@ Foundational DeFi protocol contracts, liquidity venues, stablecoins, cross-chain
 | [circlefin/malachite](https://github.com/circlefin/malachite) | Flexible BFT consensus engine in Rust |
 | [EkuboProtocol/evm-contracts](https://github.com/EkuboProtocol/evm-contracts) | Smart contracts for Ekubo Protocol on EVM |
 | [lidofinance/core](https://github.com/lidofinance/core) | Lido DAO smart contracts |
+| [compound-finance/compound-protocol](https://github.com/compound-finance/compound-protocol) | The Compound on-chain lending protocol |
+| [cowprotocol/cowswap](https://github.com/cowprotocol/cowswap) | CowSwap UI for CoW Protocol |
+| [euler-xyz/ethereum-vault-connector](https://github.com/euler-xyz/ethereum-vault-connector) | Mediator between Euler vaults with borrowing functionality |
+| [euler-xyz/euler-vault-kit](https://github.com/euler-xyz/euler-vault-kit) | Build lending vaults connected via the Ethereum Vault Connector |
 
 ## Want to add a repo?
 

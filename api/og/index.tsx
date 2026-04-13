@@ -17,7 +17,7 @@ import { ImageResponse } from "@vercel/og";
  * Number of repositories in the Ethstar repo list.
  * Keep in sync with frontend/src/lib/repos.ts — a Vitest test enforces this.
  */
-const REPO_COUNT = 54;
+const REPO_COUNT = 58;
 
 const DOMAIN = "ethstar.dev";
 
