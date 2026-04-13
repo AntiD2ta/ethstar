@@ -39,8 +39,12 @@ const SaturnCarousel = lazy(
   () => import("@/components/saturn-carousel/saturn-carousel"),
 );
 
-// Fallback combined star count when live data hasn't loaded yet.
-const FALLBACK_COMBINED_STARS = 142000;
+// Fallback combined star count shown briefly before live GitHub data loads.
+// MUST be a conservative floor (≤ true live sum) so users never see a downward flicker.
+// Refresh: sum `stargazerCount` across all repos in `@/lib/repos.ts` via GitHub GraphQL,
+// then round down ~2% for headroom against occasional unstars.
+// Last refreshed 2026-04-13: live sum ≈ 127,532 → floor 125,000.
+const FALLBACK_COMBINED_STARS = 125000;
 
 export default function HomePage() {
   const { user, token, isAuthenticated, isLoading: authLoading, login, logout } = useAuth();
