@@ -103,7 +103,7 @@ const STORAGE_ITEMS: StorageItem[] = [
 ];
 
 export default function CookiesPage() {
-  const { openBanner, rejectAll } = useConsent();
+  const { openBanner } = useConsent();
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
       <nav className="mb-6 text-sm">
@@ -124,14 +124,6 @@ export default function CookiesPage() {
         <div className="flex flex-wrap gap-3">
           <Button onClick={openBanner} data-testid="cookies-open-preferences">
             Change cookie preferences
-          </Button>
-          <Button
-            variant="outline"
-            onClick={rejectAll}
-            data-testid="cookies-do-not-sell"
-            aria-label="Do Not Sell or Share My Personal Information"
-          >
-            Do Not Sell or Share My Personal Information
           </Button>
         </div>
       </header>
@@ -202,10 +194,11 @@ export default function CookiesPage() {
 
         <h2>California — Do Not Sell or Share</h2>
         <p>
-          We do not sell or share personal information as defined by CPRA. The{" "}
-          <strong>Do Not Sell or Share</strong> button above records an opt-
-          out of analytics (equivalent to &quot;Reject all&quot;) so we
-          process no optional data about your visit.
+          We do not sell or share personal information as defined by CPRA. If
+          you want to opt out of analytics, click{" "}
+          <strong>Change cookie preferences</strong> above and turn Statistics
+          off (or use Reject all in the banner). We then process no optional
+          data about your visit.
         </p>
 
         <h2>Contact</h2>
