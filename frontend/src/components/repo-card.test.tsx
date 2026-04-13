@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RepoCard } from "./repo-card";
 import type { Repository } from "@/lib/types";
@@ -107,6 +107,49 @@ describe("RepoCard", () => {
     expect(screen.getByText(repo.description)).toBeInTheDocument();
   });
 
+  describe("lazy avatar", () => {
+    it("renders <img> with native lazy-loading attributes and a srcSet", () => {
+      const { container } = render(<RepoCard repo={repo} status="unstarred" />);
+      const img = container.querySelector("img[alt='ethereum']") as HTMLImageElement | null;
+      expect(img).not.toBeNull();
+      expect(img!.getAttribute("loading")).toBe("lazy");
+      expect(img!.getAttribute("decoding")).toBe("async");
+      expect(img!.getAttribute("width")).toBe("40");
+      expect(img!.getAttribute("height")).toBe("40");
+      const srcSet = img!.getAttribute("srcset") ?? "";
+      expect(srcSet).toMatch(/size=40\s+1x/);
+      expect(srcSet).toMatch(/size=80\s+2x/);
+    });
+
+    it("shows a skeleton placeholder while the avatar has not loaded", () => {
+      const { container } = render(<RepoCard repo={repo} status="unstarred" />);
+      const avatarSkeleton = container.querySelector(
+        "[data-slot='avatar'] [data-slot='skeleton']",
+      );
+      expect(avatarSkeleton).not.toBeNull();
+    });
+
+    it("removes the avatar skeleton once the image's onLoad fires", () => {
+      const { container } = render(<RepoCard repo={repo} status="unstarred" />);
+      const img = container.querySelector("img[alt='ethereum']") as HTMLImageElement;
+      fireEvent.load(img);
+      const avatarSkeleton = container.querySelector(
+        "[data-slot='avatar'] [data-slot='skeleton']",
+      );
+      expect(avatarSkeleton).toBeNull();
+    });
+
+    it("falls back to initials when the avatar image errors", () => {
+      const { container } = render(<RepoCard repo={repo} status="unstarred" />);
+      const img = container.querySelector("img[alt='ethereum']") as HTMLImageElement;
+      fireEvent.error(img);
+      // Image is removed; initials are shown inside the avatar.
+      expect(container.querySelector("img[alt='ethereum']")).toBeNull();
+      const avatar = container.querySelector("[data-slot='avatar']");
+      expect(avatar?.textContent).toBe("ET");
+    });
+  });
+
   it("shows no skeletons when data is loaded", () => {
     const { container } = render(
       <RepoCard
@@ -117,10 +160,9 @@ describe("RepoCard", () => {
         metaLoading={false}
       />,
     );
-    // Only look for skeleton slots in the card header/description area
-    const skeletons = container.querySelectorAll(
-      "article > div:first-child [data-slot='skeleton'], article > div:nth-child(2)[data-slot='skeleton']",
-    );
+    const img = container.querySelector("img[alt='ethereum']") as HTMLImageElement;
+    fireEvent.load(img);
+    const skeletons = container.querySelectorAll("[data-slot='skeleton']");
     expect(skeletons.length).toBe(0);
   });
 });
