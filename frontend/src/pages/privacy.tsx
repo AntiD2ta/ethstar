@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useConsent } from "@/lib/consent-context";
 
 const EFFECTIVE_DATE = "2026-04-13";
-const CONTACT_EMAIL = "TODO: operator email";
+const CONTACT_EMAIL = "antid2ta@gmail.com";
 
 export default function PrivacyPage() {
   const { openBanner } = useConsent();
@@ -43,7 +43,8 @@ export default function PrivacyPage() {
           Ethstar (&quot;the Service&quot;) is a community project that helps
           users discover and star open-source Ethereum repositories on GitHub.
           The controller of any personal data processed through the Service is
-          the project maintainer (contact: <code>{CONTACT_EMAIL}</code>).
+          the project maintainer (contact:{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>).
         </p>
 
         <h2>2. What we process and why</h2>
@@ -193,7 +194,8 @@ export default function PrivacyPage() {
 
         <h2>12. Contact</h2>
         <p>
-          Questions or data-subject requests: <code>{CONTACT_EMAIL}</code>.
+          Questions or data-subject requests:{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
       </article>
 

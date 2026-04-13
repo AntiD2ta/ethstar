@@ -46,7 +46,7 @@ test.describe("Cookie consent", () => {
     await expect(page.getByTestId("consent-accept")).toBeVisible();
     await expect(page.getByTestId("consent-reject")).toBeVisible();
     await expect(page.getByTestId("consent-preferences")).toBeVisible();
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState("networkidle");
     expect(tracker.urls).toEqual([]);
   });
 
@@ -61,7 +61,7 @@ test.describe("Cookie consent", () => {
     await expect(page.locator("h1", { hasText: "Privacy Policy" })).toBeVisible();
     await page.goto("/cookies");
     await expect(page.locator("h1", { hasText: "Cookies Policy" })).toBeVisible();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle");
     expect(tracker.urls).toEqual([]);
   });
 

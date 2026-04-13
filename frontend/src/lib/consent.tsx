@@ -82,7 +82,6 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     },
   );
   const { consent, bannerOpen } = state;
-  const isHydrated = true;
 
   const persist = useCallback((next: Consent) => {
     saveConsent(next);
@@ -119,7 +118,6 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ConsentContextValue>(
     () => ({
       consent,
-      isHydrated,
       bannerOpen,
       acceptAll,
       rejectAll,
@@ -127,7 +125,7 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
       openBanner,
       closeBanner,
     }),
-    [consent, isHydrated, bannerOpen, acceptAll, rejectAll, setCategory, openBanner, closeBanner],
+    [consent, bannerOpen, acceptAll, rejectAll, setCategory, openBanner, closeBanner],
   );
 
   return <ConsentContext.Provider value={value}>{children}</ConsentContext.Provider>;

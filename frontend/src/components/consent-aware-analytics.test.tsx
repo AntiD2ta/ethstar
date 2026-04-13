@@ -41,9 +41,10 @@ function Wrapper({ children }: { children: ReactNode }) {
 describe("ConsentAwareAnalytics", () => {
   it("does not render or import analytics when statistics consent is missing", async () => {
     const { container } = render(<ConsentAwareAnalytics />, { wrapper: Wrapper });
-    // Let any pending effects flush.
     await Promise.resolve();
     expect(container.innerHTML).toBe("");
+    expect(analyticsSpy).not.toHaveBeenCalled();
+    expect(speedInsightsSpy).not.toHaveBeenCalled();
   });
 
   it("does not render when statistics consent is false", async () => {
@@ -59,6 +60,8 @@ describe("ConsentAwareAnalytics", () => {
     const { container } = render(<ConsentAwareAnalytics />, { wrapper: Wrapper });
     await Promise.resolve();
     expect(container.innerHTML).toBe("");
+    expect(analyticsSpy).not.toHaveBeenCalled();
+    expect(speedInsightsSpy).not.toHaveBeenCalled();
   });
 
   it("renders analytics when statistics consent is true", async () => {
@@ -74,5 +77,7 @@ describe("ConsentAwareAnalytics", () => {
     const { findByTestId } = render(<ConsentAwareAnalytics />, { wrapper: Wrapper });
     await waitFor(() => findByTestId("mock-analytics"));
     await waitFor(() => findByTestId("mock-speed-insights"));
+    expect(analyticsSpy).toHaveBeenCalled();
+    expect(speedInsightsSpy).toHaveBeenCalled();
   });
 });

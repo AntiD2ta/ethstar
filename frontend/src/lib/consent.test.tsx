@@ -33,7 +33,6 @@ describe("ConsentProvider", () => {
     const { result } = renderHook(() => useConsent(), { wrapper: Wrapper });
     expect(result.current.consent).toBeNull();
     expect(result.current.bannerOpen).toBe(true);
-    expect(result.current.isHydrated).toBe(true);
   });
 
   it("acceptAll persists statistics=true and closes the banner", () => {

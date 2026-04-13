@@ -27,8 +27,6 @@ export interface Consent {
 export interface ConsentContextValue {
   /** `null` means the user has not made a choice yet — show the banner. */
   consent: Consent | null;
-  /** `true` while hydrating from localStorage (first render only). */
-  isHydrated: boolean;
   /** `true` when the banner (or preferences dialog) is visible. */
   bannerOpen: boolean;
   acceptAll: () => void;
