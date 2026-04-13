@@ -23,7 +23,8 @@ export type RepoCategory =
   | "Ethereum Core"
   | "Consensus Clients"
   | "Execution Clients"
-  | "Validator Tooling";
+  | "Validator Tooling"
+  | "DeFi & Smart Contracts";
 
 export type StarStatus =
   | "unknown"

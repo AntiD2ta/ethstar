@@ -17,7 +17,8 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { SaturnRing } from "./saturn-ring";
 import { useSaturnAnimation } from "./use-saturn-animation";
 import type { RingConfig } from "./use-saturn-animation";
-import { CATEGORIES, REPOS_BY_CATEGORY } from "@/lib/repos";
+import { distributeRepos, sortReposForDistribution } from "./distribute-repos";
+import { CATEGORIES, REPOSITORIES } from "@/lib/repos";
 import type { RepoMeta } from "@/lib/github";
 import type { StarStatus } from "@/lib/types";
 import { CssDiamond } from "@/components/css-diamond";
@@ -30,36 +31,38 @@ interface SaturnCarouselProps {
   prefersReducedMotion: boolean;
 }
 
-// Desktop ring configs — order must match CATEGORIES in repos.ts
+// Radii ordered inner → outer. Outer rings have larger circumference so
+// they receive proportionally more chips (see `distributeRepos`).
+const DESKTOP_RADII = [240, 350, 460, 570] as const;
+const MOBILE_RADII = [100, 145, 190, 235] as const;
+
+// Sort once at module scope so ring membership is deterministic across
+// refreshes, then slice by radius-weight. Both viewports share the same
+// slice ordering so repos don't hop between rings on viewport toggles.
+const SORTED_REPOS = sortReposForDistribution(
+  REPOSITORIES,
+  CATEGORIES.map((c) => c.name),
+);
+const RING_SLICES = distributeRepos(SORTED_REPOS, DESKTOP_RADII);
+
+// Desktop ring configs — 4 rings, radius-weighted chip distribution.
 const RING_CONFIGS: RingConfig[] = [
-  { radius: 240, speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0, chipCount: REPOS_BY_CATEGORY["Ethereum Core"].length },
-  { radius: 350, speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4, chipCount: REPOS_BY_CATEGORY["Execution Clients"].length },
-  { radius: 460, speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3, chipCount: REPOS_BY_CATEGORY["Consensus Clients"].length },
-  { radius: 570, speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2, chipCount: REPOS_BY_CATEGORY["Validator Tooling"].length },
+  { radius: DESKTOP_RADII[0], speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0, chipCount: RING_SLICES[0].length },
+  { radius: DESKTOP_RADII[1], speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4, chipCount: RING_SLICES[1].length },
+  { radius: DESKTOP_RADII[2], speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3, chipCount: RING_SLICES[2].length },
+  { radius: DESKTOP_RADII[3], speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2, chipCount: RING_SLICES[3].length },
 ];
 
-// Mobile ring configs — same radii as above but tilted around the Y axis
-// so the ellipse is tall (portrait) instead of wide, matching mobile's
-// narrow aspect ratio. Order matches CATEGORIES.
+// Mobile ring configs — same slice counts, tilted around Y for a portrait
+// ellipse matching mobile's narrow aspect ratio. Mobile reuses the
+// desktop-derived `RING_SLICES`; keep `MOBILE_RADII` proportional to
+// `DESKTOP_RADII` or mobile chip density will diverge from desktop.
 const MOBILE_RING_CONFIGS: RingConfig[] = [
-  { radius: 100, speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, chipCount: REPOS_BY_CATEGORY["Ethereum Core"].length, tiltAxis: "y" },
-  { radius: 145, speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, chipCount: REPOS_BY_CATEGORY["Execution Clients"].length, tiltAxis: "y" },
-  { radius: 190, speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, chipCount: REPOS_BY_CATEGORY["Consensus Clients"].length, tiltAxis: "y" },
-  { radius: 235, speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, chipCount: REPOS_BY_CATEGORY["Validator Tooling"].length, tiltAxis: "y" },
+  { radius: MOBILE_RADII[0], speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, chipCount: RING_SLICES[0].length, tiltAxis: "y" },
+  { radius: MOBILE_RADII[1], speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, chipCount: RING_SLICES[1].length, tiltAxis: "y" },
+  { radius: MOBILE_RADII[2], speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, chipCount: RING_SLICES[2].length, tiltAxis: "y" },
+  { radius: MOBILE_RADII[3], speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, chipCount: RING_SLICES[3].length, tiltAxis: "y" },
 ];
-
-if (RING_CONFIGS.length !== CATEGORIES.length) {
-  throw new Error(
-    `RING_CONFIGS (${RING_CONFIGS.length}) must match CATEGORIES (${CATEGORIES.length})`,
-  );
-}
-if (MOBILE_RING_CONFIGS.length !== CATEGORIES.length) {
-  throw new Error(
-    `MOBILE_RING_CONFIGS (${MOBILE_RING_CONFIGS.length}) must match CATEGORIES (${CATEGORIES.length})`,
-  );
-}
-
-const CATEGORY_ORDER = CATEGORIES.map((c) => c.name);
 
 const ZOOM_HINT_TIMEOUT_MS = 4000;
 
@@ -97,10 +100,10 @@ export function SaturnCarousel({
       </div>
 
       {/* Orbiting rings */}
-      {CATEGORY_ORDER.map((categoryName, ringIndex) => (
+      {RING_SLICES.map((repos, ringIndex) => (
         <SaturnRing
-          key={categoryName}
-          repos={REPOS_BY_CATEGORY[categoryName]}
+          key={`ring-${ringIndex}`}
+          repos={repos}
           starStatuses={starStatuses}
           repoMeta={repoMeta}
           metaLoading={metaLoading}

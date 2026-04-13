@@ -44,7 +44,7 @@ describe("SaturnCarousel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders all 32 repo chips on desktop", () => {
+  it("renders all 54 repo chips on desktop", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -55,7 +55,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(32);
+    expect(links).toHaveLength(54);
   });
 
   it("renders the central diamond container", () => {
@@ -104,7 +104,7 @@ describe("SaturnCarousel", () => {
     expect(screen.queryByText("Consensus Clients")).not.toBeInTheDocument();
   });
 
-  it("renders all 32 repo chips on mobile", () => {
+  it("renders all 54 repo chips on mobile", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -115,7 +115,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(32);
+    expect(links).toHaveLength(54);
   });
 
   it("renders a pinch-to-zoom hint on mobile", () => {

@@ -18,7 +18,7 @@ Want to add a repository? Fork the repo, make the changes below, and open a Pull
 
 ### Categories
 
-Repos are organized into four categories. Use these descriptions to decide where a new repo belongs:
+Repos are organized into five categories. Use these descriptions to decide where a new repo belongs:
 
 | Category | What belongs here |
 |---|---|
@@ -26,6 +26,7 @@ Repos are organized into four categories. Use these descriptions to decide where
 | **Consensus Clients** | Beacon chain / consensus layer client implementations (Prysm, Lighthouse, Teku, Lodestar, Nimbus, Grandine). |
 | **Execution Clients** | Execution layer client implementations (Geth, Nethermind, Besu, Erigon, Reth). |
 | **Validator Tooling** | Validator clients, remote signers, distributed validator middleware, node setup/management tools, monitoring, and infrastructure utilities for stakers and operators. |
+| **DeFi & Smart Contracts** | DeFi protocol contracts, liquidity venues, stablecoins, cross-chain infrastructure, and analytics (Uniswap, Aave, Morpho, Curve, DefiLlama, Circle, etc.). |
 
 ### Files to update
 

@@ -32,7 +32,7 @@ test("home page shows unauthenticated CTAs", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("home page shows all four repo category sections", async ({ page }) => {
+test("home page shows all five repo category sections", async ({ page }) => {
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Ethereum Core" }),
@@ -46,6 +46,21 @@ test("home page shows all four repo category sections", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Validator Tooling" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "DeFi & Smart Contracts" }),
+  ).toBeVisible();
+});
+
+test("DeFi marquee shows core DeFi repos", async ({ page }) => {
+  await page.goto("/");
+  const defiMarquee = page.getByRole("region", {
+    name: "Scrolling list of DeFi & Smart Contracts repositories",
+  });
+  await expect(defiMarquee).toBeVisible();
+  // Known cards in the DeFi section — first() disambiguates marquee duplicates.
+  await expect(defiMarquee.getByText("v4-core").first()).toBeVisible();
+  await expect(defiMarquee.getByText("morpho-blue").first()).toBeVisible();
+  await expect(defiMarquee.getByText("aave-v4").first()).toBeVisible();
 });
 
 test("home page shows a sample of tracked repos", async ({ page }) => {
@@ -86,6 +101,7 @@ test("marquees expose per-category accessible labels", async ({ page }) => {
     "Consensus Clients",
     "Execution Clients",
     "Validator Tooling",
+    "DeFi & Smart Contracts",
   ]) {
     await expect(
       page.getByRole("region", {

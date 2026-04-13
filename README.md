@@ -82,6 +82,35 @@ Validator clients, remote signers, distributed validator middleware, node setup/
 | [ssvlabs/ssv](https://github.com/ssvlabs/ssv) | Secret-Shared-Validator for Ethereum staking |
 | [serenita-org/vero](https://github.com/serenita-org/vero) | Multi-node validator client for Ethereum |
 | [wealdtech/ethdo](https://github.com/wealdtech/ethdo) | CLI for Ethereum staking operations |
+| [migalabs/goteth](https://github.com/migalabs/goteth) | Ethereum chain metrics indexer for CL and EL |
+| [migalabs/armiarma](https://github.com/migalabs/armiarma) | Libp2p network crawler focused on Ethereum's consensus layer |
+
+### DeFi & Smart Contracts
+
+Foundational DeFi protocol contracts, liquidity venues, stablecoins, cross-chain infrastructure, and analytics.
+
+| Repository | Description |
+|---|---|
+| [0xProject/0x-settler](https://github.com/0xProject/0x-settler) | 0x settlement contracts using Permit2 |
+| [aave/aave-v4](https://github.com/aave/aave-v4) | Aave V4 protocol contracts |
+| [aave/interface](https://github.com/aave/interface) | Interface to access the Aave Protocol |
+| [Uniswap/v4-core](https://github.com/Uniswap/v4-core) | Core smart contracts of Uniswap v4 |
+| [1inch/aqua](https://github.com/1inch/aqua) | Shared liquidity layer protocol by 1inch |
+| [1inch/limit-order-protocol](https://github.com/1inch/limit-order-protocol) | 1inch limit order protocol smart contracts |
+| [across-protocol/contracts](https://github.com/across-protocol/contracts) | Smart contracts for Across protocol |
+| [across-protocol/relayer](https://github.com/across-protocol/relayer) | Across Protocol bots and relayer infrastructure |
+| [morpho-org/morpho-blue](https://github.com/morpho-org/morpho-blue) | Morpho variable rate lending market |
+| [morpho-org/vault-v2](https://github.com/morpho-org/vault-v2) | Morpho Vault V2 contracts |
+| [balancer/balancer-v3-monorepo](https://github.com/balancer/balancer-v3-monorepo) | Balancer v3 protocol monorepo |
+| [curvefi/curve-stablecoin](https://github.com/curvefi/curve-stablecoin) | Curve stablecoin powered by LLAMMAs |
+| [DefiLlama/defillama-server](https://github.com/DefiLlama/defillama-server) | Backend server for DefiLlama analytics |
+| [DefiLlama/chainlist](https://github.com/DefiLlama/chainlist) | Community-maintained list of EVM chains |
+| [DefiLlama/defillama-app](https://github.com/DefiLlama/defillama-app) | DefiLlama frontend application |
+| [circlefin/evm-cctp-contracts](https://github.com/circlefin/evm-cctp-contracts) | EVM smart contracts for Circle's Cross-Chain Transfer Protocol |
+| [circlefin/stablecoin-evm](https://github.com/circlefin/stablecoin-evm) | Smart contracts for Circle's EVM stablecoins |
+| [circlefin/malachite](https://github.com/circlefin/malachite) | Flexible BFT consensus engine in Rust |
+| [EkuboProtocol/evm-contracts](https://github.com/EkuboProtocol/evm-contracts) | Smart contracts for Ekubo Protocol on EVM |
+| [lidofinance/core](https://github.com/lidofinance/core) | Lido DAO smart contracts |
 
 ## Want to add a repo?
 
