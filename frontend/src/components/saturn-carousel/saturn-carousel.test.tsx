@@ -13,7 +13,8 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { SaturnCarousel } from "./saturn-carousel";
+import { DESKTOP_RADII, MOBILE_RADII, SaturnCarousel } from "./saturn-carousel";
+import { REPOSITORIES } from "@/lib/repos";
 
 let rafSpy: ReturnType<typeof vi.spyOn>;
 let cafSpy: ReturnType<typeof vi.spyOn>;
@@ -44,7 +45,7 @@ describe("SaturnCarousel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders all 32 repo chips on desktop", () => {
+  it("renders one chip per repository on desktop", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -55,7 +56,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(32);
+    expect(links).toHaveLength(REPOSITORIES.length);
   });
 
   it("renders the central diamond container", () => {
@@ -104,7 +105,7 @@ describe("SaturnCarousel", () => {
     expect(screen.queryByText("Consensus Clients")).not.toBeInTheDocument();
   });
 
-  it("renders all 32 repo chips on mobile", () => {
+  it("renders one chip per repository on mobile", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -115,7 +116,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(32);
+    expect(links).toHaveLength(REPOSITORIES.length);
   });
 
   it("renders a pinch-to-zoom hint on mobile", () => {
@@ -142,5 +143,30 @@ describe("SaturnCarousel", () => {
       />,
     );
     expect(screen.getByLabelText("Starred")).toBeInTheDocument();
+  });
+});
+
+describe("Saturn ring radii invariants", () => {
+  it("MOBILE_RADII stays proportional to DESKTOP_RADII within 2% tolerance", () => {
+    // Slice counts are computed from DESKTOP_RADII only and reused on
+    // mobile. If MOBILE_RADII ratios drift from DESKTOP_RADII, mobile
+    // chip density silently diverges from desktop — a chip count that
+    // looks balanced on a 570/460/350/240 desktop ring can clump or
+    // starve on a mobile ring whose ratios don't match. Lock the ratios
+    // so any future tweak to one array must also update the other.
+    expect(DESKTOP_RADII).toHaveLength(MOBILE_RADII.length);
+    const baseRatio = MOBILE_RADII[0] / DESKTOP_RADII[0];
+    for (let i = 1; i < DESKTOP_RADII.length; i++) {
+      const ratio = MOBILE_RADII[i] / DESKTOP_RADII[i];
+      expect(ratio).toBeGreaterThan(baseRatio * 0.98);
+      expect(ratio).toBeLessThan(baseRatio * 1.02);
+    }
+  });
+
+  it("both radii arrays are strictly increasing (inner → outer)", () => {
+    for (let i = 0; i < DESKTOP_RADII.length - 1; i++) {
+      expect(DESKTOP_RADII[i]).toBeLessThan(DESKTOP_RADII[i + 1]);
+      expect(MOBILE_RADII[i]).toBeLessThan(MOBILE_RADII[i + 1]);
+    }
   });
 });

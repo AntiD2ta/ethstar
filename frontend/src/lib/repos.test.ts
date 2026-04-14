@@ -68,8 +68,8 @@ describe("REPOSITORIES", () => {
 });
 
 describe("CATEGORIES", () => {
-  it("has four categories", () => {
-    expect(CATEGORIES).toHaveLength(4);
+  it("has five categories", () => {
+    expect(CATEGORIES).toHaveLength(5);
   });
 
   it("every category has a name and icon", () => {

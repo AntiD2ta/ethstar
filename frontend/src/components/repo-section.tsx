@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import type { ReactNode } from "react";
-import { Cpu, Diamond, Radio, Wrench } from "lucide-react";
+import { Coins, Cpu, Diamond, Radio, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { RepoCategory } from "@/lib/types";
 
@@ -21,6 +21,7 @@ const ICONS: Record<string, LucideIcon> = {
   cpu: Cpu,
   radio: Radio,
   wrench: Wrench,
+  coins: Coins,
 };
 
 interface RepoSectionProps {
