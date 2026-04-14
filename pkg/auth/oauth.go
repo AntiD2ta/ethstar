@@ -72,6 +72,7 @@ func BuildAuthURL(clientID, state string) string {
 // OAuth flows (e.g. "oauth_state" for GitHub App, "star_oauth_state" for
 // classic OAuth starring).
 func SetNamedStateCookie(w http.ResponseWriter, name, state string, secure bool) {
+	// #nosec G124 -- CWE-614: Secure is driven by env (ETHSTAR_COOKIE_SECURE); must be false on plaintext localhost dev since browsers reject Secure cookies over http://. HttpOnly and SameSite are set.
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    state,
@@ -93,6 +94,7 @@ func SetStateCookie(w http.ResponseWriter, state string, secure bool) {
 // ClearNamedStateCookie deletes the named cookie. The secure flag must match
 // the one used when setting the cookie so the browser recognises and replaces it.
 func ClearNamedStateCookie(w http.ResponseWriter, name string, secure bool) {
+	// #nosec G124 -- CWE-614: Secure must match the flag used at set-time (env-driven); false on localhost dev. HttpOnly and SameSite are set.
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    "",

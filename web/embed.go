@@ -19,5 +19,10 @@ import "embed"
 // content holds the built frontend files.
 // Populated at build time by: cd frontend && npm run build
 //
-//go:embed static/*
+// Use `all:` so the embed picks up the tracked `.gitkeep` placeholder when
+// the frontend hasn't been built yet (e.g. fresh CI checkout before `npm
+// run build`). Without it, `static/*` excludes dotfiles and the package
+// fails to compile on a clean tree.
+//
+//go:embed all:static/*
 var content embed.FS

@@ -18,7 +18,7 @@ Want to add a repository? Fork the repo, make the changes below, and open a Pull
 
 ### Categories
 
-Repos are organized into four categories. Use these descriptions to decide where a new repo belongs:
+Repos are organized into five categories. Use these descriptions to decide where a new repo belongs:
 
 | Category | What belongs here |
 |---|---|
@@ -26,6 +26,7 @@ Repos are organized into four categories. Use these descriptions to decide where
 | **Consensus Clients** | Beacon chain / consensus layer client implementations (Prysm, Lighthouse, Teku, Lodestar, Nimbus, Grandine). |
 | **Execution Clients** | Execution layer client implementations (Geth, Nethermind, Besu, Erigon, Reth). |
 | **Validator Tooling** | Validator clients, remote signers, distributed validator middleware, node setup/management tools, monitoring, and infrastructure utilities for stakers and operators. |
+| **DeFi & Smart Contracts** | DeFi protocol contracts, liquidity venues, stablecoins, cross-chain infrastructure, and analytics (Uniswap, Aave, Morpho, Curve, DefiLlama, Circle, etc.). |
 
 ### Files to update
 
@@ -58,22 +59,34 @@ The social preview image is **dynamically generated** by a Vercel serverless fun
 
 ### Static fallback
 
-`frontend/public/og-image.png` is kept as a static fallback, design reference, and GitHub social preview (upload via repo Settings).
+Two static variants live in `frontend/public/`:
 
-To regenerate:
+- **`og-image.png`** (~420 KB, lossless) — design reference and GitHub social preview source (upload via repo Settings → Social Preview).
+- **`og-image.jpg`** (~100 KB, JPEG q92) — what the `og:image` and `twitter:image` meta tags actually point at. The smaller size matters because WhatsApp drops inline previews above ~300 KB.
+
+The meta tags currently use the JPEG variant because `/api/og` is failing in production (see TASKS.md). Once the Satori function is restored, swap them back to `https://ethstar.dev/api/og`.
+
+To regenerate both:
 
 ```bash
 # Start Vite dev server
 cd frontend && npm run dev &
 
-# Capture with Playwright
+# Capture the lossless PNG with Playwright
 npx playwright screenshot \
   --viewport-size="1280,640" --full-page \
   "http://localhost:5173/scripts/og-image-gen.html" \
   public/og-image.png
+
+# Derive the small JPEG (macOS — built-in `sips`; quality 92 keeps text crisp)
+sips --setProperty format jpeg --setProperty formatOptions 92 \
+  public/og-image.png --out public/og-image.jpg
+
+# Verify the JPEG is under 300 KB
+ls -la public/og-image.jpg
 ```
 
-The source template is `frontend/scripts/og-image-gen.html`. Edit it to change layout, colors, or text, then re-run the Playwright capture above.
+The source template is `frontend/scripts/og-image-gen.html`. Edit it to change layout, colors, or text, then re-run both steps above.
 
 ### Previewing in production
 

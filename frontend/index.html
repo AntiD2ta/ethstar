@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>Ethstar — Star Every Ethereum Repo</title>
-    <meta name="description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 30+ core protocol repositories in a single click." />
+    <meta name="description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 50+ core protocol repositories in a single click." />
     <meta name="theme-color" content="#1a1a2e" />
     <link rel="canonical" href="https://ethstar.dev/" />
 
@@ -14,16 +14,22 @@
     <meta property="og:site_name" content="Ethstar" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Ethstar — Star Every Ethereum Repo" />
-    <meta property="og:description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 30+ core protocol repositories in a single click." />
+    <meta property="og:description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 50+ core protocol repositories in a single click." />
     <meta property="og:url" content="https://ethstar.dev/" />
+    <!-- Dynamic OG image via Satori (Edge Function, see api/og/index.tsx).
+         Auto-updates the repo count subtitle as REPOSITORIES grows. The
+         static /og-image.jpg remains as a hand-regenerable fallback (see
+         MAINTAINERS.md) in case the function regresses. -->
     <meta property="og:image" content="https://ethstar.dev/api/og" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Ethstar — Star every Ethereum repo" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ethstar — Star Every Ethereum Repo" />
-    <meta name="twitter:description" content="Support Ethereum's open-source ecosystem. Star 30+ core protocol repos in one click." />
+    <meta name="twitter:description" content="Support Ethereum's open-source ecosystem. Star 50+ core protocol repos in one click." />
     <meta name="twitter:image" content="https://ethstar.dev/api/og" />
 
     <!-- Favicon -->
@@ -63,7 +69,7 @@
     <div id="root"></div>
     <noscript>
       <h1>Ethstar — Star Every Ethereum Repo</h1>
-      <p>Support Ethereum's open-source ecosystem by starring 30+ core protocol repositories with a single click.</p>
+      <p>Support Ethereum's open-source ecosystem by starring 50+ core protocol repositories with a single click.</p>
       <p>This application requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
