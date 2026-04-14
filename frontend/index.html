@@ -16,23 +16,21 @@
     <meta property="og:title" content="Ethstar — Star Every Ethereum Repo" />
     <meta property="og:description" content="Support Ethereum's open-source ecosystem. Authenticate with GitHub and star 50+ core protocol repositories in a single click." />
     <meta property="og:url" content="https://ethstar.dev/" />
-    <!-- Use the static fallback (og-image.jpg, ~100 KB), not /api/og — the Satori
-         function is currently returning 500 (FUNCTION_INVOCATION_FAILED), which
-         silently breaks previews on WhatsApp/Telegram/Slack/Twitter. The JPEG
-         variant is small enough to clear WhatsApp's ~300 KB inline-preview limit
-         (the original PNG at 419 KB was over). Swap back to /api/og once the
-         function is fixed. See TASKS.md for the investigation item. -->
-    <meta property="og:image" content="https://ethstar.dev/og-image.jpg" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1280" />
-    <meta property="og:image:height" content="640" />
+    <!-- Dynamic OG image via Satori (Edge Function, see api/og/index.tsx).
+         Auto-updates the repo count subtitle as REPOSITORIES grows. The
+         static /og-image.jpg remains as a hand-regenerable fallback (see
+         MAINTAINERS.md) in case the function regresses. -->
+    <meta property="og:image" content="https://ethstar.dev/api/og" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Ethstar — Star every Ethereum repo" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ethstar — Star Every Ethereum Repo" />
     <meta name="twitter:description" content="Support Ethereum's open-source ecosystem. Star 50+ core protocol repos in one click." />
-    <meta name="twitter:image" content="https://ethstar.dev/og-image.jpg" />
+    <meta name="twitter:image" content="https://ethstar.dev/api/og" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
