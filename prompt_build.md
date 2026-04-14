@@ -18,9 +18,13 @@ IMPORTANT:
 
 After completing work in each session:
 1. **Update the tasks document**: Open the specific tasks document (e.g., `TASKS.md`) and mark completed items with `[x]`. Any items NOT completed must remain as `[ ]` so the next session knows exactly what's left. If you discover new work items during the session, add them as unchecked `[ ]` items.
-2. **Log learnings**: Append any new insights, pitfalls, or workarounds discovered during the session to @CLAUDE.md under the appropriate category in the "Learnings & Pitfalls" section.
+2. **Log learnings — but apply the keep/evict test first.** CLAUDE.md is loaded on every turn, so every line costs tokens forever. Before writing anything down, ask:
+   - Could this be enforced by tooling (lint, semgrep, CI check, typecheck)? → **log in `docs/tooling-candidates.md`** with the invariant, violation symptom, and enforcement idea. Do NOT also add it to CLAUDE.md or a learnings file.
+   - Is it a narrow rule, incident post-mortem, or topic-specific pattern? → **append to the matching file in `docs/learnings/`** (see `docs/learnings/README.md` for the index; create a new topic file if none fits). These are read on demand when working in that area.
+   - Is it a durable, project-wide rule that (a) an agent could violate tomorrow, (b) is not tool-enforceable, AND (c) is not derivable from reading the code? → **only then** add it to CLAUDE.md under the matching section (Architectural invariants, Key rules, or Security).
+   - Is the "learning" just that a specific file now does X correctly? → **don't log it anywhere**. The code and `git blame` carry the why.
 3. **Update architecture docs if impacted**: If your changes affect DNA.md or GUIDELINES.md, update them to reflect the current state.
-4. These updates ensure the next agent session starts with full context and avoids repeating mistakes.
+4. These updates ensure the next agent session starts with full context without polluting the always-loaded memory file.
 
 ## Context-Efficient Test Runner
 
