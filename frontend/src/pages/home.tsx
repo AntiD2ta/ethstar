@@ -23,6 +23,7 @@ import { RepoSection } from "@/components/repo-section";
 import { SlideTransition } from "@/components/slide-transition";
 import { StarModal } from "@/components/star-modal";
 import { StarringControls } from "@/components/starring-controls";
+import { StickyStarControls } from "@/components/sticky-star-controls";
 import { SupportSection } from "@/components/support-section";
 import { useAuth } from "@/hooks/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -64,7 +65,9 @@ export default function HomePage() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const reposRef = useRef<HTMLDivElement | null>(null);
+  const heroRef = useRef<HTMLElement | null>(null);
   const checkedTokenRef = useRef<string | null>(null);
+  const isAnyModalOpen = starModalOpen || manualModalOpen;
 
   const handleSessionExpired = useCallback(() => {
     toast.error("Session expired. Sign in again.");
@@ -171,6 +174,7 @@ export default function HomePage() {
 
       {/* Slide 1 — Hero */}
       <HeroSection
+        ref={heroRef}
         repoCount={REPOSITORIES.length}
         formattedStars={formattedStars}
         categoryCount={CATEGORIES.length}
@@ -204,17 +208,6 @@ export default function HomePage() {
         />
       </Suspense>
 
-      {/* Starring controls — after Saturn ring (top instance) */}
-      {isAuthenticated && (
-        <StarringControls
-          progress={progress}
-          isStarring={isStarring}
-          allDone={allDone}
-          onStarAll={handleStarAll}
-          testId="starring-controls-top"
-        />
-      )}
-
       <SlideTransition />
 
       {/* Slide 3 — How It Works */}
@@ -231,7 +224,7 @@ export default function HomePage() {
         ref={reposRef}
         id="repos"
         tabIndex={-1}
-        className="flex min-h-dvh flex-col justify-center gap-12 py-12 focus:outline-none"
+        className="flex flex-col gap-12 py-12 focus:outline-none"
       >
         {CATEGORIES.map((category) => (
           <RepoSection
@@ -254,18 +247,20 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Starring controls — after repos (bottom instance) */}
+      <SupportSection />
+
+      {/* Floating "Star All" CTA — mounts only after hero scrolls out of view.
+          Hidden while any modal is open or once all repos are starred. */}
       {isAuthenticated && (
-        <StarringControls
-          progress={progress}
+        <StickyStarControls
+          heroRef={heroRef}
+          remaining={progress.remaining}
           isStarring={isStarring}
           allDone={allDone}
           onStarAll={handleStarAll}
-          testId="starring-controls-bottom"
+          hidden={isAnyModalOpen}
         />
       )}
-
-      <SupportSection />
 
       {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete) */}
       <StarModal

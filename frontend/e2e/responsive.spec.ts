@@ -12,7 +12,11 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
-import { seedAuth } from "./helpers";
+import { seedAuth, seedConsent } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 /**
  * Responsive layout tests across three viewport sizes:
@@ -172,8 +176,9 @@ test.describe("mobile starring controls", () => {
     const progressBar = page.getByRole("progressbar").first();
     await expect(progressBar).toBeVisible({ timeout: 10_000 });
 
-    // Progress bar container should fit within viewport (use first instance)
-    const container = page.getByTestId("starring-controls-top");
+    // Progress bar container should fit within viewport (hero instance —
+    // Phase D removed the duplicate "top" and "bottom" StarringControls).
+    const container = page.getByTestId("starring-controls-hero");
     const box = await container.boundingBox();
     expect(box).toBeTruthy();
     expect(box!.x).toBeGreaterThanOrEqual(0);

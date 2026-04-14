@@ -12,7 +12,11 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
-import { seedAuth } from "./helpers";
+import { seedAuth, seedConsent } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 // --- Auth loading state ---
 

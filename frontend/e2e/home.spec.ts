@@ -12,6 +12,37 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
+import { seedAuth, seedConsent } from "./helpers";
+
+function mockAuthedApis(page: import("@playwright/test").Page) {
+  return Promise.all([
+    page.route("https://api.github.com/user", (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+      }),
+    ),
+    page.route("https://api.github.com/user/starred/**", (r) =>
+      r.fulfill({ status: 404, body: "" }),
+    ),
+    // Force REST fallback so we don't issue an un-mocked GraphQL request.
+    page.route("https://api.github.com/graphql", (r) =>
+      r.fulfill({ status: 401, body: "" }),
+    ),
+    page.route("**/api/stats", (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+      }),
+    ),
+  ]);
+}
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 test("home page renders hero headline", async ({ page }) => {
   await page.goto("/");
@@ -117,4 +148,73 @@ test("progress bar and star-all button are hidden when unauthenticated", async (
   await page.goto("/");
   await expect(page.getByLabel("Starring progress")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Star All/i })).toHaveCount(0);
+});
+
+test("only one StarringControls instance exists at any scroll position", async ({
+  page,
+}) => {
+  // Unauthenticated: zero controls at the top AND bottom. This also guards
+  // against the Phase D regression where three duplicate StarringControls
+  // instances previously rendered on the home page.
+  await page.goto("/");
+  await expect(page.getByLabel("Starring controls")).toHaveCount(0);
+  // Scroll to the very bottom; still zero for unauthenticated users.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(page.getByLabel("Starring controls")).toHaveCount(0);
+});
+
+test("sticky floating CTA is absent for unauthenticated users", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("sticky-star-controls")).toHaveCount(0);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(page.getByTestId("sticky-star-controls")).toHaveCount(0);
+});
+
+test("authenticated users: sticky CTA stays hidden while hero is visible", async ({
+  page,
+}) => {
+  // Regression: a sentinel placed below the hero used to report
+  // isIntersecting=false on short viewports, causing the sticky CTA to mount
+  // alongside the hero's StarringControls and produce two "Star All" buttons
+  // in the hero view. The fix observes the hero section itself.
+  await seedAuth(page);
+  await mockAuthedApis(page);
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await page.goto("/");
+  await expect(page.getByTestId("starring-controls-hero")).toBeVisible();
+  await expect(page.getByTestId("sticky-star-controls")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Star All \d+ Remaining/i })).toHaveCount(1);
+});
+
+test("authenticated users: sticky CTA appears after scrolling past hero", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  await mockAuthedApis(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.getByTestId("starring-controls-hero")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2));
+  await expect(page.getByTestId("sticky-star-controls")).toBeVisible();
+});
+
+test.describe("mobile hero viewport", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("hero fits within a single viewport on mobile", async ({ page }) => {
+    await page.goto("/");
+    const hero = page.getByTestId("hero-section");
+    const box = await hero.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThanOrEqual(844);
+  });
+
+  test("hero stats row is hidden on mobile (compact inline summary only)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    // role="group" on the 3-stat row should be absent from the a11y tree on <md.
+    const statGroup = page.getByRole("group", { name: "Site statistics" });
+    await expect(statGroup).toBeHidden();
+  });
 });

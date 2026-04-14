@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { memo } from "react";
 import { Check, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,7 +22,7 @@ interface StarAllButtonProps {
   onClick: () => void;
 }
 
-export function StarAllButton({
+export const StarAllButton = memo(function StarAllButton({
   remaining,
   isStarring,
   allDone,
@@ -61,4 +62,4 @@ export function StarAllButton({
       )}
     </Button>
   );
-}
+});

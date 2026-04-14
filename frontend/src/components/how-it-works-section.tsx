@@ -47,7 +47,7 @@ export const HowItWorksSection = memo(function HowItWorksSection({
   return (
     <section
       aria-labelledby="how-it-works-heading"
-      className="flex min-h-0 flex-col items-center justify-center gap-6 px-4 py-12 md:min-h-dvh md:gap-10 md:px-6 md:py-16"
+      className="flex flex-col items-center justify-center gap-6 px-4 py-12 md:gap-10 md:px-6 md:py-20"
     >
       <h2 id="how-it-works-heading" className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
         How It Works

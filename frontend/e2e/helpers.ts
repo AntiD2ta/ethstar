@@ -13,6 +13,33 @@
 
 import type { Page } from "@playwright/test";
 
+/**
+ * Seed the cookie-consent localStorage entry so the Phase-C consent banner
+ * doesn't render as a Radix Dialog on top of the page. The dialog sets
+ * `aria-hidden` on sibling content, which makes `getByRole` queries fail even
+ * when the element is visually present. Use in `beforeEach` when testing the
+ * home page or any route that would otherwise show the consent banner.
+ *
+ * Keep in sync with `CONSENT_STORAGE_KEY` / `CONSENT_VERSION` in
+ * `src/lib/consent-context.ts`.
+ */
+export async function seedConsent(
+  page: Page,
+  statistics: boolean = false,
+): Promise<void> {
+  await page.addInitScript((opts) => {
+    localStorage.setItem(
+      "ethstar_consent",
+      JSON.stringify({
+        version: 1,
+        necessary: true,
+        statistics: opts.statistics,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+  }, { statistics });
+}
+
 export async function seedAuth(page: Page, accessToken = "ghu_fake_e2e_token") {
   await page.addInitScript((token) => {
     // Keep in sync with STORAGE_KEY in src/test/render.tsx
