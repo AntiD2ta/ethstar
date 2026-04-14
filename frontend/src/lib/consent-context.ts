@@ -17,13 +17,18 @@ export const CONSENT_VERSION = 1 as const;
 
 export const CONSENT_STORAGE_KEY = "ethstar_consent";
 
-export type ConsentCategory = "statistics";
-
 export interface Consent {
   version: typeof CONSENT_VERSION;
   necessary: true;
   statistics: boolean;
   updatedAt: string;
+}
+
+/** Explicit per-category preferences saved via the preferences dialog. `necessary`
+ * is omitted because it is always `true` — encoding it here would invite callers
+ * to think it is toggleable. */
+export interface ConsentPreferences {
+  statistics: boolean;
 }
 
 export interface ConsentContextValue {
@@ -33,7 +38,10 @@ export interface ConsentContextValue {
   bannerOpen: boolean;
   acceptAll: () => void;
   rejectAll: () => void;
-  setCategory: (category: ConsentCategory, allowed: boolean) => void;
+  /** Persist an explicit full set of preferences (all optional categories).
+   * Use this from the preferences dialog so the written record always reflects
+   * the user's complete choice, not a merge over a rejected base. */
+  savePreferences: (prefs: ConsentPreferences) => void;
   /** Reopen the banner (e.g. from a footer "Cookie preferences" button). */
   openBanner: () => void;
   closeBanner: () => void;

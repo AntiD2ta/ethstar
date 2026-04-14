@@ -103,6 +103,29 @@ describe("ConsentProvider", () => {
     act(() => result.current.openBanner());
     expect(result.current.bannerOpen).toBe(true);
   });
+
+  it("savePreferences writes an explicit full record on first visit", () => {
+    const { result } = renderHook(() => useConsent(), { wrapper: Wrapper });
+    expect(result.current.consent).toBeNull();
+    act(() => result.current.savePreferences({ statistics: true }));
+    const stored = JSON.parse(localStorage.getItem(CONSENT_STORAGE_KEY)!);
+    expect(stored).toMatchObject({
+      version: CONSENT_VERSION,
+      necessary: true,
+      statistics: true,
+    });
+    expect(result.current.bannerOpen).toBe(false);
+  });
+
+  it("savePreferences with statistics=false persists a fresh record (not a merge)", () => {
+    const { result } = renderHook(() => useConsent(), { wrapper: Wrapper });
+    act(() => result.current.acceptAll());
+    act(() => result.current.savePreferences({ statistics: false }));
+    const stored = JSON.parse(localStorage.getItem(CONSENT_STORAGE_KEY)!);
+    expect(stored.statistics).toBe(false);
+    expect(stored.necessary).toBe(true);
+    expect(stored.version).toBe(CONSENT_VERSION);
+  });
 });
 
 describe("ConsentBanner", () => {
@@ -127,5 +150,41 @@ describe("ConsentBanner", () => {
     await user.click(screen.getByTestId("consent-reject"));
     const stored = JSON.parse(localStorage.getItem(CONSENT_STORAGE_KEY)!);
     expect(stored.statistics).toBe(false);
+  });
+
+  it("Preferences swaps the view in the same dialog (no nested modal)", async () => {
+    const user = userEvent.setup();
+    render(<ConsentBanner />, { wrapper: Wrapper });
+    await user.click(screen.getByTestId("consent-preferences"));
+    expect(screen.getByTestId("consent-preferences-dialog")).toBeInTheDocument();
+    // The main-view action buttons are gone — only the preferences view is rendered.
+    expect(screen.queryByTestId("consent-accept")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("consent-reject")).not.toBeInTheDocument();
+    // Only one dialog is rendered in the DOM.
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  });
+
+  it("Preferences → Cancel returns to the main view", async () => {
+    const user = userEvent.setup();
+    render(<ConsentBanner />, { wrapper: Wrapper });
+    await user.click(screen.getByTestId("consent-preferences"));
+    await user.click(screen.getByTestId("consent-preferences-cancel"));
+    expect(screen.getByTestId("consent-accept")).toBeInTheDocument();
+    expect(screen.getByTestId("consent-reject")).toBeInTheDocument();
+    expect(screen.queryByTestId("consent-preferences-dialog")).not.toBeInTheDocument();
+  });
+
+  it("Save preferences with statistics off writes a full record and closes the banner", async () => {
+    const user = userEvent.setup();
+    render(<ConsentBanner />, { wrapper: Wrapper });
+    await user.click(screen.getByTestId("consent-preferences"));
+    await user.click(screen.getByTestId("consent-preferences-save"));
+    const stored = JSON.parse(localStorage.getItem(CONSENT_STORAGE_KEY)!);
+    expect(stored).toMatchObject({
+      version: CONSENT_VERSION,
+      necessary: true,
+      statistics: false,
+    });
+    expect(screen.queryByTestId("consent-banner")).not.toBeInTheDocument();
   });
 });

@@ -18,8 +18,8 @@ import {
   CONSENT_VERSION,
   ConsentContext,
   type Consent,
-  type ConsentCategory,
   type ConsentContextValue,
+  type ConsentPreferences,
 } from "./consent-context";
 
 /** Shape-validate parsed JSON. Returns null on any mismatch so the banner re-prompts. */
@@ -90,12 +90,13 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
   const acceptAll = useCallback(() => persist(buildConsent(true)), [persist]);
   const rejectAll = useCallback(() => persist(buildConsent(false)), [persist]);
 
-  const setCategory = useCallback(
-    (category: ConsentCategory, allowed: boolean) => {
-      const base = consent ?? buildConsent(false);
-      persist({ ...base, [category]: allowed, updatedAt: new Date().toISOString() });
-    },
-    [consent, persist],
+  // Persist an explicit complete set of preferences. Always writes a fresh
+  // `Consent` record (necessary: true, statistics: explicit) rather than
+  // merging over a rejected base — this keeps the stored intent unambiguous
+  // on first visit, where there is no prior consent to merge with.
+  const savePreferences = useCallback(
+    (prefs: ConsentPreferences) => persist(buildConsent(prefs.statistics)),
+    [persist],
   );
 
   const openBanner = useCallback(
@@ -117,11 +118,11 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
       bannerOpen,
       acceptAll,
       rejectAll,
-      setCategory,
+      savePreferences,
       openBanner,
       closeBanner,
     }),
-    [consent, bannerOpen, acceptAll, rejectAll, setCategory, openBanner, closeBanner],
+    [consent, bannerOpen, acceptAll, rejectAll, savePreferences, openBanner, closeBanner],
   );
 
   return <ConsentContext.Provider value={value}>{children}</ConsentContext.Provider>;
