@@ -9,6 +9,7 @@ help: ## Show this help message
 
 install: ## Install all dependencies (Go + npm + Playwright)
 	go mod download
+	npm install
 	cd frontend && npm install
 	cd frontend && npx playwright install chromium
 
