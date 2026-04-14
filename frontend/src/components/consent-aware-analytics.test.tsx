@@ -27,8 +27,8 @@ vi.mock("@vercel/analytics/react", () => analyticsSpy());
 vi.mock("@vercel/speed-insights/react", () => speedInsightsSpy());
 
 import { ConsentAwareAnalytics } from "./consent-aware-analytics";
-import { ConsentProvider, CONSENT_STORAGE_KEY } from "@/lib/consent";
-import { CONSENT_VERSION } from "@/lib/consent-context";
+import { ConsentProvider } from "@/lib/consent";
+import { CONSENT_STORAGE_KEY, CONSENT_VERSION } from "@/lib/consent-context";
 
 function Wrapper({ children }: { children: ReactNode }) {
   return (

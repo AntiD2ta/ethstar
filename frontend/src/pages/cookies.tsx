@@ -22,12 +22,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useConsent } from "@/lib/consent-context";
-
-const EFFECTIVE_DATE = "2026-04-13";
+import { LEGAL_EFFECTIVE_DATE } from "@/lib/constants";
 
 interface StorageItem {
   name: string;
-  type: "Cookie" | "localStorage";
+  type: "Cookie" | "localStorage" | "Script";
   purpose: string;
   category: "Strictly necessary" | "Statistics";
   retention: string;
@@ -85,17 +84,17 @@ const STORAGE_ITEMS: StorageItem[] = [
   },
   {
     name: "Vercel Analytics",
-    type: "localStorage",
+    type: "Script",
     purpose:
-      "Aggregated, anonymous page-view counts. No cross-site cookie; uses short-lived privacy-preserving hashes server-side.",
+      "Loads from va.vercel-scripts.com and sends aggregated, anonymous page-view beacons to /_vercel/insights. No cross-site cookie; short-lived privacy-preserving hashes server-side.",
     category: "Statistics",
     retention: "Per Vercel policy",
     provider: "Vercel",
   },
   {
     name: "Vercel Speed Insights",
-    type: "localStorage",
-    purpose: "Web Vitals (LCP, CLS, INP) collected from the browser. Anonymous.",
+    type: "Script",
+    purpose: "Loads from va.vercel-scripts.com and sends Web Vitals (LCP, CLS, INP) beacons to /_vercel/speed-insights. Anonymous, no cross-site cookie.",
     category: "Statistics",
     retention: "Per Vercel policy",
     provider: "Vercel",
@@ -118,7 +117,7 @@ export default function CookiesPage() {
             Cookies Policy
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Effective date: {EFFECTIVE_DATE}
+            Effective date: {LEGAL_EFFECTIVE_DATE}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">

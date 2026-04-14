@@ -12,7 +12,6 @@
 // limitations under the License.
 
 import { useState } from "react";
-import { Link } from "react-router";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +33,9 @@ function preventClose(e: Event) {
 export function ConsentBanner() {
   const { consent, bannerOpen, acceptAll, rejectAll, setCategory, closeBanner } =
     useConsent();
+
+  // Policy links open in a new tab: the first-visit banner is hard-modal, so
+  // same-tab nav would leave the modal overlaying the policy page.
   const [prefsOpen, setPrefsOpen] = useState(false);
 
   // Pre-seed the preferences toggle from current consent (or `false` first-visit).
@@ -83,21 +85,23 @@ export function ConsentBanner() {
 
           <p className="text-sm text-muted-foreground">
             Read our{" "}
-            <Link
-              to="/privacy"
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline hover:text-foreground"
-              onClick={closeBanner}
             >
               Privacy Policy
-            </Link>{" "}
+            </a>{" "}
             and{" "}
-            <Link
-              to="/cookies"
+            <a
+              href="/cookies"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline hover:text-foreground"
-              onClick={closeBanner}
             >
               Cookies Policy
-            </Link>
+            </a>
             .
           </p>
 

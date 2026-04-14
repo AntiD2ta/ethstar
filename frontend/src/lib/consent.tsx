@@ -14,14 +14,13 @@
 import { useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  CONSENT_STORAGE_KEY,
   CONSENT_VERSION,
   ConsentContext,
   type Consent,
   type ConsentCategory,
   type ConsentContextValue,
 } from "./consent-context";
-
-export const CONSENT_STORAGE_KEY = "ethstar_consent";
 
 /** Shape-validate parsed JSON. Returns null on any mismatch so the banner re-prompts. */
 function parseConsent(raw: string | null): Consent | null {
@@ -93,11 +92,8 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
 
   const setCategory = useCallback(
     (category: ConsentCategory, allowed: boolean) => {
-      persist({
-        ...(consent ?? buildConsent(false)),
-        [category]: allowed,
-        updatedAt: new Date().toISOString(),
-      });
+      const base = consent ?? buildConsent(false);
+      persist({ ...base, [category]: allowed, updatedAt: new Date().toISOString() });
     },
     [consent, persist],
   );

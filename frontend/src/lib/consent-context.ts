@@ -15,6 +15,8 @@ import { createContext, useContext } from "react";
 
 export const CONSENT_VERSION = 1 as const;
 
+export const CONSENT_STORAGE_KEY = "ethstar_consent";
+
 export type ConsentCategory = "statistics";
 
 export interface Consent {

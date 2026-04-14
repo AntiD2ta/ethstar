@@ -14,9 +14,7 @@
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useConsent } from "@/lib/consent-context";
-
-const EFFECTIVE_DATE = "2026-04-13";
-const CONTACT_EMAIL = "antid2ta@gmail.com";
+import { LEGAL_CONTACT_EMAIL, LEGAL_EFFECTIVE_DATE } from "@/lib/constants";
 
 export default function PrivacyPage() {
   const { openBanner } = useConsent();
@@ -33,7 +31,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Effective date: {EFFECTIVE_DATE}
+          Effective date: {LEGAL_EFFECTIVE_DATE}
         </p>
       </header>
 
@@ -44,7 +42,7 @@ export default function PrivacyPage() {
           users discover and star open-source Ethereum repositories on GitHub.
           The controller of any personal data processed through the Service is
           the project maintainer (contact:{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>).
+          <a href={`mailto:${LEGAL_CONTACT_EMAIL}`}>{LEGAL_CONTACT_EMAIL}</a>).
         </p>
 
         <h2>2. What we process and why</h2>
@@ -162,12 +160,19 @@ export default function PrivacyPage() {
           If you are a California resident you have the right to know, delete,
           correct, limit use of sensitive personal information, and opt out of
           sale/sharing. Ethstar does not sell or share personal information as
-          defined by CPRA; the &quot;Do Not Sell or Share My Personal
-          Information&quot; link on the{" "}
-          <Link to="/cookies">cookies page</Link> functions as a universal opt-
-          out for analytics. You will not be discriminated against for
-          exercising these rights. California &quot;Shine the Light&quot;: we
-          do not disclose personal information to third parties for their
+          defined by CPRA. To opt out of optional analytics, use the{" "}
+          <button
+            type="button"
+            onClick={openBanner}
+            className="underline hover:text-foreground"
+          >
+            Cookie preferences
+          </button>{" "}
+          button (also available in the site footer and on the{" "}
+          <Link to="/cookies">cookies page</Link>) and turn Statistics off, or
+          click Reject all in the banner. You will not be discriminated against
+          for exercising these rights. California &quot;Shine the Light&quot;:
+          we do not disclose personal information to third parties for their
           direct-marketing purposes.
         </p>
 
@@ -195,7 +200,7 @@ export default function PrivacyPage() {
         <h2>12. Contact</h2>
         <p>
           Questions or data-subject requests:{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          <a href={`mailto:${LEGAL_CONTACT_EMAIL}`}>{LEGAL_CONTACT_EMAIL}</a>.
         </p>
       </article>
 

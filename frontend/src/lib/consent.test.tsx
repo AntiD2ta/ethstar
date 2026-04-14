@@ -16,8 +16,12 @@ import { act, render, renderHook, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { ConsentProvider, CONSENT_STORAGE_KEY } from "./consent";
-import { useConsent, CONSENT_VERSION } from "./consent-context";
+import { ConsentProvider } from "./consent";
+import {
+  CONSENT_STORAGE_KEY,
+  CONSENT_VERSION,
+  useConsent,
+} from "./consent-context";
 import { ConsentBanner } from "@/components/consent-banner";
 
 function Wrapper({ children }: { children: ReactNode }) {
