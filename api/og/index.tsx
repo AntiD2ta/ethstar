@@ -13,6 +13,13 @@
 
 import { ImageResponse } from "@vercel/og";
 
+// @vercel/og requires the Edge Runtime on Vercel Functions — without this
+// config the handler runs on Node.js where ImageResponse return values
+// aren't surfaced and the function fails with FUNCTION_INVOCATION_FAILED.
+export const config = {
+  runtime: "edge",
+};
+
 /**
  * Number of repositories in the Ethstar repo list.
  * Keep in sync with frontend/src/lib/repos.ts — a Vitest test enforces this.
