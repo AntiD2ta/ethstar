@@ -15,12 +15,44 @@ import { useEffect, useRef } from "react";
 import {
   SUPERNOVA_FADE_MS,
   SUPERNOVA_PARTICLE_COUNT,
+  TRAIL_PARTICLE_CAP,
   TRAIL_PARTICLE_LIFE_MS,
   TRAIL_PARTICLE_SIZE_BASE,
   TRAIL_SPAWN_RATE_PER_SEC,
-  trailParticleCap,
 } from "./constants";
 import type { RoamingStarStatus } from "./types";
+
+// Hue stops. 0 = ETH blue, 0.5 = ETH purple, 1 = gold. Interpolated at paint
+// time. Module-scope so the effect doesn't re-allocate them per mount.
+const HUE_BLUE = { r: 98, g: 126, b: 234 } as const;   // #627EEA
+const HUE_PURPLE = { r: 123, g: 63, b: 228 } as const; // #7B3FE4
+const HUE_GOLD = { r: 240, g: 195, b: 100 } as const;  // warm gold
+
+function hueColor(hue: number, alpha: number): string {
+  let r: number, g: number, b: number;
+  if (hue < 0.5) {
+    const t = hue * 2;
+    r = HUE_BLUE.r + (HUE_PURPLE.r - HUE_BLUE.r) * t;
+    g = HUE_BLUE.g + (HUE_PURPLE.g - HUE_BLUE.g) * t;
+    b = HUE_BLUE.b + (HUE_PURPLE.b - HUE_BLUE.b) * t;
+  } else {
+    const t = (hue - 0.5) * 2;
+    r = HUE_PURPLE.r + (HUE_GOLD.r - HUE_PURPLE.r) * t;
+    g = HUE_PURPLE.g + (HUE_GOLD.g - HUE_PURPLE.g) * t;
+    b = HUE_PURPLE.b + (HUE_GOLD.b - HUE_PURPLE.b) * t;
+  }
+  return `rgba(${r | 0}, ${g | 0}, ${b | 0}, ${alpha.toFixed(3)})`;
+}
+
+function statusHueBand(status: RoamingStarStatus): [number, number] {
+  switch (status) {
+    case "disconnected": return [0, 0.25];
+    case "ready": return [0.1, 0.55];
+    case "in-progress": return [0.25, 0.75];
+    case "success": return [0.5, 1.0];
+    case "partial-failure": return [0.55, 0.9]; // warmed toward purple-red
+  }
+}
 
 interface Particle {
   x: number;
@@ -69,7 +101,13 @@ export function useTrailCanvas({
   const particlesRef = useRef<Particle[]>([]);
   const spawningRef = useRef(true);
   const lastSpawnRef = useRef(0);
-  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+  // `has` flips to true after the first tick records a position — separate
+  // flag so we can mutate `pos` in place every frame instead of allocating.
+  const lastPosRef = useRef<{ x: number; y: number; has: boolean }>({
+    x: 0,
+    y: 0,
+    has: false,
+  });
   const supernovaResolveRef = useRef<(() => void) | null>(null);
   const dprRef = useRef(1);
   const rafRef = useRef(0);
@@ -81,6 +119,10 @@ export function useTrailCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Capture the stable ref object so the cleanup closure doesn't reach
+    // through `lastPosRef.current` post-unmount (lint hint).
+    const lastPos = lastPosRef.current;
+
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
@@ -88,44 +130,14 @@ export function useTrailCanvas({
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
-      ctx.scale(dpr, dpr);
+      // Hard-reset the transform so repeated resizes (including no-op resizes
+      // where logical dimensions stay the same) don't compound scale.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const cap = trailParticleCap();
-
-    const hueColor = (hue: number, alpha: number): string => {
-      // 0 = ETH blue, 0.5 = ETH purple, 1 = gold. Interpolate via oklch stops.
-      // Using simple RGB interpolation against roughly-matching sRGB values
-      // because canvas 2d doesn't accept oklch directly.
-      const blue = { r: 98, g: 126, b: 234 };   // #627EEA (ETH blue)
-      const purple = { r: 123, g: 63, b: 228 }; // #7B3FE4 (ETH purple)
-      const gold = { r: 240, g: 195, b: 100 };  // warm gold
-      let r: number, g: number, b: number;
-      if (hue < 0.5) {
-        const t = hue * 2;
-        r = blue.r + (purple.r - blue.r) * t;
-        g = blue.g + (purple.g - blue.g) * t;
-        b = blue.b + (purple.b - blue.b) * t;
-      } else {
-        const t = (hue - 0.5) * 2;
-        r = purple.r + (gold.r - purple.r) * t;
-        g = purple.g + (gold.g - purple.g) * t;
-        b = purple.b + (gold.b - purple.b) * t;
-      }
-      return `rgba(${r | 0}, ${g | 0}, ${b | 0}, ${alpha.toFixed(3)})`;
-    };
-
-    const statusHueBand = (status: RoamingStarStatus): [number, number] => {
-      switch (status) {
-        case "disconnected": return [0, 0.25];
-        case "ready": return [0.1, 0.55];
-        case "in-progress": return [0.25, 0.75];
-        case "success": return [0.5, 1.0];
-        case "partial-failure": return [0.55, 0.9]; // warmed toward purple-red
-      }
-    };
+    const cap = TRAIL_PARTICLE_CAP;
 
     let prevTs = performance.now();
     const tick = (now: number) => {
@@ -134,9 +146,8 @@ export function useTrailCanvas({
 
       // Spawn trail particles if moving + spawning enabled.
       const star = starPosRef.current;
-      const last = lastPosRef.current;
-      if (spawningRef.current && last && particlesRef.current.length < cap) {
-        const moved = Math.hypot(star.x - last.x, star.y - last.y);
+      if (spawningRef.current && lastPos.has && particlesRef.current.length < cap) {
+        const moved = Math.hypot(star.x - lastPos.x, star.y - lastPos.y);
         lastSpawnRef.current += dt;
         const interval = 1000 / TRAIL_SPAWN_RATE_PER_SEC;
         if (moved > 0.2 && lastSpawnRef.current >= interval) {
@@ -156,7 +167,10 @@ export function useTrailCanvas({
           });
         }
       }
-      lastPosRef.current = { x: star.x, y: star.y };
+      // Mutate in place — no per-frame allocation.
+      lastPos.x = star.x;
+      lastPos.y = star.y;
+      lastPos.has = true;
 
       // Paint.
       ctx.clearRect(0, 0, canvas.width / dprRef.current, canvas.height / dprRef.current);
@@ -194,6 +208,7 @@ export function useTrailCanvas({
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", resize);
       particlesRef.current = [];
+      lastPos.has = false;
     };
   }, [canvasRef, starPosRef, statusRef, enabled]);
 

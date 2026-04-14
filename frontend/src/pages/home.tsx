@@ -52,7 +52,7 @@ export default function HomePage() {
   const { starStatuses, isStarring, progress, checkStars, starAll, retryStar, recheckRepo } =
     useStars();
   const { stats, reportStars } = useStats();
-  const { requestToken, cancel: cancelOAuth } = useStarOAuth();
+  const { requestToken, cancel: cancelOAuth, status: oauthStatus } = useStarOAuth();
   const [starModalOpen, setStarModalOpen] = useState(false);
   const [starModalKey, setStarModalKey] = useState(0);
   const [manualModalOpen, setManualModalOpen] = useState(false);
@@ -163,6 +163,13 @@ export default function HomePage() {
   const allDone =
     progress.total > 0 && progress.starred === progress.total;
 
+  // Memoize the counter string separately so it only re-allocates when the
+  // actual starred/total tick forward — not on every sibling state change.
+  const counterLabel = useMemo(
+    () => `Starring ${progress.starred} / ${progress.total}`,
+    [progress.starred, progress.total],
+  );
+
   // Derive the RoamingStar's visual state from auth + progress snapshots.
   // The star is a controlled component — no internal ownership of these fields.
   const roamingState = useMemo<RoamingStarState>(() => {
@@ -171,6 +178,7 @@ export default function HomePage() {
         status: "disconnected",
         fillLevel: 0,
         remaining: REPOSITORIES.length,
+        oauthStatus,
       };
     }
     if (allDone) {
@@ -185,7 +193,7 @@ export default function HomePage() {
       return {
         status: "in-progress",
         fillLevel: pct,
-        counterLabel: `Starring ${progress.starred} / ${progress.total}`,
+        counterLabel,
         remaining: progress.remaining,
       };
     }
@@ -210,6 +218,8 @@ export default function HomePage() {
     progress.starred,
     progress.remaining,
     starResult,
+    counterLabel,
+    oauthStatus,
   ]);
 
   // Completion signal — drives supernova + closes modal. Guarded so the

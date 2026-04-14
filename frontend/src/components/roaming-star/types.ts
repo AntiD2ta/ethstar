@@ -39,6 +39,13 @@ export type RoamingStarStatus =
   | "partial-failure"; // some failed → shrinks to half-filled, trail warms
 
 /**
+ * OAuth popup lifecycle for the disconnected label. Drives the secondary line
+ * of the two-line label: idle → "↗ Continue with GitHub", pending → "Waiting
+ * for GitHub…", blocked → "Popup blocked — click to retry".
+ */
+export type RoamingStarOAuthStatus = "idle" | "pending" | "blocked";
+
+/**
  * Snapshot the parent pushes down each render. Keeps RoamingStar a controlled
  * component — no internal ownership of auth/progress state.
  */
@@ -52,4 +59,9 @@ export interface RoamingStarState {
   remaining: number;
   /** For partial-failure label: how many repos couldn't be starred. */
   failedCount?: number;
+  /**
+   * Popup lifecycle while status is "disconnected". Optional; omitted/undefined
+   * is treated as "idle". Drives the dynamic secondary label line per brief.
+   */
+  oauthStatus?: RoamingStarOAuthStatus;
 }

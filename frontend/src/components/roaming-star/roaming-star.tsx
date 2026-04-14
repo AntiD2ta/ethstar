@@ -28,6 +28,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   BREATHE_PERIOD_MS,
   BREATHE_SCALE_MAX,
+  CANCEL_CONFIRM_TIMEOUT_MS,
   CANCEL_GESTURE,
   DORMANT_STAR_SIZE_PX,
   DURATION_FLIP_DORMANT_TO_ROAMING,
@@ -105,13 +106,15 @@ export const RoamingStar = memo(function RoamingStar({
   }, [dismissedBySession, completed, inProgress, heroVisible]);
 
   // Refs for DOM elements and live position used by the rAF trail.
-  const portalHostRef = useRef<HTMLDivElement | null>(null);
   const dormantSlotRef = useRef<HTMLDivElement | null>(null);
   const floatingElRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const starLivePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const statusRef = useRef(state.status);
   statusRef.current = state.status;
+  // Captured before the user triggers takeover so focus can be returned to
+  // the prior element after supernova (a11y brief: "Focus returns…").
+  const preTriggerFocusRef = useRef<HTMLElement | null>(null);
 
   const { flipTo, cancel: cancelFlip } = useFlipTransition();
 
@@ -120,9 +123,13 @@ export const RoamingStar = memo(function RoamingStar({
   const halfRoaming = roamingSize / 2;
 
   // Drive free-floating position when in roaming mode (idle drift).
-  const roamingPos = useRoamingPath({
+  // The hook writes `floatingElRef.current.style.left/top` directly each rAF
+  // tick, and mutates `starLivePosRef` in place — no per-frame React render.
+  const { labelHovered } = useRoamingPath({
+    elementRef: floatingElRef,
+    starPosRef: starLivePosRef,
     halfSize: halfRoaming,
-    active: mode === "roaming" && !reducedMotion,
+    active: mode === "roaming",
     reducedMotion,
   });
 
@@ -146,34 +153,18 @@ export const RoamingStar = memo(function RoamingStar({
     return takeoverTarget.current;
   }, [dormantSize]);
 
-  // Position the floating element based on mode. Separate effects for substrate
-  // swap (dormant↔roaming, handled via FLIP) vs within-portal positioning
-  // (roaming/takeover/supernova — left/top writes). This effect only reads/writes
-  // DOM; FLIP is orchestrated by the next effect.
+  // Position the floating element for takeover/supernova. Roaming drift is
+  // written directly by `useRoamingPath`'s rAF — no React re-render per frame.
   useLayoutEffect(() => {
-    if (mode === "dormant" || mode === "dismissed") return;
+    if (mode !== "takeover" && mode !== "supernova") return;
     const el = floatingElRef.current;
     if (!el) return;
-
-    if (mode === "takeover" || mode === "supernova") {
-      const { x, y } = computeTakeoverTarget();
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-      starLivePosRef.current = {
-        x: x + (dormantSize * TAKEOVER_SCALE) / 2,
-        y: y + (dormantSize * TAKEOVER_SCALE) / 2,
-      };
-      return;
-    }
-
-    // Roaming.
-    el.style.left = `${roamingPos.x}px`;
-    el.style.top = `${roamingPos.y}px`;
-    starLivePosRef.current = {
-      x: roamingPos.x + halfRoaming,
-      y: roamingPos.y + halfRoaming,
-    };
-  }, [mode, roamingPos.x, roamingPos.y, halfRoaming, dormantSize, computeTakeoverTarget]);
+    const { x, y } = computeTakeoverTarget();
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    starLivePosRef.current.x = x + (dormantSize * TAKEOVER_SCALE) / 2;
+    starLivePosRef.current.y = y + (dormantSize * TAKEOVER_SCALE) / 2;
+  }, [mode, dormantSize, computeTakeoverTarget]);
 
   // FLIP orchestration on substrate-swap transitions only.
   // Within-portal transitions (roaming → takeover) are handled by a CSS
@@ -220,14 +211,13 @@ export const RoamingStar = memo(function RoamingStar({
     // star live position for the supernova origin.
     if (mode === "takeover") {
       const { x, y } = computeTakeoverTarget();
-      starLivePosRef.current = {
-        x: x + (dormantSize * TAKEOVER_SCALE) / 2,
-        y: y + (dormantSize * TAKEOVER_SCALE) / 2,
-      };
+      starLivePosRef.current.x = x + (dormantSize * TAKEOVER_SCALE) / 2;
+      starLivePosRef.current.y = y + (dormantSize * TAKEOVER_SCALE) / 2;
     }
   }, [mode, reducedMotion, flipTo, cancelFlip, halfRoaming, dormantSize, computeTakeoverTarget]);
 
-  // Supernova trigger on completion.
+  // Supernova trigger on completion. Restores focus to the element that held
+  // it before takeover so keyboard users don't land on <body>.
   const supernovaPlayedRef = useRef(false);
   useEffect(() => {
     if (mode !== "supernova" || supernovaPlayedRef.current) return;
@@ -239,6 +229,21 @@ export const RoamingStar = memo(function RoamingStar({
       } finally {
         markDismissed();
         setDismissedBySession(true);
+        // A11y: return focus to the prior focused element (brief §Accessibility).
+        const prior = preTriggerFocusRef.current;
+        preTriggerFocusRef.current = null;
+        if (prior && typeof prior.focus === "function" && prior.isConnected) {
+          // Defer so React has a chance to unmount the star button first —
+          // otherwise a focus() call while the button is still in the tree
+          // would fight our own blur as we unmount.
+          queueMicrotask(() => {
+            try {
+              prior.focus();
+            } catch {
+              // ignore — element may have been removed between queue and run.
+            }
+          });
+        }
       }
     };
     void run();
@@ -265,10 +270,17 @@ export const RoamingStar = memo(function RoamingStar({
     }
   }, [state.status, state.fillLevel, state.failedCount]);
 
-  // Two-line label text.
-  const labelLines = useMemo(() => {
+  // Two-line label text. The disconnected secondary line is dynamic per brief:
+  // pending popup → "Waiting for GitHub…"; blocked → "Popup blocked — click to retry".
+  const labelLines = useMemo<[string, string | null]>(() => {
     if (state.status === "disconnected") {
-      return ["Light it up", "↗ Continue with GitHub"];
+      const secondary =
+        state.oauthStatus === "pending"
+          ? "Waiting for GitHub…"
+          : state.oauthStatus === "blocked"
+            ? "Popup blocked — click to retry"
+            : "↗ Continue with GitHub";
+      return ["Light it up", secondary];
     }
     if (state.status === "ready") {
       return ["Begin starring", null];
@@ -280,27 +292,36 @@ export const RoamingStar = memo(function RoamingStar({
       return [`Retry · ${state.failedCount ?? 0} couldn't be starred`, null];
     }
     return ["All starred", null];
-  }, [state.status, state.counterLabel, state.failedCount]);
+  }, [state.status, state.counterLabel, state.failedCount, state.oauthStatus]);
+
+  // Wrap onTrigger so we snapshot the prior focused element *before* firing.
+  // The parent opens a Radix Dialog (which steals focus) on takeover; we need
+  // the prior element captured synchronously on user input, not post-mount.
+  const triggerWithFocusCapture = useCallback(() => {
+    if (typeof document !== "undefined") {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== document.body) {
+        preTriggerFocusRef.current = active;
+      }
+    }
+    onTrigger();
+  }, [onTrigger]);
 
   const handleKey = useCallback(
     (e: KeyboardEvent<HTMLButtonElement>) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        onTrigger();
+        triggerWithFocusCapture();
       }
     },
-    [onTrigger],
+    [triggerWithFocusCapture],
   );
-
-  const handleCancel = useCallback(() => {
-    onCancel?.();
-  }, [onCancel]);
 
   // Click-on-star gesture confirm helper (variant B of the cancel prototype).
   const [pendingCancel, setPendingCancel] = useState(false);
   useEffect(() => {
     if (!pendingCancel) return;
-    const t = setTimeout(() => setPendingCancel(false), 1800);
+    const t = setTimeout(() => setPendingCancel(false), CANCEL_CONFIRM_TIMEOUT_MS);
     return () => clearTimeout(t);
   }, [pendingCancel]);
 
@@ -308,15 +329,15 @@ export const RoamingStar = memo(function RoamingStar({
     if (mode === "takeover" && CANCEL_GESTURE === "click") {
       if (pendingCancel) {
         setPendingCancel(false);
-        handleCancel();
+        onCancel?.();
       } else {
         setPendingCancel(true);
       }
       return;
     }
     if (mode === "takeover") return;
-    onTrigger();
-  }, [mode, pendingCancel, handleCancel, onTrigger]);
+    triggerWithFocusCapture();
+  }, [mode, pendingCancel, onCancel, triggerWithFocusCapture]);
 
   if (hidden || mode === "dismissed") return null;
 
@@ -356,6 +377,12 @@ export const RoamingStar = memo(function RoamingStar({
   const floatingSize =
     mode === "takeover" ? dormantSize * TAKEOVER_SCALE : roamingSize;
 
+  // Takeover / supernova position via left/top: CSS transitions from last
+  // roaming position to center. Roaming drift updates position per rAF
+  // (~16ms), so a transition that long would smear the motion — we pay the
+  // cost only in takeover/supernova where the position is stable.
+  const takeoverTransition = `left ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, top ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, width ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, height ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}`;
+
   const floatingStyle: CSSProperties = {
     position: "fixed",
     left: 0,
@@ -364,15 +391,11 @@ export const RoamingStar = memo(function RoamingStar({
     height: floatingSize,
     zIndex: mode === "takeover" || mode === "supernova" ? 55 : 40,
     pointerEvents: mode === "takeover" || mode === "roaming" ? "auto" : "none",
-    // Takeover / supernova position via left/top: CSS transitions from
-    // last roaming position to center. Roaming drift updates position per
-    // rAF (~16ms), so a transition that long would smear the motion — we
-    // pay the cost only in takeover/supernova where the position is stable.
     transition:
       reducedMotion
         ? "opacity 220ms linear, width 220ms linear, height 220ms linear"
         : mode === "takeover" || mode === "supernova"
-          ? `left ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, top ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, width ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, height ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}`
+          ? takeoverTransition
           : undefined,
     willChange: mode === "takeover" ? "left, top" : "transform",
   };
@@ -434,7 +457,7 @@ export const RoamingStar = memo(function RoamingStar({
         </div>
 
         {/* Roaming label — revealed on cursor gravity (desktop) or tap (mobile). */}
-        {mode === "roaming" && roamingPos.labelHovered && (
+        {mode === "roaming" && labelHovered && (
           <div
             role="status"
             aria-live="polite"
@@ -484,7 +507,7 @@ export const RoamingStar = memo(function RoamingStar({
           {CANCEL_GESTURE === "button" && onCancel && (
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={() => onCancel?.()}
               className="rounded-full border border-border bg-background/50 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur hover:bg-accent hover:text-foreground"
             >
               Cancel
@@ -515,18 +538,15 @@ export const RoamingStar = memo(function RoamingStar({
           from { transform: rotateY(0deg); }
           to { transform: rotateY(360deg); }
         }
-        @media (prefers-reduced-motion: reduce) {
-          .roaming-star-breathing { animation: none !important; }
-        }
-      `}</style>
-      <style>{`
         .roaming-star-breathing {
           animation: roaming-star-breathe ${BREATHE_PERIOD_MS}ms ease-in-out infinite;
           transform-origin: center;
           will-change: transform;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .roaming-star-breathing { animation: none !important; }
+        }
       `}</style>
-      <div ref={portalHostRef} />
     </>
   );
 });

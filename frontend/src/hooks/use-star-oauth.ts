@@ -26,17 +26,29 @@ const MESSAGE_TYPE = "ethstar-star-token";
 const POLL_INTERVAL_MS = 500;
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Popup lifecycle status surfaced for UI driving.
+ *  - "idle"    : no request in-flight (either never invoked, or settled).
+ *  - "pending" : popup is open and we're waiting for a token.
+ *  - "blocked" : the last request failed because the browser blocked the popup.
+ *                Stays sticky until the next successful open() call.
+ */
+export type StarOAuthStatus = "idle" | "pending" | "blocked";
+
 interface StarOAuthReturn {
   /** Open popup and wait for token. Rejects with reason string on failure. */
   requestToken: () => Promise<string>;
   /** True while waiting for the popup to deliver a token. */
   isWaiting: boolean;
+  /** Coarse popup-lifecycle signal. See {@link StarOAuthStatus}. */
+  status: StarOAuthStatus;
   /** Close the popup and reject the pending promise. */
   cancel: () => void;
 }
 
 export function useStarOAuth(): StarOAuthReturn {
   const [isWaiting, setIsWaiting] = useState(false);
+  const [status, setStatus] = useState<StarOAuthStatus>("idle");
   const cleanupRef = useRef<(() => void) | null>(null);
   const rejectRef = useRef<((reason: Error) => void) | null>(null);
 
@@ -60,6 +72,7 @@ export function useStarOAuth(): StarOAuthReturn {
       cleanupRef.current = null;
     }
     setIsWaiting(false);
+    setStatus("idle");
   }, []);
 
   const requestToken = useCallback((): Promise<string> => {
@@ -77,10 +90,12 @@ export function useStarOAuth(): StarOAuthReturn {
 
     if (!popup) {
       setIsWaiting(false);
+      setStatus("blocked");
       return Promise.reject(new Error(STAR_OAUTH_ERROR.POPUP_BLOCKED));
     }
 
     setIsWaiting(true);
+    setStatus("pending");
 
     return new Promise<string>((resolve, reject) => {
       rejectRef.current = reject;
@@ -90,6 +105,7 @@ export function useStarOAuth(): StarOAuthReturn {
         if (settled) return;
         settled = true;
         setIsWaiting(false);
+        setStatus("idle");
         cleanup();
       };
 
@@ -143,11 +159,12 @@ export function useStarOAuth(): StarOAuthReturn {
         if (!settled) {
           settled = true;
           setIsWaiting(false);
+          setStatus("idle");
         }
         cleanup();
       };
     });
   }, []);
 
-  return { requestToken, isWaiting, cancel };
+  return { requestToken, isWaiting, status, cancel };
 }

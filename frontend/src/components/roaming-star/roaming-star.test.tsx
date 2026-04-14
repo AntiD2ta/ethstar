@@ -12,9 +12,9 @@
 // limitations under the License.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRef } from "react";
+import { createRef, useState } from "react";
 import { RoamingStar } from "./roaming-star";
 import { DISMISSED_STORAGE_KEY } from "./constants";
 import type { RoamingStarState } from "./types";
@@ -167,5 +167,139 @@ describe("RoamingStar", () => {
       },
     });
     expect(screen.getByText(/Retry · 3 couldn't be starred/)).toBeInTheDocument();
+  });
+
+  describe("OAuth popup label states (spec brief §Labels)", () => {
+    it("shows 'Waiting for GitHub…' secondary line while OAuth popup is pending", () => {
+      renderStar({
+        state: {
+          status: "disconnected",
+          fillLevel: 0,
+          remaining: 17,
+          oauthStatus: "pending",
+        },
+      });
+      expect(screen.getByText("Light it up")).toBeInTheDocument();
+      expect(screen.getByText("Waiting for GitHub…")).toBeInTheDocument();
+      expect(
+        screen.queryByText("↗ Continue with GitHub"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows 'Popup blocked — click to retry' when the popup was blocked", () => {
+      renderStar({
+        state: {
+          status: "disconnected",
+          fillLevel: 0,
+          remaining: 17,
+          oauthStatus: "blocked",
+        },
+      });
+      expect(screen.getByText("Light it up")).toBeInTheDocument();
+      expect(
+        screen.getByText("Popup blocked — click to retry"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("↗ Continue with GitHub"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("falls back to the static secondary line when oauthStatus is idle/undefined", () => {
+      renderStar({
+        state: {
+          status: "disconnected",
+          fillLevel: 0,
+          remaining: 17,
+          oauthStatus: "idle",
+        },
+      });
+      expect(screen.getByText("↗ Continue with GitHub")).toBeInTheDocument();
+    });
+  });
+
+  describe("focus return after supernova (spec brief §Accessibility)", () => {
+    it("restores focus to the element that held it before takeover", async () => {
+      // Harness: a sibling button, plus controlled state for inProgress/completed
+      // so the test can drive the takeover → supernova → dismiss transition.
+      const heroRef = createRef<HTMLElement>();
+
+      function Harness() {
+        const [inProgress, setInProgress] = useState(false);
+        const [completed, setCompleted] = useState(false);
+        return (
+          <>
+            <button type="button" data-testid="adjacent">
+              adjacent
+            </button>
+            <section ref={heroRef as React.RefObject<HTMLElement>}>
+              <RoamingStar
+                heroRef={heroRef}
+                state={{ status: "ready", fillLevel: 0.5, remaining: 3 }}
+                inProgress={inProgress}
+                completed={completed}
+                onTrigger={() => setInProgress(true)}
+              />
+            </section>
+            <button
+              type="button"
+              data-testid="complete"
+              onClick={() => {
+                setInProgress(false);
+                setCompleted(true);
+              }}
+            >
+              complete
+            </button>
+          </>
+        );
+      }
+
+      render(<Harness />);
+
+      // Step 1: focus adjacent — establishes the "prior focused element".
+      const adjacent = screen.getByTestId("adjacent");
+      adjacent.focus();
+      expect(document.activeElement).toBe(adjacent);
+
+      // Step 2: trigger the star via keyboard. handleKey's preventDefault keeps
+      // focus on `adjacent` at the time triggerWithFocusCapture reads
+      // document.activeElement, so the prior element is captured.
+      //
+      // But handleKey is on the star button's onKeyDown — the star must be
+      // focused for Enter to fire handleKey. So instead, we invoke the
+      // star's click handler while `adjacent` still holds focus by dispatching
+      // a click event with button=0 without the default focus-shift; in jsdom
+      // HTMLButtonElement.click() does not shift focus, so it's safe.
+      const star = screen.getByTestId("roaming-star-button");
+      await act(async () => {
+        star.click();
+      });
+
+      // Step 3: shift focus elsewhere (simulating Radix Dialog focus-trap
+      // during takeover). We focus the "complete" button to mimic the
+      // takeover substrate stealing focus away from `adjacent`.
+      const complete = screen.getByTestId("complete");
+      complete.focus();
+      expect(document.activeElement).toBe(complete);
+
+      // Step 4: drive completion → supernova → dismiss. The supernova's
+      // async burst resolves via a setTimeout safety net (~960ms) in jsdom
+      // where there's no real paint loop, so we pump fake timers.
+      vi.useFakeTimers();
+      try {
+        await act(async () => {
+          complete.click();
+        });
+
+        // Flush the supernova safety-net timeout + microtasks.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2000);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(document.activeElement).toBe(adjacent);
+    });
   });
 });
