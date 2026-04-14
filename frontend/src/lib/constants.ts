@@ -37,3 +37,9 @@ export const GITHUB_REPO_URL = "https://github.com/AntiD2ta/ethstar";
 
 /** X (Twitter) profile URL. */
 export const X_PROFILE_URL = "https://x.com/AntiD2ta";
+
+/** Effective date for the Privacy and Cookies policies (ISO yyyy-mm-dd). */
+export const LEGAL_EFFECTIVE_DATE = "2026-04-13";
+
+/** Controller contact for data-subject requests. */
+export const LEGAL_CONTACT_EMAIL = "antid2ta@gmail.com";

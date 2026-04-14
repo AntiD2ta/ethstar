@@ -14,10 +14,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ConsentProvider } from "@/lib/consent";
+import { ConsentBanner } from "@/components/consent-banner";
+import { ConsentAwareAnalytics } from "@/components/consent-aware-analytics";
 import App from "./App";
 import "./index.css";
 
@@ -25,12 +26,14 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <BrowserRouter>
-        <TooltipProvider>
-          <div className="bg-diamond-tile" aria-hidden="true" />
-          <App />
-          <Analytics />
-          <SpeedInsights />
-        </TooltipProvider>
+        <ConsentProvider>
+          <TooltipProvider>
+            <div className="bg-diamond-tile" aria-hidden="true" />
+            <App />
+            <ConsentBanner />
+            <ConsentAwareAnalytics />
+          </TooltipProvider>
+        </ConsentProvider>
       </BrowserRouter>
     </AuthProvider>
   </StrictMode>,
