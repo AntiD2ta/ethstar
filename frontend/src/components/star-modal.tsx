@@ -100,6 +100,15 @@ export function StarModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={step !== "progress"}
+        // During the progress step the RoamingStar owns the visual surface;
+        // the dialog shell exists only for Radix focus-trap + inert-page.
+        // Render as a transparent, no-border invisible container so the
+        // dimmed backdrop shows through and the star flies free in center.
+        className={
+          step === "progress"
+            ? "border-0 bg-transparent p-0 shadow-none [&>button[aria-label='Close']]:hidden"
+            : undefined
+        }
         onInteractOutside={(e) => {
           if (step === "progress" || step === "authorizing") {
             e.preventDefault();
@@ -209,52 +218,28 @@ export function StarModal({
           </>
         )}
 
-        {step === "progress" && (() => {
-          const pct = progress.total > 0 ? (progress.starred / progress.total) * 100 : 0;
-          return <>
-            <DialogHeader>
+        {step === "progress" && (
+          // Progress step: the RoamingStar takes over as the visual progress
+          // indicator in center viewport. The modal shell stays mounted for
+          // Radix focus-trap + inert-page semantics. Sr-only text keeps the
+          // counter audible for screen readers; the star itself is decorative
+          // (aria-hidden on the SVG, role+label on the button).
+          <>
+            <DialogHeader className="sr-only">
               <DialogTitle>Starring Repositories</DialogTitle>
               <DialogDescription>
-                {progress.starred}/{progress.total} repos starred
+                {progress.starred} of {progress.total} repositories starred.
               </DialogDescription>
             </DialogHeader>
-
-            <div className="space-y-3 py-4">
-              {/* Progress bar with diamond cursor */}
-              <div className="relative">
-                <div className="relative h-3 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary shadow-[0_0_12px_var(--primary)] transition-all duration-300 ease-out"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                {/* Diamond cursor */}
-                <div
-                  className="absolute -top-1 transition-all duration-300 ease-out"
-                  style={{ left: `calc(${pct}% - 10px)` }}
-                >
-                  <svg
-                    viewBox="0 0 170 285"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                    className="size-5 diamond-shake"
-                  >
-                    <polygon points="85,0 170,120 85,215 0,120" fill="oklch(0.52 0.10 270)" />
-                    <polygon points="0,150 85,235 85,285" fill="oklch(0.44 0.10 270)" />
-                    <polygon points="85,235 170,150 85,285" fill="oklch(0.37 0.11 272)" />
-                  </svg>
-                </div>
-              </div>
-
-              {progress.current && (
-                <p aria-live="polite" className="truncate text-center text-sm text-muted-foreground">
-                  Starring {progress.current}…
-                </p>
-              )}
+            <div aria-live="polite" className="sr-only">
+              {progress.current ? `Starring ${progress.current}` : null}
             </div>
-          </>;
-        })()}
+            {/* Bleed through to the page: the dialog content is transparent
+                during this step so the star animates over the dimmed backdrop
+                without visual competition. */}
+            <div aria-hidden="true" className="min-h-[40vh]" />
+          </>
+        )}
 
         {step === "complete" && (
           <>

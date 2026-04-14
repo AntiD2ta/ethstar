@@ -20,14 +20,15 @@ interface HeroSectionProps {
   repoCount: number;
   formattedStars: string;
   categoryCount: number;
-  onLogin: () => void;
   onViewRepositories: () => void;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+  /** The primary CTA slot — owned by the RoamingStar component, which lives
+   *  here when dormant and detaches to a free-floating layer when the hero
+   *  scrolls out of view. */
+  primaryCta: ReactNode;
   /** Optional content rendered after the stats row (e.g. starring controls). */
   children?: ReactNode;
-  /** Forwarded to the outer `<section>`. `StickyStarControls` observes this
-   *  element to decide when to mount the floating "Star all" CTA. */
+  /** Forwarded to the outer `<section>`. The RoamingStar observes this element
+   *  to decide whether to remain in-slot or detach into roaming mode. */
   ref?: Ref<HTMLElement>;
 }
 
@@ -35,10 +36,8 @@ export function HeroSection({
   repoCount,
   formattedStars,
   categoryCount,
-  onLogin,
   onViewRepositories,
-  isAuthenticated,
-  isLoading,
+  primaryCta,
   children,
   ref,
 }: HeroSectionProps) {
@@ -70,16 +69,11 @@ export function HeroSection({
           {repoCount}+ fundamental repositories in a single action.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {!isAuthenticated && !isLoading && (
-            <Button
-              onClick={onLogin}
-              size="lg"
-              className="rounded-full bg-primary px-8 py-3 text-primary-foreground hover:bg-primary/90"
-            >
-              Connect via GitHub
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center justify-center gap-6">
+          {/* Primary CTA — the RoamingStar (dormant form) renders here.
+              It replaces the legacy "Connect via GitHub" button and the
+              inline "Star All" row; the star is the single entry point. */}
+          <div className="flex flex-col items-center">{primaryCta}</div>
           <Button
             onClick={onViewRepositories}
             variant="outline"

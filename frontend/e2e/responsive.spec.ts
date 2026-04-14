@@ -136,11 +136,11 @@ test.describe("desktop marquee behavior", () => {
   });
 });
 
-// AC5: Progress bar + star-all controls fit at mobile width (authenticated)
+// AC5: RoamingStar dormant CTA fits at mobile width (authenticated)
 test.describe("mobile starring controls", () => {
   test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
 
-  test("progress bar and star-all button fit within mobile viewport", async ({
+  test("RoamingStar dormant slot fits within mobile viewport", async ({
     page,
   }) => {
     await seedAuth(page, "ghu_fake_responsive");
@@ -158,7 +158,7 @@ test.describe("mobile starring controls", () => {
       }),
     );
 
-    // Mock star checks so progress bar renders (404 = unstarred)
+    // Mock star checks (404 = unstarred) so status can resolve to "ready"
     await page.route("https://api.github.com/user/starred/**", (route) =>
       route.fulfill({ status: 404, body: "" }),
     );
@@ -172,22 +172,17 @@ test.describe("mobile starring controls", () => {
 
     await page.goto("/");
 
-    // Wait for the progress bar to appear (authenticated state)
-    const progressBar = page.getByRole("progressbar").first();
-    await expect(progressBar).toBeVisible({ timeout: 10_000 });
-
-    // Progress bar container should fit within viewport (hero instance —
-    // Phase D removed the duplicate "top" and "bottom" StarringControls).
-    const container = page.getByTestId("starring-controls-hero");
-    const box = await container.boundingBox();
+    // RoamingStar dormant slot is the single starring CTA on the page.
+    const slot = page.getByTestId("roaming-star-dormant-slot");
+    await expect(slot).toBeVisible({ timeout: 10_000 });
+    const box = await slot.boundingBox();
     expect(box).toBeTruthy();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(VIEWPORTS[0].width + 1);
 
-    // Star-all button should be visible and not clipped (scope to top instance)
-    const starBtn = container.getByRole("button", { name: /Star All/i });
-    await expect(starBtn).toBeVisible();
-    const btnBox = await starBtn.boundingBox();
+    const star = slot.getByTestId("roaming-star-button");
+    await expect(star).toBeVisible();
+    const btnBox = await star.boundingBox();
     expect(btnBox).toBeTruthy();
     expect(btnBox!.x).toBeGreaterThanOrEqual(0);
     expect(btnBox!.x + btnBox!.width).toBeLessThanOrEqual(

@@ -66,14 +66,15 @@ async function setupWithStarStatuses(
 }
 
 /**
- * Opens the star modal ("Star All N Remaining" button) then clicks
- * "Star manually instead" to open the manual star modal.
+ * Clicks the RoamingStar CTA (which replaced "Star All N Remaining") to open
+ * the star modal, then clicks "Star manually instead" to open the manual
+ * star modal.
  */
 async function openManualModal(page: import("@playwright/test").Page) {
-  // Wait for star checks to finish — the "Star All" button appears.
-  const starAllBtn = page.getByRole("button", { name: /Star All/i }).first();
-  await expect(starAllBtn).toBeVisible({ timeout: 15000 });
-  await starAllBtn.click();
+  // Wait for star checks to finish — the RoamingStar becomes "ready".
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "ready", { timeout: 15000 });
+  await star.click();
 
   // The star modal (authorization warning) should appear.
   await expect(

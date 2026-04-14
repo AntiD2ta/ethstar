@@ -229,10 +229,10 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
 
   await page.goto("/");
 
-  // Wait for star checks to complete, then click "Star All" (opens StarModal).
-  const starAllBtn = page.getByRole("button", { name: /Star All/i }).first();
-  await expect(starAllBtn).toBeVisible({ timeout: 15000 });
-  await starAllBtn.click();
+  // Wait for star checks to complete (status=ready), then click the RoamingStar.
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "ready", { timeout: 15000 });
+  await star.click();
 
   // StarModal opens at warning step — click "Proceed" to trigger OAuth popup (mocked above).
   await expect(
@@ -240,9 +240,10 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
   ).toBeVisible();
   await page.getByRole("button", { name: /Proceed/ }).click();
 
-  // Wait for the modal complete step showing starred count.
+  // The modal auto-closes on zero-failure completion; wait for the success toast
+  // instead of the legacy "complete" step text.
   await expect(
-    page.getByText(/starred 2 repos/i),
+    page.getByText(/All 2 repos starred\. Thanks for supporting Ethereum OSS\./),
   ).toBeVisible({ timeout: 30000 });
 
   // The POST should include new (2) + pending (5) = 7.

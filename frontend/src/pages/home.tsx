@@ -20,10 +20,10 @@ import { HowItWorksSection } from "@/components/how-it-works-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
 import { RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
+import { RoamingStar } from "@/components/roaming-star/roaming-star";
+import type { RoamingStarState } from "@/components/roaming-star/types";
 import { SlideTransition } from "@/components/slide-transition";
 import { StarModal } from "@/components/star-modal";
-import { StarringControls } from "@/components/starring-controls";
-import { StickyStarControls } from "@/components/sticky-star-controls";
 import { SupportSection } from "@/components/support-section";
 import { useAuth } from "@/hooks/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -67,7 +67,6 @@ export default function HomePage() {
   const reposRef = useRef<HTMLDivElement | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const checkedTokenRef = useRef<string | null>(null);
-  const isAnyModalOpen = starModalOpen || manualModalOpen;
 
   const handleSessionExpired = useCallback(() => {
     toast.error("Session expired. Sign in again.");
@@ -127,6 +126,9 @@ export default function HomePage() {
 
   // Called by StarModal after the user completes classic OAuth authorization.
   // Returns the result so the modal can transition to the complete step.
+  // On a zero-failure finish, we close the modal here so the RoamingStar's
+  // supernova plays over the backdrop fade-out (keeping setState out of
+  // effects per the react-hooks/set-state-in-effect rule).
   const handleStartStarring = useCallback(async (ephemeralToken: string) => {
     const result = await starAll({
       token: ephemeralToken,
@@ -144,6 +146,12 @@ export default function HomePage() {
     if (result.starred > 0) {
       reportStars(result.starred, token);
     }
+    if (result.failed === 0 && result.starred > 0) {
+      toast.success(
+        `All ${result.starred} repos starred. Thanks for supporting Ethereum OSS.`,
+      );
+      setStarModalOpen(false);
+    }
     return result;
   }, [starAll, reportStars, token, handleSessionExpired, handleNetworkError, handleForbidden]);
 
@@ -154,6 +162,80 @@ export default function HomePage() {
 
   const allDone =
     progress.total > 0 && progress.starred === progress.total;
+
+  // Derive the RoamingStar's visual state from auth + progress snapshots.
+  // The star is a controlled component — no internal ownership of these fields.
+  const roamingState = useMemo<RoamingStarState>(() => {
+    if (!isAuthenticated) {
+      return {
+        status: "disconnected",
+        fillLevel: 0,
+        remaining: REPOSITORIES.length,
+      };
+    }
+    if (allDone) {
+      return {
+        status: "success",
+        fillLevel: 1,
+        remaining: 0,
+      };
+    }
+    if (isStarring) {
+      const pct = progress.total > 0 ? progress.starred / progress.total : 0;
+      return {
+        status: "in-progress",
+        fillLevel: pct,
+        counterLabel: `Starring ${progress.starred} / ${progress.total}`,
+        remaining: progress.remaining,
+      };
+    }
+    if (starResult && starResult.failed > 0) {
+      return {
+        status: "partial-failure",
+        fillLevel: 0.5,
+        failedCount: starResult.failed,
+        remaining: progress.remaining,
+      };
+    }
+    return {
+      status: "ready",
+      fillLevel: 0.5,
+      remaining: progress.remaining,
+    };
+  }, [
+    isAuthenticated,
+    allDone,
+    isStarring,
+    progress.total,
+    progress.starred,
+    progress.remaining,
+    starResult,
+  ]);
+
+  // Completion signal — drives supernova + closes modal. Guarded so the
+  // happy-path auto-closes but the partial-failure case keeps the modal
+  // open so the user can see failures and retry from there.
+  const completed =
+    !isStarring && starResult !== null && starResult.failed === 0;
+
+
+  // Star click dispatch: unauth → start OAuth via login; auth → open modal
+  // (which handles the star-OAuth popup flow).
+  const handleStarTrigger = useCallback(() => {
+    if (!isAuthenticated) {
+      login();
+      return;
+    }
+    handleStarAll();
+  }, [isAuthenticated, login, handleStarAll]);
+
+  // Cancel — v1 scope: the Cancel button is rendered but the useStars loop
+  // does not expose an abort handle yet. Logged in TASKS.md as follow-up.
+  // For now, this surfaces a toast so users get feedback and the page
+  // returns to idle on the next tick (the loop still finishes in-flight).
+  const handleCancelStarring = useCallback(() => {
+    toast.info("Cancel is not yet wired — starring will finish the current batch.");
+  }, []);
 
   return (
     <main className="flex flex-col overflow-x-hidden">
@@ -172,28 +254,26 @@ export default function HomePage() {
 
       <CommunityStarsBanner totalStars={stats?.totalStars ?? null} />
 
-      {/* Slide 1 — Hero */}
+      {/* Slide 1 — Hero. The RoamingStar dormant slot lives inside as the
+          primary CTA; it detaches to a free-floating layer once the hero
+          scrolls out of view. */}
       <HeroSection
         ref={heroRef}
         repoCount={REPOSITORIES.length}
         formattedStars={formattedStars}
         categoryCount={CATEGORIES.length}
-        onLogin={login}
         onViewRepositories={scrollToRepos}
-        isAuthenticated={isAuthenticated}
-        isLoading={authLoading}
-      >
-        {/* Starring controls — bottom of hero viewport */}
-        {isAuthenticated && (
-          <StarringControls
-            progress={progress}
-            isStarring={isStarring}
-            allDone={allDone}
-            onStarAll={handleStarAll}
-            testId="starring-controls-hero"
+        primaryCta={
+          <RoamingStar
+            heroRef={heroRef}
+            state={roamingState}
+            inProgress={isStarring}
+            completed={completed}
+            onTrigger={handleStarTrigger}
+            onCancel={handleCancelStarring}
           />
-        )}
-      </HeroSection>
+        }
+      />
 
       <SlideTransition />
 
@@ -249,20 +329,9 @@ export default function HomePage() {
 
       <SupportSection />
 
-      {/* Floating "Star All" CTA — mounts only after hero scrolls out of view.
-          Hidden while any modal is open or once all repos are starred. */}
-      {isAuthenticated && (
-        <StickyStarControls
-          heroRef={heroRef}
-          remaining={progress.remaining}
-          isStarring={isStarring}
-          allDone={allDone}
-          onStarAll={handleStarAll}
-          hidden={isAnyModalOpen}
-        />
-      )}
-
-      {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete) */}
+      {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete).
+          The progress step visually defers to the RoamingStar (takeover mode);
+          the modal shell still provides Radix focus-trap + inert-page. */}
       <StarModal
         key={starModalKey}
         open={starModalOpen}

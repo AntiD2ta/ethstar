@@ -142,60 +142,51 @@ test("marquees expose per-category accessible labels", async ({ page }) => {
   }
 });
 
-test("progress bar and star-all button are hidden when unauthenticated", async ({
-  page,
-}) => {
+test("unauthenticated: RoamingStar renders the 'Light it up' CTA", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByLabel("Starring progress")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Star All/i })).toHaveCount(0);
+  // Dormant slot is present with the disconnected-state button/label.
+  await expect(page.getByTestId("roaming-star-dormant-slot")).toBeVisible();
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toBeVisible();
+  await expect(star).toHaveAttribute("data-status", "disconnected");
+  // The legacy "Star All N Remaining" button should no longer exist.
+  await expect(page.getByRole("button", { name: /Star All \d+ Remaining/i })).toHaveCount(0);
 });
 
-test("only one StarringControls instance exists at any scroll position", async ({
-  page,
-}) => {
-  // Unauthenticated: zero controls at the top AND bottom. This also guards
-  // against the Phase D regression where three duplicate StarringControls
-  // instances previously rendered on the home page.
+test("exactly one RoamingStar exists at any scroll position", async ({ page }) => {
+  // Regression guard against mounting both a dormant and floating star. The
+  // component renders one or the other based on hero visibility.
   await page.goto("/");
-  await expect(page.getByLabel("Starring controls")).toHaveCount(0);
-  // Scroll to the very bottom; still zero for unauthenticated users.
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(1);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await expect(page.getByLabel("Starring controls")).toHaveCount(0);
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(1);
 });
 
-test("sticky floating CTA is absent for unauthenticated users", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("sticky-star-controls")).toHaveCount(0);
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await expect(page.getByTestId("sticky-star-controls")).toHaveCount(0);
-});
-
-test("authenticated users: sticky CTA stays hidden while hero is visible", async ({
-  page,
-}) => {
-  // Regression: a sentinel placed below the hero used to report
-  // isIntersecting=false on short viewports, causing the sticky CTA to mount
-  // alongside the hero's StarringControls and produce two "Star All" buttons
-  // in the hero view. The fix observes the hero section itself.
-  await seedAuth(page);
-  await mockAuthedApis(page);
-  await page.setViewportSize({ width: 1440, height: 600 });
-  await page.goto("/");
-  await expect(page.getByTestId("starring-controls-hero")).toBeVisible();
-  await expect(page.getByTestId("sticky-star-controls")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Star All \d+ Remaining/i })).toHaveCount(1);
-});
-
-test("authenticated users: sticky CTA appears after scrolling past hero", async ({
+test("authenticated: RoamingStar shows 'Begin starring' when hero is visible", async ({
   page,
 }) => {
   await seedAuth(page);
   await mockAuthedApis(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByTestId("starring-controls-hero")).toBeVisible();
+  await expect(page.getByTestId("roaming-star-dormant-slot")).toBeVisible();
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toBeVisible();
+  // Once the checkStars loop resolves, status moves from disconnected to ready.
+  await expect(star).toHaveAttribute("data-status", "ready", { timeout: 5_000 });
+});
+
+test("authenticated: RoamingStar still renders after scrolling past hero", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  await mockAuthedApis(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.getByTestId("roaming-star-button")).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2));
-  await expect(page.getByTestId("sticky-star-controls")).toBeVisible();
+  // Still exactly one star, now in the portal (roaming mode).
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(1);
 });
 
 test.describe("mobile hero viewport", () => {
