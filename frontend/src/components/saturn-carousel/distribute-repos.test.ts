@@ -28,7 +28,7 @@ describe("distributeRepos", () => {
     { n: 4, expectedCounts: [1, 1, 1, 1] },
     { n: 32, expectedCounts: [5, 7, 9, 11] },
     { n: 58, expectedCounts: [9, 13, 16, 20] },
-    { n: 59, expectedCounts: [9, 13, 17, 20] },
+    { n: 59, expectedCounts: [8, 13, 17, 21] },
     { n: 100, expectedCounts: [15, 22, 28, 35] },
   ];
 
@@ -78,6 +78,37 @@ describe("distributeRepos", () => {
         expect(counts[i]).toBeLessThanOrEqual(counts[i + 1]);
       }
     }
+  });
+
+  it("never produces a negative count, even for pathological radii + small N", () => {
+    // Regression: the previous Math.round + remainder algorithm emitted
+    // counts[last] = -1 for N=2, radii=[1,1,1,1] (head rounded 0.5→1
+    // three times, overshooting N). The Hamilton apportionment variant
+    // floors first, then hands out the remainder, so overshoot is
+    // impossible. Sweep small-N + flat/near-flat radii to lock it in.
+    const radiiMatrix = [
+      [1, 1, 1, 1],
+      [1, 1, 1, 2],
+      [1, 2, 3, 4],
+      [2, 2, 3, 3],
+    ];
+    for (const radii of radiiMatrix) {
+      for (let n = 0; n <= 10; n++) {
+        const rings = distributeRepos(ids(n), radii);
+        const counts = rings.map((r) => r.length);
+        expect(counts.reduce((a, b) => a + b, 0)).toBe(n);
+        for (const c of counts) expect(c).toBeGreaterThanOrEqual(0);
+        for (let i = 0; i < counts.length - 1; i++) {
+          expect(counts[i]).toBeLessThanOrEqual(counts[i + 1]);
+        }
+      }
+    }
+  });
+
+  it("throws when radii are not non-decreasing", () => {
+    expect(() => distributeRepos([1, 2, 3], [570, 240, 460, 350])).toThrow(
+      /non-decreasing/,
+    );
   });
 });
 

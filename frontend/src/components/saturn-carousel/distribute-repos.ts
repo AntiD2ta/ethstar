@@ -16,17 +16,19 @@ import type { RepoCategory, Repository } from "@/lib/types";
 /**
  * Partition `items` into as many contiguous slices as there are `radii`,
  * weighting each slice by its radius (proxy for circumference so outer
- * rings hold more chips). The first `radii.length - 1` slices round their
- * share via `Math.round`; the outermost ring absorbs the remainder so the
- * total count is preserved exactly.
+ * rings hold more chips). Total count is preserved exactly and the
+ * result is monotone non-decreasing (outer ring ≥ inner ring).
  *
- * Precondition: `radii` MUST be sorted non-decreasing (inner → outer). The
- * function enforces monotone non-decreasing counts by sorting the final
- * count array ascending before slicing — this is safe only because `radii`
- * itself is ordered that way, so the sorted counts line up with the
- * intended ring assignment. Without this pass, rounding + remainder can
- * leave the last ring smaller than its neighbor for small N (e.g. N=3,
- * radii=[1,1,1,1] would produce [1,1,1,0], which reads wrong visually).
+ * Precondition: `radii` MUST be sorted non-decreasing (inner → outer).
+ * Violation throws — the sort-ascending step at the end only realigns
+ * counts with the intended ring order when radii are themselves ordered.
+ *
+ * Uses the largest-remainder (Hamilton) apportionment: floor the raw
+ * proportional share for each ring, then distribute the leftover to the
+ * rings with the largest fractional remainders. This avoids the
+ * "last-ring remainder" trap where naive `Math.round` on head slots can
+ * overshoot the total (e.g. N=2, radii=[1,1,1,1] → head rounds 0.5→1
+ * three times = 3 > N, leaving the last ring at -1).
  */
 export function distributeRepos<T>(
   items: readonly T[],
@@ -34,15 +36,27 @@ export function distributeRepos<T>(
 ): T[][] {
   if (radii.length === 0) return [];
 
-  const total = radii.reduce((sum, r) => sum + r, 0);
-  const last = radii.length - 1;
-  const counts = radii.map((r, i) =>
-    i === last ? 0 : Math.round((r / total) * items.length),
-  );
-  const takenByHead = counts.reduce((a, b) => a + b, 0);
-  counts[last] = items.length - takenByHead;
+  for (let i = 1; i < radii.length; i++) {
+    if (radii[i] < radii[i - 1]) {
+      throw new Error(
+        `distributeRepos: radii must be non-decreasing, got [${radii.join(", ")}]`,
+      );
+    }
+  }
 
-  // Enforce "outer ring ≥ inner ring" invariant regardless of rounding.
+  const total = radii.reduce((sum, r) => sum + r, 0);
+  const n = items.length;
+  const raw = radii.map((r) => (total === 0 ? 0 : (r / total) * n));
+  const counts = raw.map(Math.floor);
+  const remainder = n - counts.reduce((a, b) => a + b, 0);
+
+  const byFrac = raw
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < remainder && k < byFrac.length; k++) {
+    counts[byFrac[k].i]++;
+  }
+
   counts.sort((a, b) => a - b);
 
   const out: T[][] = [];
