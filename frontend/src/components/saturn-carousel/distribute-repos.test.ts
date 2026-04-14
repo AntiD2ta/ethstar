@@ -27,8 +27,8 @@ describe("distributeRepos", () => {
     { n: 1, expectedCounts: [0, 0, 0, 1] },
     { n: 4, expectedCounts: [1, 1, 1, 1] },
     { n: 32, expectedCounts: [5, 7, 9, 11] },
-    { n: 54, expectedCounts: [8, 12, 15, 19] },
-    { n: 55, expectedCounts: [8, 12, 16, 19] },
+    { n: 58, expectedCounts: [9, 13, 16, 20] },
+    { n: 59, expectedCounts: [9, 13, 17, 20] },
     { n: 100, expectedCounts: [15, 22, 28, 35] },
   ];
 
@@ -52,9 +52,32 @@ describe("distributeRepos", () => {
   }
 
   it("preserves input order across rings (contiguous slicing)", () => {
-    const input = ids(54);
+    const input = ids(58);
     const rings = distributeRepos(input, RADII);
     expect(rings.flat()).toEqual(input);
+  });
+
+  it("produces monotone counts even when rounding would otherwise starve the last ring", () => {
+    // N=3 with equal radii is the minimal case where the naive
+    // `round + remainder` pattern produces [1, 1, 1, 0] — the invariant
+    // enforcement must redistribute so the outer ring is not smallest.
+    const rings = distributeRepos(ids(3), [1, 1, 1, 1]);
+    const counts = rings.map((r) => r.length);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(3);
+    for (let i = 0; i < counts.length - 1; i++) {
+      expect(counts[i]).toBeLessThanOrEqual(counts[i + 1]);
+    }
+  });
+
+  it("maintains monotone counts across a range of N for the production radii", () => {
+    for (let n = 0; n <= 120; n++) {
+      const rings = distributeRepos(ids(n), RADII);
+      const counts = rings.map((r) => r.length);
+      expect(counts.reduce((a, b) => a + b, 0)).toBe(n);
+      for (let i = 0; i < counts.length - 1; i++) {
+        expect(counts[i]).toBeLessThanOrEqual(counts[i + 1]);
+      }
+    }
   });
 });
 

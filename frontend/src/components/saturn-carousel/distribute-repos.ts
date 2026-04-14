@@ -19,6 +19,14 @@ import type { RepoCategory, Repository } from "@/lib/types";
  * rings hold more chips). The first `radii.length - 1` slices round their
  * share via `Math.round`; the outermost ring absorbs the remainder so the
  * total count is preserved exactly.
+ *
+ * Precondition: `radii` MUST be sorted non-decreasing (inner → outer). The
+ * function enforces monotone non-decreasing counts by sorting the final
+ * count array ascending before slicing — this is safe only because `radii`
+ * itself is ordered that way, so the sorted counts line up with the
+ * intended ring assignment. Without this pass, rounding + remainder can
+ * leave the last ring smaller than its neighbor for small N (e.g. N=3,
+ * radii=[1,1,1,1] would produce [1,1,1,0], which reads wrong visually).
  */
 export function distributeRepos<T>(
   items: readonly T[],
@@ -33,6 +41,9 @@ export function distributeRepos<T>(
   );
   const takenByHead = counts.reduce((a, b) => a + b, 0);
   counts[last] = items.length - takenByHead;
+
+  // Enforce "outer ring ≥ inner ring" invariant regardless of rounding.
+  counts.sort((a, b) => a - b);
 
   const out: T[][] = [];
   let idx = 0;

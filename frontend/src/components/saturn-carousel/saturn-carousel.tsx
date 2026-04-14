@@ -33,8 +33,10 @@ interface SaturnCarouselProps {
 
 // Radii ordered inner → outer. Outer rings have larger circumference so
 // they receive proportionally more chips (see `distributeRepos`).
-const DESKTOP_RADII = [240, 350, 460, 570] as const;
-const MOBILE_RADII = [100, 145, 190, 235] as const;
+// Exported so a drift-detection test can assert MOBILE_RADII stays
+// proportional to DESKTOP_RADII (same slice counts are used on both).
+export const DESKTOP_RADII = [240, 350, 460, 570] as const;
+export const MOBILE_RADII = [100, 145, 190, 235] as const;
 
 // Sort once at module scope so ring membership is deterministic across
 // refreshes, then slice by radius-weight. Both viewports share the same
