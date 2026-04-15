@@ -241,10 +241,15 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
   await page.getByRole("button", { name: /Proceed/ }).click();
 
   // The modal auto-closes on zero-failure completion; wait for the success toast
-  // instead of the legacy "complete" step text.
+  // instead of the legacy "complete" step text. The toast now splits into a
+  // title + description line (the "token discarded" detail replaces the old
+  // standalone "complete" modal).
   await expect(
-    page.getByText(/All 2 repos starred\. Thanks for supporting Ethereum OSS\./),
+    page.getByText(/All 2 repos starred/),
   ).toBeVisible({ timeout: 30000 });
+  await expect(
+    page.getByText(/Your GitHub token was discarded/),
+  ).toBeVisible();
 
   // The POST should include new (2) + pending (5) = 7.
   await expect

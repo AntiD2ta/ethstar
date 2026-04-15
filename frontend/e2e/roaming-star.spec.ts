@@ -95,6 +95,96 @@ test("ready state fill is calibrated for the authentic ETH diamond (0.42, not 0.
   await expect(clipRect).toHaveAttribute("height", "58");
 });
 
+test("no '0 repos to go' flash while checkStars runs on refresh (all-starred)", async ({ page }) => {
+  await seedAuth(page);
+  // Mock all star-check responses as 204 (starred) but delay them so the
+  // "checking" window is long enough to observe. The regression: the dormant
+  // label used to transiently read "Begin starring — 0 REPOS TO GO" during
+  // this window because `computeProgress` didn't count "checking" as remaining.
+  await page.route("https://api.github.com/user", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+    }),
+  );
+  await page.route("https://api.github.com/user/starred/**", async (r) => {
+    await new Promise((res) => setTimeout(res, 250));
+    await r.fulfill({ status: 204, body: "" });
+  });
+  await page.route("https://api.github.com/graphql", (r) =>
+    r.fulfill({ status: 401, body: "" }),
+  );
+  await page.route("**/api/stats", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  // While the check is still in-flight, the star must not render the ready
+  // state with a bogus "0 repos to go" caption. Sample the DOM several times
+  // across the check window to catch any transient flicker.
+  const star = page.getByTestId("roaming-star-button").first();
+  const deadline = Date.now() + 1500;
+  while (Date.now() < deadline) {
+    const status = await star.getAttribute("data-status");
+    if (status === "success") break;
+    const zeroBug = await page.getByText("0 repos to go").count();
+    expect(zeroBug).toBe(0);
+    await page.waitForTimeout(40);
+  }
+
+  // And we do eventually resolve to the "All starred" success state.
+  await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
+  await expect(page.getByText("All starred").first()).toBeVisible();
+});
+
+test("clicking the All-starred diamond is a no-op (no StarModal, no flash of 0-repo warning)", async ({ page }) => {
+  await seedAuth(page);
+  await page.route("https://api.github.com/user", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+    }),
+  );
+  // Every repo already starred.
+  await page.route("https://api.github.com/user/starred/**", (r) =>
+    r.fulfill({ status: 204, body: "" }),
+  );
+  await page.route("https://api.github.com/graphql", (r) =>
+    r.fulfill({ status: 401, body: "" }),
+  );
+  await page.route("**/api/stats", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
+
+  // Click + keyboard activation must both be inert — the diamond is a
+  // confirmation, not a CTA, and opening StarModal here would show the
+  // "star 0 repositories" warning (the bug we're locking out).
+  await star.click();
+  await page.waitForTimeout(150);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await star.focus();
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(150);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
 test("StarModal warning step names the write scope (Error Prevention)", async ({ page }) => {
   await seedAuth(page);
   await mockAuthedApis(page);

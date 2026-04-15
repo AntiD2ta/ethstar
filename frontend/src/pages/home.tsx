@@ -167,9 +167,10 @@ export default function HomePage() {
       );
       setStarModalOpen(false);
     } else if (result.failed === 0 && result.starred > 0) {
-      toast.success(
-        `All ${result.starred} repos starred. Thanks for supporting Ethereum OSS.`,
-      );
+      toast.success(`All ${result.starred} repos starred`, {
+        description:
+          "Your GitHub token was discarded. Thanks for supporting Ethereum OSS.",
+      });
       setStarModalOpen(false);
     }
     return result;
@@ -246,23 +247,30 @@ export default function HomePage() {
   // happy-path auto-closes but the partial-failure case keeps the modal
   // open so the user can see failures and retry from there. A cancelled
   // run also skips the supernova (it's a celebratory finale, not a "you
-  // stopped" moment).
+  // stopped" moment). `starred > 0` prevents a zero-work run (e.g. user
+  // somehow triggered starAll with nothing to do) from firing supernova
+  // over an empty list — the animation is only earned by actual work.
   const completed =
     !isStarring &&
     starResult !== null &&
     starResult.failed === 0 &&
+    starResult.starred > 0 &&
     !starResult.aborted;
 
 
   // Star click dispatch: unauth → start OAuth via login; auth → open modal
-  // (which handles the star-OAuth popup flow).
+  // (which handles the star-OAuth popup flow). No-op when all repos are
+  // already starred — the RoamingStar also gates this on `state.status ===
+  // "success"`, but we guard here too so keyboard/programmatic callers
+  // can't sneak past the visual state and open a 0-repo modal.
   const handleStarTrigger = useCallback(() => {
+    if (allDone) return;
     if (!isAuthenticated) {
       login();
       return;
     }
     handleStarAll();
-  }, [isAuthenticated, login, handleStarAll]);
+  }, [allDone, isAuthenticated, login, handleStarAll]);
 
   const handleCancelStarring = useCallback(() => {
     starAbortRef.current?.abort();

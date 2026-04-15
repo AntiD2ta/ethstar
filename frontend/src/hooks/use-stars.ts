@@ -336,7 +336,15 @@ function computeProgress(statuses: StarStatusMap): StarProgress {
     total++;
     const status = statuses[key];
     if (status === "starred") starred++;
-    else if (status === "unstarred" || status === "unknown" || status === "failed") remaining++;
+    // "checking" is a transient in-flight status — count it as remaining so the
+    // dormant label doesn't flash "0 repos to go" between the initial "unknown"
+    // state and the final starred/unstarred resolution.
+    else if (
+      status === "unstarred" ||
+      status === "unknown" ||
+      status === "failed" ||
+      status === "checking"
+    ) remaining++;
     else if (status === "starring") {
       current = key;
       remaining++;

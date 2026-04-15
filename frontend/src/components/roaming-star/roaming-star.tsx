@@ -322,23 +322,29 @@ export const RoamingStar = memo(function RoamingStar({
     onTrigger();
   }, [onTrigger]);
 
-  const handleKey = useCallback(
-    (e: KeyboardEvent<HTMLButtonElement>) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        triggerWithFocusCapture();
-      }
-    },
-    [triggerWithFocusCapture],
-  );
-
   const handleStarClick = useCallback(() => {
     // The star is inert during takeover — the Cancel button + Esc handle abort.
     // Shipping a single cancel affordance (button) keeps the surface consistent
     // and removes the "click once to arm, again to cancel" prototype.
     if (mode === "takeover") return;
+    // "success" (all repos already starred) is a terminal visual state — the
+    // diamond reads as a confirmation, not a CTA. Clicking must not open
+    // StarModal with 0 unstarred repos.
+    if (state.status === "success") return;
     triggerWithFocusCapture();
-  }, [mode, triggerWithFocusCapture]);
+  }, [mode, state.status, triggerWithFocusCapture]);
+
+  const handleKey = useCallback(
+    (e: KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        // Route keyboard activation through handleStarClick so the success +
+        // takeover guards apply identically to Enter/Space and mouse clicks.
+        handleStarClick();
+      }
+    },
+    [handleStarClick],
+  );
 
   // Keyboard reach for cancel — Alex (keyboard-first persona) should be able
   // to abort without chasing the Cancel button. Esc fires onCancel directly
