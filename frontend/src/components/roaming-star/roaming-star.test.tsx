@@ -88,7 +88,7 @@ describe("RoamingStar", () => {
     const btn = screen.getByTestId("roaming-star-button");
     expect(btn).toHaveAttribute(
       "aria-label",
-      "Star every Ethereum repo — sign in with GitHub to begin",
+      "Star all 17 Ethereum repos — sign in with GitHub to begin",
     );
     expect(btn.tagName).toBe("BUTTON");
     expect(btn).toHaveAttribute("data-status", "disconnected");
@@ -96,7 +96,7 @@ describe("RoamingStar", () => {
 
   it("shows the two-line disconnected label naming the action and the provider", () => {
     renderStar();
-    expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+    expect(screen.getByText("Star all 17 now")).toBeInTheDocument();
     expect(screen.getByText("Sign in with GitHub ↗")).toBeInTheDocument();
   });
 
@@ -144,7 +144,7 @@ describe("RoamingStar", () => {
 
   it("clears stale dismissal when the user is disconnected on mount", () => {
     // Completed a prior session, then logged out. Without this clear, the
-    // dormant CTA would vanish on a page that prompts "Connect via GitHub".
+    // dormant CTA would vanish on a page that prompts "Sign in with GitHub".
     window.localStorage.setItem(
       DISMISSED_STORAGE_KEY,
       JSON.stringify({ v: 1, dismissedAt: Date.now() }),
@@ -197,7 +197,7 @@ describe("RoamingStar", () => {
           oauthStatus: "pending",
         },
       });
-      expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+      expect(screen.getByText("Star all 17 now")).toBeInTheDocument();
       expect(screen.getByText("Waiting for GitHub…")).toBeInTheDocument();
       expect(
         screen.queryByText("Sign in with GitHub ↗"),
@@ -213,7 +213,7 @@ describe("RoamingStar", () => {
           oauthStatus: "blocked",
         },
       });
-      expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+      expect(screen.getByText("Star all 17 now")).toBeInTheDocument();
       expect(
         screen.getByText("Popup blocked — click to retry"),
       ).toBeInTheDocument();
@@ -290,10 +290,10 @@ describe("RoamingStar", () => {
       try {
         renderStar();
         // The roaming-mode label pill is identified by data-testid and echoes
-        // labelLines[0] — "Star every Ethereum repo" in the disconnected state.
+        // labelLines[0] — "Star all 17 now" in the disconnected state (Phase E).
         const label = screen.getByTestId("roaming-star-label");
         expect(label).toBeInTheDocument();
-        expect(label).toHaveTextContent("Star every Ethereum repo");
+        expect(label).toHaveTextContent("Star all 17 now");
       } finally {
         if (prevAnimate === undefined) {
           delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;

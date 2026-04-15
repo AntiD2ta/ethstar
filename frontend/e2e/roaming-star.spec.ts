@@ -58,13 +58,15 @@ test.beforeEach(async ({ page }) => {
   await seedConsent(page);
 });
 
-test("dormant (disconnected): label names the noun and the auth provider", async ({ page }) => {
+test("dormant (disconnected): label names the action with a count and the auth provider", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  // Phase E reframe: primary line is verb + count ("Star all 58 now"), paired
+  // with the H1 "Support Ethereum's builders" — no semantic duplication.
+  await expect(page.getByText(/^Star all \d+ now$/).first()).toBeVisible();
   await expect(page.getByText("Sign in with GitHub ↗").first()).toBeVisible();
-  // The legacy ornamental copy must be gone — "Light it up" hid the action.
+  // The legacy slop strings must be gone.
   await expect(page.getByText("Light it up")).toHaveCount(0);
-  await expect(page.getByText("↗ Continue with GitHub")).toHaveCount(0);
+  await expect(page.getByText("Star every Ethereum repo")).toHaveCount(0);
 });
 
 test("dormant (ready): shows a 'repos to go' sublabel so Jordan knows the scope", async ({ page }) => {
@@ -294,7 +296,7 @@ test("Riley: sign-out restores the dormant CTA and clears the dismissal flag", a
   const star = page.getByTestId("roaming-star-button");
   await expect(star).toBeVisible({ timeout: 5_000 });
   await expect(star).toHaveAttribute("data-status", "disconnected");
-  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  await expect(page.getByText(/^Star all \d+ now$/).first()).toBeVisible();
 
   // And the stale dismissal record must be gone so a subsequent re-connect
   // can run its supernova fresh without the flag short-circuiting mode
@@ -318,8 +320,8 @@ test("StarModal warning step names the write scope (Error Prevention)", async ({
   // Scope + surface must be named: "N public repositories" + "on your GitHub account".
   await expect(dialog.getByText(/public repositories/i)).toBeVisible();
   await expect(dialog.getByText(/on your GitHub account/i)).toBeVisible();
-  // The Proceed button still names the count for belt-and-suspenders clarity.
+  // The CTA button still names the count for belt-and-suspenders clarity.
   await expect(
-    dialog.getByRole("button", { name: /Proceed — star all \d+ repos/i }),
+    dialog.getByRole("button", { name: /^Star all \d+/i }),
   ).toBeVisible();
 });

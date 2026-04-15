@@ -95,8 +95,8 @@ export function AuthHeader({
           onClick={onLogin}
           className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
-          <span className="hidden sm:inline">Connect via GitHub</span>
-          <span className="sm:hidden">Connect</span>
+          <span className="hidden sm:inline">Sign in with GitHub</span>
+          <span className="sm:hidden">Sign in</span>
         </Button>
       )}
     </header>

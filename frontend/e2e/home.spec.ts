@@ -44,19 +44,54 @@ test.beforeEach(async ({ page }) => {
   await seedConsent(page);
 });
 
-test("home page renders hero headline", async ({ page }) => {
+test("home page renders reframed hero headline", async ({ page }) => {
   await page.goto("/");
   const heading = page.getByRole("heading", { level: 1 });
-  await expect(heading).toContainText("Star Every");
+  // Phase E reframe: H1 is the framing statement, not a CTA verb.
+  await expect(heading).toContainText("Support");
   await expect(heading).toContainText("Ethereum");
-  await expect(heading).toContainText("Repo");
+  await expect(heading).toContainText("builders");
+  // ≤6 words (≤5 preferred). "Support Ethereum's builders" = 3.
+  const text = (await heading.textContent())?.trim() ?? "";
+  expect(text.split(/\s+/).length).toBeLessThanOrEqual(6);
+});
+
+test("hero copy tiers have distinct text", async ({ page }) => {
+  await page.goto("/");
+  const h1 = (await page.getByTestId("hero-h1").textContent())?.trim() ?? "";
+  const subhead =
+    (await page.getByTestId("hero-subhead").textContent())?.trim() ?? "";
+  // Dormant-star primary line is the visible label rendered alongside the
+  // star button (sibling, not button text). Match the verb+count template.
+  const dormantLabel =
+    (await page.getByText(/^Star all \d+ now$/).first().textContent())?.trim() ??
+    "";
+
+  const lower = (s: string) => s.toLowerCase();
+  const pairs: Array<[string, string]> = [
+    [h1, subhead],
+    [h1, dormantLabel],
+    [subhead, dormantLabel],
+  ];
+  for (const [a, b] of pairs) {
+    expect(a.length, `tier should be non-empty`).toBeGreaterThan(0);
+    expect(b.length, `tier should be non-empty`).toBeGreaterThan(0);
+    expect(
+      lower(b).includes(lower(a)),
+      `tier "${a}" should not be a substring of "${b}"`,
+    ).toBe(false);
+    expect(
+      lower(a).includes(lower(b)),
+      `tier "${b}" should not be a substring of "${a}"`,
+    ).toBe(false);
+  }
 });
 
 test("home page shows unauthenticated CTAs", async ({ page }) => {
   await page.goto("/");
-  // There are multiple "Connect via GitHub" buttons (header + hero); both should exist.
+  // Header CTA is now "Sign in with GitHub" (or "Sign in" on <sm).
   await expect(
-    page.getByRole("button", { name: "Connect via GitHub" }).first(),
+    page.getByRole("button", { name: /sign in/i }).first(),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /browse the repositories/i }),
@@ -149,8 +184,8 @@ test("unauthenticated: RoamingStar dormant CTA names the action and provider", a
   const star = page.getByTestId("roaming-star-button").first();
   await expect(star).toBeVisible();
   await expect(star).toHaveAttribute("data-status", "disconnected");
-  // Primary line surfaces the noun; secondary names the provider + direction.
-  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  // Primary line is verb + count; secondary names the provider + direction.
+  await expect(page.getByText(/^Star all \d+ now$/).first()).toBeVisible();
   await expect(page.getByText("Sign in with GitHub ↗").first()).toBeVisible();
   // The legacy "Star All N Remaining" button should no longer exist.
   await expect(page.getByRole("button", { name: /Star All \d+ Remaining/i })).toHaveCount(0);

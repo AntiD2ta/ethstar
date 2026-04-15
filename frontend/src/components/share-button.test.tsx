@@ -42,7 +42,13 @@ beforeEach(() => {
   vi.spyOn(document, "createElement").mockImplementation((tag: string, options?: ElementCreationOptions) => {
     if (tag === "canvas") {
       const el = realCreateElement("canvas", options);
-      vi.spyOn(el, "getContext").mockReturnValue(fakeCtx as unknown as CanvasRenderingContext2D);
+      // The HTMLCanvasElement.getContext overload set includes WebGPU; once
+      // @webgpu/types loads into the test-program graph (e.g. via the WebGL
+      // Ethereum scene transitively imported by hero tests), `mockReturnValue`
+      // infers the GPUCanvasContext overload. Cast through `never` to suppress
+      // the cross-overload assignability check — at runtime we always feed it
+      // a 2D context shim.
+      vi.spyOn(el, "getContext").mockReturnValue(fakeCtx as unknown as CanvasRenderingContext2D & GPUCanvasContext);
       vi.spyOn(el, "toBlob").mockImplementation((cb) => { cb(new Blob(["x"], { type: "image/png" })); });
       return el;
     }

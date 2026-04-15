@@ -38,7 +38,7 @@ test("session-expired toast fires when refresh fails after 401", async ({
 
   // User is logged out — Connect button reappears.
   await expect(
-    page.getByRole("button", { name: "Connect via GitHub" }).first(),
+    page.getByRole("button", { name: /sign in/i }).first(),
   ).toBeVisible();
 });
 
@@ -55,7 +55,7 @@ test("network-error toast fires when GitHub is unreachable", async ({
 
   // Network errors do NOT log out the user.
   await expect(
-    page.getByRole("button", { name: "Connect via GitHub" }).first(),
+    page.getByRole("button", { name: /sign in/i }).first(),
   ).toHaveCount(0);
 });
 

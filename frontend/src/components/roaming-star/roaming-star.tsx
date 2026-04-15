@@ -298,13 +298,14 @@ export const RoamingStar = memo(function RoamingStar({
     trail.setSpawning(mode === "roaming");
   }, [mode, trail]);
 
-  // ARIA label per brief. Primary label copy is explicit about the action
-  // (so screen-reader users hear "Star every Ethereum repo" rather than the
-  // ornamental "Light it up" line).
+  // ARIA label per brief. Primary label copy is verb + count, paired with
+  // the H1 "Support Ethereum's builders" so the screen-reader experience
+  // matches the visible primary line ("Star all 58 now") and avoids
+  // duplicating the framing headline.
   const ariaLabel = useMemo(() => {
     switch (state.status) {
       case "disconnected":
-        return "Star every Ethereum repo — sign in with GitHub to begin";
+        return `Star all ${state.remaining ?? 0} Ethereum repos — sign in with GitHub to begin`;
       case "ready":
         return "Begin starring all Ethereum repositories";
       case "in-progress":
@@ -314,10 +315,11 @@ export const RoamingStar = memo(function RoamingStar({
       case "success":
         return "All repositories starred";
     }
-  }, [state.status, state.fillLevel, state.failedCount]);
+  }, [state.status, state.fillLevel, state.failedCount, state.remaining]);
 
-  // Two-line label text. The disconnected primary line names the action
-  // (review: "Light it up hides the GitHub action — attach a noun"); the
+  // Two-line label text. The disconnected primary line is verb + count
+  // ("Star all 58 now") — paired with the H1 "Support Ethereum's builders"
+  // so the eye reads framing → action without semantic duplication. The
   // secondary line carries the auth-popup lifecycle so first-timers see
   // exactly what the click will do.
   const labelLines = useMemo<[string, string | null]>(() => {
@@ -328,7 +330,7 @@ export const RoamingStar = memo(function RoamingStar({
           : state.oauthStatus === "blocked"
             ? "Popup blocked — click to retry"
             : "Sign in with GitHub ↗";
-      return ["Star every Ethereum repo", secondary];
+      return [`Star all ${state.remaining ?? 0} now`, secondary];
     }
     if (state.status === "ready") {
       // While the initial check is in flight, the final count is not yet

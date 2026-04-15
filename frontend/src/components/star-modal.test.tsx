@@ -55,8 +55,8 @@ describe("StarModal", () => {
     render(<StarModal {...defaultProps} requestToken={requestToken} />);
     const user = userEvent.setup();
 
-    // Click "Proceed" to trigger authorization
-    await user.click(screen.getByRole("button", { name: /proceed/i }));
+    // Click "Star all N" to trigger authorization
+    await user.click(screen.getByRole("button", { name: /^star all/i }));
 
     // Error should appear with role="alert"
     const alert = screen.getByRole("alert");
