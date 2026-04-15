@@ -241,6 +241,70 @@ test("clicking the All-starred diamond does not open StarModal and fires a celeb
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("Riley: sign-out restores the dormant CTA and clears the dismissal flag", async ({ page }) => {
+  // Riley (Deliberate Stress Tester) completed a full session — every repo
+  // starred, supernova played, dismissal persisted. Later they log out. The
+  // regression locks in the "dismissal is a connected-session concept" rule:
+  // a disconnected user must never see an empty hero with no primary CTA,
+  // because on the disconnected page the CTA *is* the sign-in affordance.
+  //
+  // We seed both auth and the dismissal flag before navigation; the component
+  // should, at the point of disconnection (whenever that lands — during auth
+  // hydration or on explicit logout), clear the flag so the dormant CTA
+  // reappears. The test asserts the terminal observable state after explicit
+  // sign-out, not the intermediate loading races.
+  await seedAuth(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "ethstar_star_dismissed",
+      JSON.stringify({ v: 1, dismissedAt: Date.now() }),
+    );
+  });
+  await page.route("https://api.github.com/user", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "riley", avatar_url: "", name: "Riley" }),
+    }),
+  );
+  await page.route("https://api.github.com/user/starred/**", (r) =>
+    r.fulfill({ status: 204, body: "" }),
+  );
+  await page.route("https://api.github.com/graphql", (r) =>
+    r.fulfill({ status: 401, body: "" }),
+  );
+  await page.route("**/api/stats", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  // Wait for auth to hydrate — Sign-out button visible.
+  await expect(page.getByLabel("Sign out")).toBeVisible({ timeout: 5_000 });
+
+  // Sign out. On disconnect, the dormant CTA must be visible with the
+  // "disconnected" status + sign-in-framed copy — otherwise a returning
+  // visitor sees an empty hero.
+  await page.getByLabel("Sign out").click();
+
+  const star = page.getByTestId("roaming-star-button");
+  await expect(star).toBeVisible({ timeout: 5_000 });
+  await expect(star).toHaveAttribute("data-status", "disconnected");
+  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+
+  // And the stale dismissal record must be gone so a subsequent re-connect
+  // can run its supernova fresh without the flag short-circuiting mode
+  // resolution back to "dismissed".
+  const dismissedRaw = await page.evaluate(() =>
+    localStorage.getItem("ethstar_star_dismissed"),
+  );
+  expect(dismissedRaw).toBeNull();
+});
+
 test("StarModal warning step names the write scope (Error Prevention)", async ({ page }) => {
   await seedAuth(page);
   await mockAuthedApis(page);

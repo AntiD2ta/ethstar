@@ -235,6 +235,75 @@ describe("RoamingStar", () => {
     });
   });
 
+  describe("intro label after detachment", () => {
+    // Locks in the /impeccable:clarify fix: after the star detaches from the
+    // hero (mode: dormant → roaming), the primary-line label must stay
+    // visible for a short window so a first-time visitor scrolling past the
+    // hero doesn't see a silent floating diamond. The 40px comet was
+    // previously a mystery element with the label hidden behind a 180px
+    // cursor-gravity radius.
+    class OffStubIO implements IntersectionObserver {
+      readonly root = null;
+      readonly rootMargin = "";
+      readonly thresholds: ReadonlyArray<number> = [];
+      private cb: IntersectionObserverCallback;
+      constructor(cb: IntersectionObserverCallback) {
+        this.cb = cb;
+      }
+      observe(target: Element) {
+        // Report NOT intersecting so mode resolves to "roaming".
+        this.cb(
+          [
+            {
+              isIntersecting: false,
+              intersectionRatio: 0,
+              target,
+              boundingClientRect: target.getBoundingClientRect(),
+              intersectionRect: new DOMRect(0, 0, 0, 0),
+              rootBounds: null,
+              time: 0,
+            } as IntersectionObserverEntry,
+          ],
+          this,
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+    }
+
+    it("renders the persistent label pill when mode transitions to roaming", () => {
+      vi.stubGlobal("IntersectionObserver", OffStubIO);
+      // jsdom doesn't implement Web Animations API — the dormant→roaming FLIP
+      // in useLayoutEffect would throw "element.animate is not a function".
+      // Shim with a minimal Animation-shaped stub so the effect runs to the
+      // useState-setting branch where introVisible is actually toggled.
+      const noopAnim = {
+        cancel: () => {},
+        onfinish: null as (() => void) | null,
+        oncancel: null as (() => void) | null,
+      };
+      const prevAnimate = (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
+      (HTMLElement.prototype as unknown as { animate: () => typeof noopAnim }).animate = () => noopAnim;
+      try {
+        renderStar();
+        // The roaming-mode label pill is identified by data-testid and echoes
+        // labelLines[0] — "Star every Ethereum repo" in the disconnected state.
+        const label = screen.getByTestId("roaming-star-label");
+        expect(label).toBeInTheDocument();
+        expect(label).toHaveTextContent("Star every Ethereum repo");
+      } finally {
+        if (prevAnimate === undefined) {
+          delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
+        } else {
+          (HTMLElement.prototype as unknown as { animate: unknown }).animate = prevAnimate;
+        }
+      }
+    });
+  });
+
   describe("focus return after supernova (spec brief §Accessibility)", () => {
     it("restores focus to the element that held it before takeover", async () => {
       // Harness: a sibling button, plus controlled state for inProgress/completed

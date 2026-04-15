@@ -191,21 +191,24 @@ test.describe("mobile starring controls", () => {
   });
 });
 
-// How It Works cards fit on mobile without horizontal scroll
-test.describe("mobile how-it-works layout", () => {
+// Trust strip fits on mobile without horizontal scroll
+test.describe("mobile trust-strip layout", () => {
   test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
 
-  test("all 3 how-it-works cards visible without horizontal scroll", async ({ page }) => {
+  test("all 4 trust-strip items visible without horizontal scroll", async ({ page }) => {
     await page.goto("/");
-    const heading = page.getByRole("heading", { name: "How It Works" });
+    const heading = page.getByRole("heading", { name: /What we ask/ });
     await heading.scrollIntoViewIfNeeded();
 
-    for (const step of ["Authenticate", "Star Repositories", "Support Ethereum"]) {
-      await expect(page.getByRole("heading", { name: step, level: 3 })).toBeVisible();
+    // Four disclosures: sign-in (GitHub App), starring scope (public_repo OAuth),
+    // starring token (ephemeral), coverage. Two separate auth mechanisms — each
+    // named explicitly so users aren't surprised at GitHub's consent screens.
+    for (const label of ["Sign in", "Starring scope", "Starring token", "Coverage"]) {
+      await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
     }
 
-    // The card container should not be horizontally scrollable
-    const container = page.getByTestId("how-it-works-cards");
+    // The strip container should not be horizontally scrollable
+    const container = page.getByTestId("trust-strip");
     await expect(container).toBeVisible();
     const overflowX = await container.evaluate((el) => getComputedStyle(el).overflowX);
     expect(overflowX).not.toBe("auto");

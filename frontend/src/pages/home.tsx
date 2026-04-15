@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { AuthHeader } from "@/components/auth-header";
 import { CommunityStarsBanner } from "@/components/community-stars-banner";
 import { HeroSection } from "@/components/hero-section";
-import { HowItWorksSection } from "@/components/how-it-works-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
 import { RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
@@ -26,6 +25,7 @@ import type { RoamingStarState } from "@/components/roaming-star/types";
 import { SlideTransition } from "@/components/slide-transition";
 import { StarModal } from "@/components/star-modal";
 import { SupportSection } from "@/components/support-section";
+import { TrustStripSection } from "@/components/trust-strip-section";
 import { useAuth } from "@/hooks/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRepoMeta } from "@/hooks/use-repo-meta";
@@ -79,9 +79,25 @@ export default function HomePage() {
     toast.error("Couldn't reach GitHub. Check your connection.");
   }, []);
 
-  const handleForbidden = useCallback(() => {
+  // Two 403 paths with different root causes, so two toasts with different
+  // fixes. The read path (checkStars, repo-meta lookups) uses the GitHub App
+  // session token — a 403 there means the install lacks the required
+  // permission. The write path (starAll, retryStar) uses the ephemeral
+  // classic-OAuth token with `public_repo` — a 403 there is almost always
+  // either an org-level OAuth app restriction or a mid-flow revocation.
+  // A single toast advising "GitHub App → Starring: Read & Write" pointed
+  // write-path failures at the wrong setting (GitHub App can't star at all
+  // in this architecture; see CLAUDE.md on the hybrid OAuth approach).
+  const handleReadForbidden = useCallback(() => {
     toast.error(
-      "GitHub denied permission to star repos. Check that your GitHub App has Starring set to \"Read & Write\" in its permissions, then sign in again.",
+      "GitHub couldn't read your starred list. The Ethstar GitHub App may be missing permissions — revoke it in GitHub → Settings → Applications and sign in again.",
+      { duration: 10_000 },
+    );
+  }, []);
+
+  const handleStarForbidden = useCallback(() => {
+    toast.error(
+      "GitHub blocked starring. If you belong to a GitHub organisation, it may require third-party OAuth app approval. Check GitHub → Settings → Applications → Authorized OAuth Apps, or ask an org admin to approve Ethstar.",
       { duration: 10_000 },
     );
   }, []);
@@ -93,12 +109,12 @@ export default function HomePage() {
       void checkStars({
         onSessionExpired: handleSessionExpired,
         onNetworkError: handleNetworkError,
-        onForbidden: handleForbidden,
+        onForbidden: handleReadForbidden,
       });
     } else if (!token) {
       checkedTokenRef.current = null;
     }
-  }, [token, checkStars, handleSessionExpired, handleNetworkError, handleForbidden]);
+  }, [token, checkStars, handleSessionExpired, handleNetworkError, handleReadForbidden]);
 
   const scrollToRepos = useCallback(() => {
     reposRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -106,13 +122,16 @@ export default function HomePage() {
 
   const handleRetryStar = useCallback(
     (repo: Repository) => {
+      // retryStar is a write path (starRepo) — a 403 here is almost always an
+      // org-level OAuth restriction on the ephemeral star token, not a GitHub
+      // App permission issue. Route to the write-path toast accordingly.
       void retryStar(repo, {
         onSessionExpired: handleSessionExpired,
         onNetworkError: handleNetworkError,
-        onForbidden: handleForbidden,
+        onForbidden: handleStarForbidden,
       });
     },
-    [retryStar, handleSessionExpired, handleNetworkError, handleForbidden],
+    [retryStar, handleSessionExpired, handleNetworkError, handleStarForbidden],
   );
 
   // Open the star modal instead of directly starring — the modal handles
@@ -153,7 +172,7 @@ export default function HomePage() {
       },
       onSessionExpired: handleSessionExpired,
       onNetworkError: handleNetworkError,
-      onForbidden: handleForbidden,
+      onForbidden: handleStarForbidden,
     });
     setStarResult(result);
     if (result.starred > 0) {
@@ -174,7 +193,7 @@ export default function HomePage() {
       setStarModalOpen(false);
     }
     return result;
-  }, [starAll, reportStars, token, handleSessionExpired, handleNetworkError, handleForbidden]);
+  }, [starAll, reportStars, token, handleSessionExpired, handleNetworkError, handleStarForbidden]);
 
   const unstarredRepos = useMemo(
     () => REPOSITORIES.filter((r) => starStatuses[repoKey(r)] === "unstarred"),
@@ -338,11 +357,14 @@ export default function HomePage() {
 
       <SlideTransition />
 
-      {/* Slide 3 — How It Works */}
-      <HowItWorksSection
-        isAuthenticated={isAuthenticated}
-        onLogin={login}
-        onViewRepositories={scrollToRepos}
+      {/* Slide 3 — Trust strip. Replaces the prior Authenticate/Star/Support
+          card grid, which retold the hero-to-modal story in identikit boxes
+          and read as AI template filler. Condensed to three disclosures —
+          scope, token lifetime, coverage — that earn their space instead of
+          echoing what the user already saw. */}
+      <TrustStripSection
+        repoCount={REPOSITORIES.length}
+        formattedStars={formattedStars}
       />
 
       <SlideTransition />

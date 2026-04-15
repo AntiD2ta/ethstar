@@ -35,6 +35,13 @@ export const BREATHE_SCALE_MAX = 1.03;
 export const CURSOR_GRAVITY_RADIUS_PX = 180;
 export const CURSOR_LEAN_FACTOR = 0.12; // 12% of the cursor-delta, clamped.
 
+// Label intro — on detachment into roaming mode, the primary label persists
+// briefly so a first-time visitor doesn't see a silent floating diamond. On
+// hover devices it auto-hides after this window so the comet stays quiet for
+// returning users. On touch devices (no cursor gravity to rediscover it) the
+// label stays visible — the intro never times out.
+export const LABEL_INTRO_MS = 6000;
+
 // Roaming drift. Base speed in viewport-widths per second.
 export const DRIFT_VW_PER_SEC = 0.035;
 // Precomputed path segments per section (chosen over Perlin for "designed" feel).

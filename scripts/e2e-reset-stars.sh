@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Unstar half of the repos listed in frontend/src/lib/repos.ts via gh CLI.
+# Reset half of the currently-starred repos (from frontend/src/lib/repos.ts)
+# to an unstarred state via gh CLI, so the E2E flow has a batch to star.
+# Defaults to dry-run; pass --apply to actually unstar.
 #
 # Usage:
-#   scripts/unstar-half.sh             # dry-run
-#   scripts/unstar-half.sh --apply     # actually unstar
-#   scripts/unstar-half.sh --apply --half=even|odd|first|last
+#   scripts/e2e-reset-stars.sh             # dry-run
+#   scripts/e2e-reset-stars.sh --apply     # actually unstar
+#   scripts/e2e-reset-stars.sh --apply --half=even|odd|first|last
 #
 # Requires: gh (authenticated), node.
 

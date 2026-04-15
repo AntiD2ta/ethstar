@@ -33,6 +33,7 @@ import {
   DURATION_FLIP_TO_TAKEOVER,
   EASE_OUT_EXPO,
   EASE_OUT_QUART,
+  LABEL_INTRO_MS,
   ROAMING_STAR_SIZE_PX,
   TAKEOVER_SCALE,
   TAKEOVER_SPIN_PERIOD_MS,
@@ -87,6 +88,10 @@ export const RoamingStar = memo(function RoamingStar({
 }: RoamingStarProps) {
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const heroVisible = useHeroVisibility(heroRef, 0.2);
+  // Touch-only devices have no cursor, so the gravity-reveal path is
+  // unreachable. Keep the label permanently visible while roaming so the
+  // floating diamond never reads as a mystery element.
+  const touchOnly = useMediaQuery("(hover: none)");
 
   // Session-persistent dismissal. Once supernova has played out, the star
   // stays hidden until localStorage is cleared. Gate on hidden to avoid
@@ -132,6 +137,24 @@ export const RoamingStar = memo(function RoamingStar({
   const roamingSize = ROAMING_STAR_SIZE_PX;
   const dormantSize = DORMANT_STAR_SIZE_PX;
   const halfRoaming = roamingSize / 2;
+
+  // Intro-label visibility — the roaming star would otherwise be a silent
+  // 40px diamond drifting across the page with its label hidden behind a
+  // 180px cursor-gravity radius (and tap-to-reveal on mobile). First-time
+  // visitors scrolling past the hero never discover the CTA. We persist the
+  // primary-line label for the first LABEL_INTRO_MS on every dormant →
+  // roaming transition; touch-only devices keep it visible indefinitely.
+  const [introVisible, setIntroVisible] = useState(false);
+  useEffect(() => {
+    if (mode !== "roaming") {
+      setIntroVisible(false);
+      return;
+    }
+    setIntroVisible(true);
+    if (touchOnly) return; // Touch: persist indefinitely — no cursor to rediscover.
+    const id = window.setTimeout(() => setIntroVisible(false), LABEL_INTRO_MS);
+    return () => window.clearTimeout(id);
+  }, [mode, touchOnly]);
 
   // Drive free-floating position when in roaming mode (idle drift).
   // The hook writes `floatingElRef.current.style.left/top` directly each rAF
@@ -574,11 +597,17 @@ export const RoamingStar = memo(function RoamingStar({
           />
         </div>
 
-        {/* Roaming label — revealed on cursor gravity (desktop) or tap (mobile). */}
-        {mode === "roaming" && labelHovered && (
+        {/* Roaming label — persistent intro on detach, then cursor-gravity
+            reveal on hover devices. `introVisible` keeps the pill up for
+            LABEL_INTRO_MS after the star flies free (or indefinitely on
+            touch-only devices where there's no pointer to rediscover it).
+            `roaming-star-label-intro` animates the bounce-in on appearance. */}
+        {mode === "roaming" && (labelHovered || introVisible) && (
           <div
             role="status"
             aria-live="polite"
+            data-testid="roaming-star-label"
+            className={reducedMotion ? undefined : "roaming-star-label-intro"}
             style={{
               position: "absolute",
               top: "110%",
@@ -670,8 +699,12 @@ export const RoamingStar = memo(function RoamingStar({
           animation: roaming-star-check-pulse 1100ms ease-in-out infinite;
           will-change: opacity, transform;
         }
+        /* Reduced-motion disables animation on these classes. The
+           disintegrate keyframe is not overridden here: its parent style is
+           only applied when !reducedMotion (see \`disintegrateStyle\` above),
+           so redefining keyframes inside the media block was dead code and
+           brittle against future renames. Gate motion at the source. */
         @media (prefers-reduced-motion: reduce) {
-          @keyframes roaming-star-disintegrate { to { opacity: 0; } }
           .roaming-star-celebrate { animation: none !important; }
           .roaming-star-check-dot { animation: none !important; opacity: 0.6 !important; }
         }
@@ -680,8 +713,21 @@ export const RoamingStar = memo(function RoamingStar({
           transform-origin: center;
           will-change: transform;
         }
+        /* Intro bounce — label reveals with a short upward slide so users'
+           eyes track from the star to the copy on the first detach. Uses
+           translate(-50%, …) because the pill is centered via translateX. */
+        @keyframes roaming-star-label-intro {
+          0%   { opacity: 0; transform: translate(-50%, -4px) scale(0.94); }
+          60%  { opacity: 1; transform: translate(-50%, 0) scale(1); }
+          100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        .roaming-star-label-intro {
+          animation: roaming-star-label-intro 420ms cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: opacity, transform;
+        }
         @media (prefers-reduced-motion: reduce) {
           .roaming-star-breathing { animation: none !important; }
+          .roaming-star-label-intro { animation: none !important; }
         }
       `}</style>
     </>

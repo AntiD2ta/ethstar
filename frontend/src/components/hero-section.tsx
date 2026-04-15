@@ -50,11 +50,15 @@ export function HeroSection({
     <section
       ref={ref}
       data-testid="hero-section"
-      className="relative flex min-h-dvh flex-col items-center px-4 py-12 text-center md:px-6 md:py-20"
+      /* Short-laptop fallback: on viewports ≤800px tall the md:py-20 + gap-8
+         stack pushes the "or browse" secondary CTA below the fold. Arbitrary
+         max-height variants compress padding so the whole CTA cluster stays
+         in one viewport without changing the tall-screen composition. */
+      className="relative flex min-h-dvh flex-col items-center px-4 py-12 text-center md:px-6 md:py-20 [@media(min-width:768px)_and_(max-height:800px)]:py-10"
     >
       <HeroLogo />
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-5 md:gap-8">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-5 md:gap-8 [@media(min-width:768px)_and_(max-height:800px)]:gap-5">
         <h1 className="font-heading text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl">
           <span className="text-foreground">Star Every</span>{" "}
           <span className="text-eth-highlight">Ethereum</span>{" "}
