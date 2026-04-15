@@ -253,27 +253,27 @@ export function StarModal({
                 `pointer-events-none` so the Radix overlay's dim-only
                 behavior is preserved over the surrounding page. */}
             <div
-              className="pointer-events-auto fixed left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5"
+              className="pointer-events-auto fixed left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
               style={{ top: "calc(45% + 92px)" }}
             >
               <p
                 role="status"
                 aria-live="polite"
                 data-testid="takeover-counter"
-                className="font-heading text-xl font-bold tracking-tight text-foreground"
+                className="font-heading text-xl font-bold tracking-tight whitespace-nowrap text-foreground"
               >
                 Starring {progress.starred} / {progress.total}
               </p>
-              <p className="font-heading text-[11px] uppercase tracking-widest text-muted-foreground">
-                public repos on your GitHub account
+              <p className="font-heading text-[11px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap text-foreground/65">
+                on your GitHub account
               </p>
               <button
                 type="button"
                 onClick={onCancelStarring}
                 data-testid="takeover-cancel"
-                className="mt-1 rounded-full border border-border bg-background/60 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="mt-1 whitespace-nowrap rounded-full border border-border bg-background/70 px-4 py-1.5 text-xs font-medium text-foreground/85 backdrop-blur hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                Cancel <span className="ml-1 opacity-60">(Esc)</span>
+                Cancel <span className="ml-1 text-foreground/55">(Esc)</span>
               </button>
             </div>
           </>

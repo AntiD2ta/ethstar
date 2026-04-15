@@ -39,7 +39,7 @@ import {
   TAKEOVER_X_RATIO,
   TAKEOVER_Y_RATIO,
 } from "./constants";
-import { isDismissed, markDismissed } from "./session-persistence";
+import { clearDismissed, isDismissed, markDismissed } from "./session-persistence";
 import { StarShape } from "./star-shape";
 import { useFlipTransition } from "./use-flip-transition";
 import { useHeroVisibility } from "./use-hero-visibility";
@@ -94,6 +94,19 @@ export const RoamingStar = memo(function RoamingStar({
   const [dismissedBySession, setDismissedBySession] = useState<boolean>(() =>
     typeof window === "undefined" ? false : isDismissed(),
   );
+
+  // If the user ends up disconnected while dismissal is still persisted
+  // (e.g. they completed a cycle, then logged out, then came back), the
+  // primary CTA would be gone on a page that shows the "Connect via
+  // GitHub" header — confusing first-timer state. Treat dismissal as
+  // tied to *this connected session*: any time the status resolves to
+  // "disconnected" we clear the flag so the dormant star reappears.
+  useEffect(() => {
+    if (state.status === "disconnected" && dismissedBySession) {
+      clearDismissed();
+      setDismissedBySession(false);
+    }
+  }, [state.status, dismissedBySession]);
 
   // Derive the *visual* mode from inputs.
   const mode: RoamingStarMode = useMemo(() => {

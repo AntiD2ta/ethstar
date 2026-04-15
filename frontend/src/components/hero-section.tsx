@@ -24,6 +24,11 @@ interface HeroSectionProps {
    *  here when dormant and detaches to a free-floating layer when the hero
    *  scrolls out of view. */
   primaryCta: ReactNode;
+  /** True while the primary CTA is actually visible (star rendered, not
+   *  dismissed, not finished). Drives the "or" prefix on the secondary CTA —
+   *  without a star, "or browse the repositories" reads as a dangling
+   *  connector. */
+  primaryCtaPresent: boolean;
   /** Optional content rendered after the stats row (e.g. starring controls). */
   children?: ReactNode;
   /** Forwarded to the outer `<section>`. The RoamingStar observes this element
@@ -37,6 +42,7 @@ export function HeroSection({
   categoryCount,
   onViewRepositories,
   primaryCta,
+  primaryCtaPresent,
   children,
   ref,
 }: HeroSectionProps) {
@@ -81,7 +87,7 @@ export function HeroSection({
             onClick={onViewRepositories}
             className="group inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            or browse the repositories
+            {primaryCtaPresent ? "or browse the repositories" : "Browse the repositories"}
             <span
               aria-hidden="true"
               className="text-base leading-none transition-transform group-hover:translate-y-0.5"

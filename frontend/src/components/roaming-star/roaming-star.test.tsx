@@ -128,13 +128,30 @@ describe("RoamingStar", () => {
     expect(onTrigger).toHaveBeenCalledTimes(2);
   });
 
-  it("renders nothing when dismissed by session", () => {
+  it("renders nothing when dismissed by session (while connected)", () => {
+    // Dismissal is a *connected-session* concept — it only suppresses the
+    // star for a user who has completed a cycle. A disconnected user with
+    // stale dismissal gets it cleared (separate test below).
+    window.localStorage.setItem(
+      DISMISSED_STORAGE_KEY,
+      JSON.stringify({ v: 1, dismissedAt: Date.now() }),
+    );
+    renderStar({
+      state: { status: "success", fillLevel: 1, remaining: 0 },
+    });
+    expect(screen.queryByTestId("roaming-star-button")).not.toBeInTheDocument();
+  });
+
+  it("clears stale dismissal when the user is disconnected on mount", () => {
+    // Completed a prior session, then logged out. Without this clear, the
+    // dormant CTA would vanish on a page that prompts "Connect via GitHub".
     window.localStorage.setItem(
       DISMISSED_STORAGE_KEY,
       JSON.stringify({ v: 1, dismissedAt: Date.now() }),
     );
     renderStar();
-    expect(screen.queryByTestId("roaming-star-button")).not.toBeInTheDocument();
+    expect(screen.getByTestId("roaming-star-button")).toBeInTheDocument();
+    expect(window.localStorage.getItem(DISMISSED_STORAGE_KEY)).toBeNull();
   });
 
   it("renders nothing when `hidden` prop is set", () => {

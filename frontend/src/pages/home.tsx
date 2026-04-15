@@ -294,6 +294,10 @@ export default function HomePage() {
         formattedStars={formattedStars}
         categoryCount={CATEGORIES.length}
         onViewRepositories={scrollToRepos}
+        // The star supernovas and self-dismisses once the user has starred
+        // every repo in their connected session. Use `allDone` as the "no
+        // primary CTA" signal so the secondary button drops its connector.
+        primaryCtaPresent={!allDone}
         primaryCta={
           <RoamingStar
             heroRef={heroRef}
