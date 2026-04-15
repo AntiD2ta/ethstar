@@ -50,7 +50,7 @@ const FALLBACK_COMBINED_STARS = 125000;
 
 export default function HomePage() {
   const { user, token, isAuthenticated, isLoading: authLoading, login, logout } = useAuth();
-  const { starStatuses, isStarring, progress, checkStars, starAll, retryStar, recheckRepo } =
+  const { starStatuses, isChecking, isStarring, progress, checkStars, starAll, retryStar, recheckRepo } =
     useStars();
   const { stats, reportStars } = useStats();
   const { requestToken, cancel: cancelOAuth, status: oauthStatus } = useStarOAuth();
@@ -230,11 +230,16 @@ export default function HomePage() {
       status: "ready",
       fillLevel: READY_FILL_LEVEL,
       remaining: progress.remaining,
+      // Surface the in-flight check so the secondary label renders a
+      // skeleton rather than a live-flickering count. Flips to false once
+      // every repo's status has resolved to starred/unstarred/failed.
+      checking: isChecking,
     };
   }, [
     isAuthenticated,
     allDone,
     isStarring,
+    isChecking,
     progress.total,
     progress.starred,
     progress.remaining,

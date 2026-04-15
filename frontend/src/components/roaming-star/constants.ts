@@ -60,9 +60,23 @@ export const TRAIL_SPAWN_RATE_PER_SEC = 28; // particles per second when the sta
 export const TRAIL_PARTICLE_LIFE_MS = 900;
 export const TRAIL_PARTICLE_SIZE_BASE = 1.6; // css px radius
 
-// Supernova — completion burst.
-export const SUPERNOVA_PARTICLE_COUNT = 40;
-export const SUPERNOVA_FADE_MS = 600;
+// Supernova — completion burst. Layered for a genuine "wow" moment: a bright
+// core flash peaks and decays, two shockwave rings expand outward, primary
+// burst rays fly radially with velocity-trailing streaks, slow embers drift
+// with a twinkle, and staggered sparkles crackle at the edges. Composited
+// with additive blending ("lighter") so overlapping layers bloom luminously
+// rather than stacking as flat paint.
+//
+// The `SUPERNOVA_FADE_MS` envelope bounds the longest-lived ember. The safety-
+// net promise resolution is `SUPERNOVA_FADE_MS * 1.6`, so this value must keep
+// the total below 2000ms to stay inside the test harness's fake-timer flush
+// window (see roaming-star.test.tsx "focus return after supernova").
+export const SUPERNOVA_FADE_MS = 1100;
+export const SUPERNOVA_PARTICLE_COUNT = 96; // primary radial burst rays
+export const SUPERNOVA_EMBER_COUNT = 36;    // slow drifting afterglow
+export const SUPERNOVA_SPARKLE_COUNT = 28;  // crackle highlights, staggered
+export const SUPERNOVA_SHOCKWAVE_MAX_R = 380; // px reach at ring crest
+export const SUPERNOVA_CORE_FLASH_MAX_R = 140; // px, bright central bloom
 
 // Progress takeover — target viewport position (ratios from top-left).
 export const TAKEOVER_X_RATIO = 0.5;

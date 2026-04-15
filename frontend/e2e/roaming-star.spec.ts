@@ -143,7 +143,46 @@ test("no '0 repos to go' flash while checkStars runs on refresh (all-starred)", 
   await expect(page.getByText("All starred").first()).toBeVisible();
 });
 
-test("clicking the All-starred diamond is a no-op (no StarModal, no flash of 0-repo warning)", async ({ page }) => {
+test("dormant (checking): renders a skeleton instead of a live-flickering count while checkStars runs", async ({ page }) => {
+  await seedAuth(page);
+  // Mock user profile + a delayed mix of starred/unstarred responses so the
+  // check window is long enough for the skeleton to be observable. We don't
+  // want the remaining count to settle immediately.
+  await page.route("https://api.github.com/user", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+    }),
+  );
+  let starredToggle = false;
+  await page.route("https://api.github.com/user/starred/**", async (r) => {
+    await new Promise((res) => setTimeout(res, 400));
+    starredToggle = !starredToggle;
+    await r.fulfill({ status: starredToggle ? 204 : 404, body: "" });
+  });
+  await page.route("https://api.github.com/graphql", (r) =>
+    r.fulfill({ status: 401, body: "" }),
+  );
+  await page.route("**/api/stats", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  // Skeleton should appear during the checking window — proves we render the
+  // placeholder instead of "N repos to go" while counts are still drifting.
+  const skeleton = page.getByTestId("roaming-star-checking-skeleton");
+  await expect(skeleton).toBeVisible({ timeout: 3_000 });
+  // And a live-flickering count must NOT be visible during this window.
+  await expect(page.locator("text=/\\d+ repos to go/")).toHaveCount(0);
+});
+
+test("clicking the All-starred diamond does not open StarModal and fires a celebratory supernova replay", async ({ page }) => {
   await seedAuth(page);
   await page.route("https://api.github.com/user", (r) =>
     r.fulfill({
@@ -172,12 +211,17 @@ test("clicking the All-starred diamond is a no-op (no StarModal, no flash of 0-r
   const star = page.getByTestId("roaming-star-button").first();
   await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
 
-  // Click + keyboard activation must both be inert — the diamond is a
-  // confirmation, not a CTA, and opening StarModal here would show the
-  // "star 0 repositories" warning (the bug we're locking out).
+  // Click + keyboard activation must both skip StarModal — the diamond is a
+  // confirmation of completion, not a CTA, and opening StarModal here would
+  // show the "star 0 repositories" warning (the bug we're locking out).
+  // Instead it fires a celebratory supernova replay: the canvas mounts in
+  // the body portal and the button gains a transient pulse class.
   await star.click();
   await page.waitForTimeout(150);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // Trail canvas should mount in the body portal once success state is
+  // reached — it's how the supernova replay paints.
+  await expect(page.locator("body > canvas")).toHaveCount(1);
 
   await star.focus();
   await page.keyboard.press("Enter");

@@ -144,12 +144,22 @@ export const RoamingStar = memo(function RoamingStar({
     reducedMotion,
   });
 
-  // Canvas trail + supernova.
+  // Canvas trail + supernova. We extend the enabled range to include the
+  // terminal `success` state (in any mode) so the user can re-tap the
+  // all-starred diamond for a celebratory replay. The trail rAF loop stays
+  // cheap while idle — spawning is paused via setSpawning(false), so the loop
+  // just paints an empty particle list each frame.
+  const trailEnabled =
+    !reducedMotion &&
+    (mode === "roaming" ||
+      mode === "takeover" ||
+      mode === "supernova" ||
+      state.status === "success");
   const trail = useTrailCanvas({
     canvasRef,
     starPosRef: starLivePosRef,
     statusRef,
-    enabled: !reducedMotion && (mode === "roaming" || mode === "takeover" || mode === "supernova"),
+    enabled: trailEnabled,
   });
 
   // Track the center-viewport takeover target.
@@ -298,6 +308,14 @@ export const RoamingStar = memo(function RoamingStar({
       return ["Star every Ethereum repo", secondary];
     }
     if (state.status === "ready") {
+      // While the initial check is in flight, the final count is not yet
+      // knowable. Don't stream a flickering number that drifts down as each
+      // repo resolves — render a skeleton via `labelLines[1] === null` and
+      // let the JSX branch into a skeleton node. Once `checking` clears, the
+      // real "N repos to go" text replaces it in one clean transition.
+      if (state.checking) {
+        return ["Begin starring", null];
+      }
       return ["Begin starring", `${state.remaining ?? 0} repos to go`];
     }
     if (state.status === "in-progress") {
@@ -307,7 +325,7 @@ export const RoamingStar = memo(function RoamingStar({
       return [`${state.failedCount ?? 0} failed — retry`, null];
     }
     return ["All starred", null];
-  }, [state.status, state.counterLabel, state.failedCount, state.remaining, state.oauthStatus]);
+  }, [state.status, state.counterLabel, state.failedCount, state.remaining, state.oauthStatus, state.checking]);
 
   // Wrap onTrigger so we snapshot the prior focused element *before* firing.
   // The parent opens a Radix Dialog (which steals focus) on takeover; we need
@@ -322,17 +340,39 @@ export const RoamingStar = memo(function RoamingStar({
     onTrigger();
   }, [onTrigger]);
 
-  const handleStarClick = useCallback(() => {
+  // Delight replay — clicking the all-starred diamond fires a fresh supernova
+  // at the button's current screen position, without changing mode or
+  // dismissing. `celebratePulseKey` bumps on each click so the CSS pulse
+  // animation restarts (using the key to remount the wrapper).
+  const [celebratePulseKey, setCelebratePulseKey] = useState(0);
+
+  const fireCelebrationBurst = useCallback((origin: HTMLElement | null) => {
+    if (reducedMotion) return;
+    const el = origin ?? dormantSlotRef.current ?? floatingElRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    starLivePosRef.current.x = rect.left + rect.width / 2;
+    starLivePosRef.current.y = rect.top + rect.height / 2;
+    void trail.triggerSupernova();
+    setCelebratePulseKey((k) => k + 1);
+  }, [reducedMotion, trail]);
+
+  const handleStarClick = useCallback((origin?: HTMLElement | null) => {
     // The star is inert during takeover — the Cancel button + Esc handle abort.
     // Shipping a single cancel affordance (button) keeps the surface consistent
     // and removes the "click once to arm, again to cancel" prototype.
     if (mode === "takeover") return;
     // "success" (all repos already starred) is a terminal visual state — the
     // diamond reads as a confirmation, not a CTA. Clicking must not open
-    // StarModal with 0 unstarred repos.
-    if (state.status === "success") return;
+    // StarModal with 0 unstarred repos. Instead we replay the supernova as a
+    // pure delight moment — it's the user's reward for having supported every
+    // repo, not a navigation target.
+    if (state.status === "success") {
+      fireCelebrationBurst(origin ?? null);
+      return;
+    }
     triggerWithFocusCapture();
-  }, [mode, state.status, triggerWithFocusCapture]);
+  }, [mode, state.status, fireCelebrationBurst, triggerWithFocusCapture]);
 
   const handleKey = useCallback(
     (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -340,7 +380,9 @@ export const RoamingStar = memo(function RoamingStar({
         e.preventDefault();
         // Route keyboard activation through handleStarClick so the success +
         // takeover guards apply identically to Enter/Space and mouse clicks.
-        handleStarClick();
+        // Pass the button as origin so the supernova replay lands centered on
+        // the focused element rather than the slot wrapper.
+        handleStarClick(e.currentTarget);
       }
     },
     [handleStarClick],
@@ -372,16 +414,30 @@ export const RoamingStar = memo(function RoamingStar({
       data-testid="roaming-star-dormant-slot"
     >
       {mode === "dormant" && (
-        <StarButton
-          size={dormantSize}
-          fillLevel={state.fillLevel}
-          status={state.status}
-          reducedMotion={reducedMotion}
-          ariaLabel={ariaLabel}
-          onClick={handleStarClick}
-          onKey={handleKey}
-          breathing={!reducedMotion}
-        />
+        // Keyed wrapper — `key` bumps on every celebration replay so the
+        // `roaming-star-celebrate` keyframe restarts from 0% on each click.
+        // Line-height 0 prevents inline whitespace baseline fudge from
+        // shifting the cluster vertically when the pulse runs.
+        <span
+          key={celebratePulseKey}
+          className={
+            celebratePulseKey > 0 && !reducedMotion
+              ? "roaming-star-celebrate"
+              : undefined
+          }
+          style={{ display: "inline-flex", lineHeight: 0 }}
+        >
+          <StarButton
+            size={dormantSize}
+            fillLevel={state.fillLevel}
+            status={state.status}
+            reducedMotion={reducedMotion}
+            ariaLabel={ariaLabel}
+            onClick={handleStarClick}
+            onKey={handleKey}
+            breathing={!reducedMotion}
+          />
+        </span>
       )}
       {mode === "dormant" && (
         <div className="flex flex-col items-center gap-1.5">
@@ -396,6 +452,24 @@ export const RoamingStar = memo(function RoamingStar({
             // the cluster reads as one voice instead of 2–3 typefaces.
             <span className="font-heading text-[11px] uppercase tracking-widest text-muted-foreground">
               {labelLines[1]}
+            </span>
+          )}
+          {/* Skeleton placeholder while the initial star-status check runs —
+              keeps the layout stable so the label doesn't jump by a line's
+              height when the real "N repos to go" text appears. Three gold
+              dots pulsing in sequence read as "working on it" rather than
+              "error" or "loading forever". aria-hidden because the primary
+              line already conveys the state; we don't want SR users hearing
+              each dot pulse announced. */}
+          {state.status === "ready" && state.checking && !labelLines[1] && (
+            <span
+              aria-hidden="true"
+              data-testid="roaming-star-checking-skeleton"
+              className="flex h-[11px] items-center gap-1"
+            >
+              <span className="roaming-star-check-dot" />
+              <span className="roaming-star-check-dot" style={{ animationDelay: "140ms" }} />
+              <span className="roaming-star-check-dot" style={{ animationDelay: "280ms" }} />
             </span>
           )}
         </div>
@@ -443,6 +517,42 @@ export const RoamingStar = memo(function RoamingStar({
         }
       : {};
 
+  // Disintegration — during the supernova the silhouette should feel like it
+  // *released* its energy, not like it politely sat there while particles flew
+  // past. A one-shot scale-up + fade-out, timed to land just after the core
+  // flash peaks, sells the "the star is the gift" narrative.
+  const disintegrateStyle: CSSProperties =
+    mode === "supernova" && !reducedMotion
+      ? {
+          animation: `roaming-star-disintegrate 520ms ${EASE_OUT_EXPO} forwards`,
+          willChange: "transform, opacity, filter",
+        }
+      : {};
+
+  // The canvas layer mounts whenever the trail is enabled — that's any
+  // floating mode (roaming/takeover/supernova) AND the terminal success
+  // state (so a re-click on the all-starred diamond can paint a replay
+  // burst). Kept as its own portal node so the canvas's lifetime isn't tied
+  // to the floating star's own lifetime.
+  const canvasBlock = trailEnabled && (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        width: "100vw",
+        height: "100vh",
+        // In success state we need the burst to visibly bloom above the
+        // dormant hero content; zIndex 39 threads above hero background
+        // graphics but below sticky chrome.
+        zIndex: mode === "takeover" ? 54 : 39,
+        pointerEvents: "none",
+      }}
+    />
+  );
+
   const floatingBlock = (mode === "roaming" || mode === "takeover" || mode === "supernova") && (
     <>
       {/* Takeover scrim is provided by Radix's DialogOverlay (50% black)
@@ -450,22 +560,8 @@ export const RoamingStar = memo(function RoamingStar({
           ~60% dim and over-dulled the page; the single Radix overlay is
           strong enough. */}
 
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          width: "100vw",
-          height: "100vh",
-          zIndex: mode === "takeover" ? 54 : 39,
-          pointerEvents: "none",
-        }}
-      />
-
       <div ref={floatingElRef} style={floatingStyle}>
-        <div style={spinStyle}>
+        <div style={{ ...spinStyle, ...disintegrateStyle }}>
           <StarButton
             size={floatingSize}
             fillLevel={state.fillLevel}
@@ -517,6 +613,9 @@ export const RoamingStar = memo(function RoamingStar({
     <>
       {dormantBlock}
       {typeof document !== "undefined" &&
+        canvasBlock &&
+        createPortal(canvasBlock, document.body)}
+      {typeof document !== "undefined" &&
         floatingBlock &&
         createPortal(floatingBlock, document.body)}
       {/* Per-instance keyframes injected once. `inert` is unused; the parent
@@ -529,6 +628,52 @@ export const RoamingStar = memo(function RoamingStar({
         @keyframes roaming-star-spin {
           from { transform: rotateY(0deg); }
           to { transform: rotateY(360deg); }
+        }
+        /* Supernova disintegration. The diamond brightens and blooms, then
+           expands + dissolves in step with the particle burst. A filter
+           "brightness" pulse at the start reads as the star "charging up"
+           before releasing — even at 520ms total it feels intentional. */
+        @keyframes roaming-star-disintegrate {
+          0%   { transform: scale(1);   opacity: 1; filter: brightness(1)    blur(0px); }
+          22%  { transform: scale(1.18); opacity: 1; filter: brightness(1.9) blur(0.5px); }
+          60%  { transform: scale(1.6);  opacity: 0.55; filter: brightness(2.2) blur(2px); }
+          100% { transform: scale(2.2);  opacity: 0;    filter: brightness(2.4) blur(6px); }
+        }
+        /* Celebration pulse — fired when the user taps the all-starred
+           diamond. Short scale+brightness bounce that plays in sync with
+           the replay supernova burst. Shorter than the disintegrate (the
+           star stays). */
+        @keyframes roaming-star-celebrate {
+          0%   { transform: scale(1);    filter: brightness(1); }
+          28%  { transform: scale(1.18); filter: brightness(1.9); }
+          68%  { transform: scale(0.98); filter: brightness(1.15); }
+          100% { transform: scale(1);    filter: brightness(1); }
+        }
+        .roaming-star-celebrate {
+          animation: roaming-star-celebrate 420ms cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: center;
+          will-change: transform, filter;
+        }
+        /* Checking skeleton — three gold dots pulsing in sequence. Size
+           and gap match the uppercase-tracked secondary line's metrics so
+           swapping dots → text on resolution doesn't shift layout. */
+        @keyframes roaming-star-check-pulse {
+          0%, 80%, 100% { opacity: 0.25; transform: scale(0.82); }
+          40%           { opacity: 1;    transform: scale(1); }
+        }
+        .roaming-star-check-dot {
+          display: inline-block;
+          width: 5px;
+          height: 5px;
+          border-radius: 9999px;
+          background: var(--star-gold, #e2b453);
+          animation: roaming-star-check-pulse 1100ms ease-in-out infinite;
+          will-change: opacity, transform;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes roaming-star-disintegrate { to { opacity: 0; } }
+          .roaming-star-celebrate { animation: none !important; }
+          .roaming-star-check-dot { animation: none !important; opacity: 0.6 !important; }
         }
         .roaming-star-breathing {
           animation: roaming-star-breathe ${BREATHE_PERIOD_MS}ms ease-in-out infinite;
@@ -551,7 +696,9 @@ interface StarButtonProps {
   status: RoamingStarState["status"];
   reducedMotion: boolean;
   ariaLabel: string;
-  onClick: () => void;
+  /** Receives the button element so callers can read its on-screen rect — we
+   *  use this to anchor the all-starred supernova replay to the click target. */
+  onClick: (el: HTMLButtonElement) => void;
   onKey: (e: KeyboardEvent<HTMLButtonElement>) => void;
   breathing: boolean;
 }
@@ -570,7 +717,7 @@ function StarButton({
     <button
       type="button"
       aria-label={ariaLabel}
-      onClick={onClick}
+      onClick={(e) => onClick(e.currentTarget)}
       onKeyDown={onKey}
       data-testid="roaming-star-button"
       data-status={status}

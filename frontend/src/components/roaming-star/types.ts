@@ -60,6 +60,15 @@ export interface RoamingStarState {
   /** For partial-failure label: how many repos couldn't be starred. */
   failedCount?: number;
   /**
+   * True while the initial star-status check is in flight. When set, the
+   * secondary label renders a skeleton instead of a live-flickering count so
+   * users see "I am working — wait for the final number" instead of watching
+   * the remaining count drift down as each check resolves. See brief note on
+   * "honest uncertainty > approximate certainty" — the value we don't yet
+   * know for sure is never displayed.
+   */
+  checking?: boolean;
+  /**
    * Popup lifecycle while status is "disconnected". Optional; omitted/undefined
    * is treated as "idle". Drives the dynamic secondary label line per brief.
    */

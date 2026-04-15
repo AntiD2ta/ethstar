@@ -264,7 +264,13 @@ export function StarModal({
               >
                 Starring {progress.starred} / {progress.total}
               </p>
-              <p className="font-heading text-[11px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap text-foreground/65">
+              {/* Scope sublabel — rewritten from the uppercase-tracked 11px
+                  register (unreadable at 65% opacity on a dim scrim, photo
+                  2026-04-15) to a natural-case 13px italic at 85% opacity.
+                  Drops the tracking/caps styling that fought the glass bg;
+                  italic signals "aside, context" rather than competing with
+                  the bold counter above. */}
+              <p className="whitespace-nowrap text-[13px] italic text-foreground/85">
                 on your GitHub account
               </p>
               <button
