@@ -12,9 +12,11 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
+import { seedConsent } from "./helpers";
 
 test.describe("Tip Dialog", () => {
   test.beforeEach(async ({ page }) => {
+    await seedConsent(page);
     await page.goto("/");
     // Scroll to the support section and click the ETH button
     const ethBtn = page.getByRole("button", { name: "Send ETH tip" });

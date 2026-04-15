@@ -403,7 +403,7 @@ describe("useStars — starAll", () => {
     const starResult = await act(async () => {
       return result.current.stars.starAll({ onSessionExpired });
     });
-    expect(starResult).toEqual({ starred: 0, failed: 0 });
+    expect(starResult).toEqual({ starred: 0, failed: 0, aborted: false });
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
     expect(result.current.auth.isAuthenticated).toBe(false);
   });
@@ -524,7 +524,7 @@ describe("useStars — starAll", () => {
     });
 
     // Should not have attempted refresh — no fetch calls for refresh
-    expect(starResult).toEqual({ starred: 0, failed: 0 });
+    expect(starResult).toEqual({ starred: 0, failed: 0, aborted: false });
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
     // User should still be authenticated (ephemeral token failure doesn't log out)
     expect(result.current.auth.isAuthenticated).toBe(true);

@@ -16,14 +16,16 @@ import { toast } from "sonner";
 import { AuthHeader } from "@/components/auth-header";
 import { CommunityStarsBanner } from "@/components/community-stars-banner";
 import { HeroSection } from "@/components/hero-section";
-import { HowItWorksSection } from "@/components/how-it-works-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
 import { RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
+import { READY_FILL_LEVEL } from "@/components/roaming-star/constants";
+import { RoamingStar } from "@/components/roaming-star/roaming-star";
+import type { RoamingStarState } from "@/components/roaming-star/types";
 import { SlideTransition } from "@/components/slide-transition";
 import { StarModal } from "@/components/star-modal";
-import { StarringControls } from "@/components/starring-controls";
 import { SupportSection } from "@/components/support-section";
+import { TrustStripSection } from "@/components/trust-strip-section";
 import { useAuth } from "@/hooks/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRepoMeta } from "@/hooks/use-repo-meta";
@@ -48,14 +50,16 @@ const FALLBACK_COMBINED_STARS = 125000;
 
 export default function HomePage() {
   const { user, token, isAuthenticated, isLoading: authLoading, login, logout } = useAuth();
-  const { starStatuses, isStarring, progress, checkStars, starAll, retryStar, recheckRepo } =
+  const { starStatuses, isChecking, isStarring, progress, checkStars, starAll, retryStar, recheckRepo } =
     useStars();
   const { stats, reportStars } = useStats();
-  const { requestToken, cancel: cancelOAuth } = useStarOAuth();
+  const { requestToken, cancel: cancelOAuth, status: oauthStatus } = useStarOAuth();
   const [starModalOpen, setStarModalOpen] = useState(false);
   const [starModalKey, setStarModalKey] = useState(0);
   const [manualModalOpen, setManualModalOpen] = useState(false);
-  const [starResult, setStarResult] = useState<{ starred: number; failed: number } | null>(null);
+  const [starResult, setStarResult] = useState<
+    { starred: number; failed: number; aborted: boolean } | null
+  >(null);
   const { repoMeta, combinedStars, isLoading: metaLoading } = useRepoMeta(REPOSITORIES, token);
   const formattedStars = useMemo(
     () => formatHeroStars(combinedStars ?? FALLBACK_COMBINED_STARS),
@@ -64,6 +68,7 @@ export default function HomePage() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const reposRef = useRef<HTMLDivElement | null>(null);
+  const heroRef = useRef<HTMLElement | null>(null);
   const checkedTokenRef = useRef<string | null>(null);
 
   const handleSessionExpired = useCallback(() => {
@@ -74,9 +79,25 @@ export default function HomePage() {
     toast.error("Couldn't reach GitHub. Check your connection.");
   }, []);
 
-  const handleForbidden = useCallback(() => {
+  // Two 403 paths with different root causes, so two toasts with different
+  // fixes. The read path (checkStars, repo-meta lookups) uses the GitHub App
+  // session token — a 403 there means the install lacks the required
+  // permission. The write path (starAll, retryStar) uses the ephemeral
+  // classic-OAuth token with `public_repo` — a 403 there is almost always
+  // either an org-level OAuth app restriction or a mid-flow revocation.
+  // A single toast advising "GitHub App → Starring: Read & Write" pointed
+  // write-path failures at the wrong setting (GitHub App can't star at all
+  // in this architecture; see CLAUDE.md on the hybrid OAuth approach).
+  const handleReadForbidden = useCallback(() => {
     toast.error(
-      "GitHub denied permission to star repos. Check that your GitHub App has Starring set to \"Read & Write\" in its permissions, then sign in again.",
+      "GitHub couldn't read your starred list. The Ethstar GitHub App may be missing permissions — revoke it in GitHub → Settings → Applications and sign in again.",
+      { duration: 10_000 },
+    );
+  }, []);
+
+  const handleStarForbidden = useCallback(() => {
+    toast.error(
+      "GitHub blocked starring. If you belong to a GitHub organisation, it may require third-party OAuth app approval. Check GitHub → Settings → Applications → Authorized OAuth Apps, or ask an org admin to approve Ethstar.",
       { duration: 10_000 },
     );
   }, []);
@@ -88,12 +109,12 @@ export default function HomePage() {
       void checkStars({
         onSessionExpired: handleSessionExpired,
         onNetworkError: handleNetworkError,
-        onForbidden: handleForbidden,
+        onForbidden: handleReadForbidden,
       });
     } else if (!token) {
       checkedTokenRef.current = null;
     }
-  }, [token, checkStars, handleSessionExpired, handleNetworkError, handleForbidden]);
+  }, [token, checkStars, handleSessionExpired, handleNetworkError, handleReadForbidden]);
 
   const scrollToRepos = useCallback(() => {
     reposRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -101,13 +122,16 @@ export default function HomePage() {
 
   const handleRetryStar = useCallback(
     (repo: Repository) => {
+      // retryStar is a write path (starRepo) — a 403 here is almost always an
+      // org-level OAuth restriction on the ephemeral star token, not a GitHub
+      // App permission issue. Route to the write-path toast accordingly.
       void retryStar(repo, {
         onSessionExpired: handleSessionExpired,
         onNetworkError: handleNetworkError,
-        onForbidden: handleForbidden,
+        onForbidden: handleStarForbidden,
       });
     },
-    [retryStar, handleSessionExpired, handleNetworkError, handleForbidden],
+    [retryStar, handleSessionExpired, handleNetworkError, handleStarForbidden],
   );
 
   // Open the star modal instead of directly starring — the modal handles
@@ -116,17 +140,30 @@ export default function HomePage() {
     setManualModalOpen(true);
   }, []);
 
+  // AbortController owned by home so the RoamingStar's Cancel button (and
+  // Esc) can actually abort the starring loop. Reset per-run in handleStarAll
+  // so a cancelled-then-reopened session doesn't inherit the old aborted flag.
+  const starAbortRef = useRef<AbortController | null>(null);
+
   const handleStarAll = useCallback(() => {
     setStarResult(null);
     setStarModalKey((k) => k + 1);
+    starAbortRef.current?.abort();
+    starAbortRef.current = new AbortController();
     setStarModalOpen(true);
   }, []);
 
   // Called by StarModal after the user completes classic OAuth authorization.
   // Returns the result so the modal can transition to the complete step.
+  // On a zero-failure finish, we close the modal here so the RoamingStar's
+  // supernova plays over the backdrop fade-out (keeping setState out of
+  // effects per the react-hooks/set-state-in-effect rule).
   const handleStartStarring = useCallback(async (ephemeralToken: string) => {
+    const controller = starAbortRef.current ?? new AbortController();
+    starAbortRef.current = controller;
     const result = await starAll({
       token: ephemeralToken,
+      signal: controller.signal,
       onRateLimit: (waitMs) => {
         const seconds = Math.ceil(waitMs / 1000);
         toast.warning(
@@ -135,14 +172,28 @@ export default function HomePage() {
       },
       onSessionExpired: handleSessionExpired,
       onNetworkError: handleNetworkError,
-      onForbidden: handleForbidden,
+      onForbidden: handleStarForbidden,
     });
     setStarResult(result);
     if (result.starred > 0) {
       reportStars(result.starred, token);
     }
+    if (result.aborted) {
+      toast.info(
+        result.starred > 0
+          ? `Starring stopped — ${result.starred} repos were starred before you cancelled.`
+          : "Starring cancelled.",
+      );
+      setStarModalOpen(false);
+    } else if (result.failed === 0 && result.starred > 0) {
+      toast.success(`All ${result.starred} repos starred`, {
+        description:
+          "Your GitHub token was discarded. Thanks for supporting Ethereum OSS.",
+      });
+      setStarModalOpen(false);
+    }
     return result;
-  }, [starAll, reportStars, token, handleSessionExpired, handleNetworkError, handleForbidden]);
+  }, [starAll, reportStars, token, handleSessionExpired, handleNetworkError, handleStarForbidden]);
 
   const unstarredRepos = useMemo(
     () => REPOSITORIES.filter((r) => starStatuses[repoKey(r)] === "unstarred"),
@@ -151,6 +202,103 @@ export default function HomePage() {
 
   const allDone =
     progress.total > 0 && progress.starred === progress.total;
+
+  // Memoize the counter string separately so it only re-allocates when the
+  // actual starred/total tick forward — not on every sibling state change.
+  const counterLabel = useMemo(
+    () => `Starring ${progress.starred} / ${progress.total}`,
+    [progress.starred, progress.total],
+  );
+
+  // Derive the RoamingStar's visual state from auth + progress snapshots.
+  // The star is a controlled component — no internal ownership of these fields.
+  const roamingState = useMemo<RoamingStarState>(() => {
+    if (!isAuthenticated) {
+      return {
+        status: "disconnected",
+        fillLevel: 0,
+        remaining: REPOSITORIES.length,
+        oauthStatus,
+      };
+    }
+    if (allDone) {
+      return {
+        status: "success",
+        fillLevel: 1,
+        remaining: 0,
+      };
+    }
+    if (isStarring) {
+      const pct = progress.total > 0 ? progress.starred / progress.total : 0;
+      return {
+        status: "in-progress",
+        fillLevel: pct,
+        counterLabel,
+        remaining: progress.remaining,
+      };
+    }
+    if (starResult && starResult.failed > 0) {
+      return {
+        status: "partial-failure",
+        fillLevel: READY_FILL_LEVEL,
+        failedCount: starResult.failed,
+        remaining: progress.remaining,
+      };
+    }
+    return {
+      status: "ready",
+      fillLevel: READY_FILL_LEVEL,
+      remaining: progress.remaining,
+      // Surface the in-flight check so the secondary label renders a
+      // skeleton rather than a live-flickering count. Flips to false once
+      // every repo's status has resolved to starred/unstarred/failed.
+      checking: isChecking,
+    };
+  }, [
+    isAuthenticated,
+    allDone,
+    isStarring,
+    isChecking,
+    progress.total,
+    progress.starred,
+    progress.remaining,
+    starResult,
+    counterLabel,
+    oauthStatus,
+  ]);
+
+  // Completion signal — drives supernova + closes modal. Guarded so the
+  // happy-path auto-closes but the partial-failure case keeps the modal
+  // open so the user can see failures and retry from there. A cancelled
+  // run also skips the supernova (it's a celebratory finale, not a "you
+  // stopped" moment). `starred > 0` prevents a zero-work run (e.g. user
+  // somehow triggered starAll with nothing to do) from firing supernova
+  // over an empty list — the animation is only earned by actual work.
+  const completed =
+    !isStarring &&
+    starResult !== null &&
+    starResult.failed === 0 &&
+    starResult.starred > 0 &&
+    !starResult.aborted;
+
+
+  // Star click dispatch: unauth → start OAuth via login; auth → open modal
+  // (which handles the star-OAuth popup flow). No-op when all repos are
+  // already starred — the RoamingStar also gates this on `state.status ===
+  // "success"`, but we guard here too so keyboard/programmatic callers
+  // can't sneak past the visual state and open a 0-repo modal.
+  const handleStarTrigger = useCallback(() => {
+    if (allDone) return;
+    if (!isAuthenticated) {
+      login();
+      return;
+    }
+    handleStarAll();
+  }, [allDone, isAuthenticated, login, handleStarAll]);
+
+  const handleCancelStarring = useCallback(() => {
+    starAbortRef.current?.abort();
+  }, []);
 
   return (
     <main className="flex flex-col overflow-x-hidden">
@@ -169,27 +317,30 @@ export default function HomePage() {
 
       <CommunityStarsBanner totalStars={stats?.totalStars ?? null} />
 
-      {/* Slide 1 — Hero */}
+      {/* Slide 1 — Hero. The RoamingStar dormant slot lives inside as the
+          primary CTA; it detaches to a free-floating layer once the hero
+          scrolls out of view. */}
       <HeroSection
+        ref={heroRef}
         repoCount={REPOSITORIES.length}
         formattedStars={formattedStars}
         categoryCount={CATEGORIES.length}
-        onLogin={login}
         onViewRepositories={scrollToRepos}
-        isAuthenticated={isAuthenticated}
-        isLoading={authLoading}
-      >
-        {/* Starring controls — bottom of hero viewport */}
-        {isAuthenticated && (
-          <StarringControls
-            progress={progress}
-            isStarring={isStarring}
-            allDone={allDone}
-            onStarAll={handleStarAll}
-            testId="starring-controls-hero"
+        // The star supernovas and self-dismisses once the user has starred
+        // every repo in their connected session. Use `allDone` as the "no
+        // primary CTA" signal so the secondary button drops its connector.
+        primaryCtaPresent={!allDone}
+        primaryCta={
+          <RoamingStar
+            heroRef={heroRef}
+            state={roamingState}
+            inProgress={isStarring}
+            completed={completed}
+            onTrigger={handleStarTrigger}
+            onCancel={handleCancelStarring}
           />
-        )}
-      </HeroSection>
+        }
+      />
 
       <SlideTransition />
 
@@ -204,24 +355,16 @@ export default function HomePage() {
         />
       </Suspense>
 
-      {/* Starring controls — after Saturn ring (top instance) */}
-      {isAuthenticated && (
-        <StarringControls
-          progress={progress}
-          isStarring={isStarring}
-          allDone={allDone}
-          onStarAll={handleStarAll}
-          testId="starring-controls-top"
-        />
-      )}
-
       <SlideTransition />
 
-      {/* Slide 3 — How It Works */}
-      <HowItWorksSection
-        isAuthenticated={isAuthenticated}
-        onLogin={login}
-        onViewRepositories={scrollToRepos}
+      {/* Slide 3 — Trust strip. Replaces the prior Authenticate/Star/Support
+          card grid, which retold the hero-to-modal story in identikit boxes
+          and read as AI template filler. Condensed to three disclosures —
+          scope, token lifetime, coverage — that earn their space instead of
+          echoing what the user already saw. */}
+      <TrustStripSection
+        repoCount={REPOSITORIES.length}
+        formattedStars={formattedStars}
       />
 
       <SlideTransition />
@@ -231,7 +374,7 @@ export default function HomePage() {
         ref={reposRef}
         id="repos"
         tabIndex={-1}
-        className="flex min-h-dvh flex-col justify-center gap-12 py-12 focus:outline-none"
+        className="flex flex-col gap-12 py-12 focus:outline-none"
       >
         {CATEGORIES.map((category) => (
           <RepoSection
@@ -254,20 +397,11 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Starring controls — after repos (bottom instance) */}
-      {isAuthenticated && (
-        <StarringControls
-          progress={progress}
-          isStarring={isStarring}
-          allDone={allDone}
-          onStarAll={handleStarAll}
-          testId="starring-controls-bottom"
-        />
-      )}
-
       <SupportSection />
 
-      {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete) */}
+      {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete).
+          The progress step visually defers to the RoamingStar (takeover mode);
+          the modal shell still provides Radix focus-trap + inert-page. */}
       <StarModal
         key={starModalKey}
         open={starModalOpen}
@@ -279,6 +413,7 @@ export default function HomePage() {
         cancelOAuth={cancelOAuth}
         starResult={starResult}
         onOpenManualModal={handleOpenManualModal}
+        onCancelStarring={handleCancelStarring}
       />
 
       {/* Manual starring modal — list of unstarred repos with GitHub links */}

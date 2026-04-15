@@ -27,6 +27,7 @@ const defaultProps = {
   cancelOAuth: vi.fn(),
   starResult: null,
   onOpenManualModal: vi.fn(),
+  onCancelStarring: vi.fn(),
 };
 
 describe("StarModal", () => {

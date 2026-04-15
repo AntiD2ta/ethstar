@@ -12,7 +12,11 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
-import { seedAuth } from "./helpers";
+import { seedAuth, seedConsent } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 /**
  * Responsive layout tests across three viewport sizes:
@@ -132,11 +136,11 @@ test.describe("desktop marquee behavior", () => {
   });
 });
 
-// AC5: Progress bar + star-all controls fit at mobile width (authenticated)
+// AC5: RoamingStar dormant CTA fits at mobile width (authenticated)
 test.describe("mobile starring controls", () => {
   test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
 
-  test("progress bar and star-all button fit within mobile viewport", async ({
+  test("RoamingStar dormant slot fits within mobile viewport", async ({
     page,
   }) => {
     await seedAuth(page, "ghu_fake_responsive");
@@ -154,7 +158,7 @@ test.describe("mobile starring controls", () => {
       }),
     );
 
-    // Mock star checks so progress bar renders (404 = unstarred)
+    // Mock star checks (404 = unstarred) so status can resolve to "ready"
     await page.route("https://api.github.com/user/starred/**", (route) =>
       route.fulfill({ status: 404, body: "" }),
     );
@@ -168,21 +172,17 @@ test.describe("mobile starring controls", () => {
 
     await page.goto("/");
 
-    // Wait for the progress bar to appear (authenticated state)
-    const progressBar = page.getByRole("progressbar").first();
-    await expect(progressBar).toBeVisible({ timeout: 10_000 });
-
-    // Progress bar container should fit within viewport (use first instance)
-    const container = page.getByTestId("starring-controls-top");
-    const box = await container.boundingBox();
+    // RoamingStar dormant slot is the single starring CTA on the page.
+    const slot = page.getByTestId("roaming-star-dormant-slot");
+    await expect(slot).toBeVisible({ timeout: 10_000 });
+    const box = await slot.boundingBox();
     expect(box).toBeTruthy();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(VIEWPORTS[0].width + 1);
 
-    // Star-all button should be visible and not clipped (scope to top instance)
-    const starBtn = container.getByRole("button", { name: /Star All/i });
-    await expect(starBtn).toBeVisible();
-    const btnBox = await starBtn.boundingBox();
+    const star = slot.getByTestId("roaming-star-button");
+    await expect(star).toBeVisible();
+    const btnBox = await star.boundingBox();
     expect(btnBox).toBeTruthy();
     expect(btnBox!.x).toBeGreaterThanOrEqual(0);
     expect(btnBox!.x + btnBox!.width).toBeLessThanOrEqual(
@@ -191,21 +191,24 @@ test.describe("mobile starring controls", () => {
   });
 });
 
-// How It Works cards fit on mobile without horizontal scroll
-test.describe("mobile how-it-works layout", () => {
+// Trust strip fits on mobile without horizontal scroll
+test.describe("mobile trust-strip layout", () => {
   test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
 
-  test("all 3 how-it-works cards visible without horizontal scroll", async ({ page }) => {
+  test("all 4 trust-strip items visible without horizontal scroll", async ({ page }) => {
     await page.goto("/");
-    const heading = page.getByRole("heading", { name: "How It Works" });
+    const heading = page.getByRole("heading", { name: /What we ask/ });
     await heading.scrollIntoViewIfNeeded();
 
-    for (const step of ["Authenticate", "Star Repositories", "Support Ethereum"]) {
-      await expect(page.getByRole("heading", { name: step, level: 3 })).toBeVisible();
+    // Four disclosures: sign-in (GitHub App), starring scope (public_repo OAuth),
+    // starring token (ephemeral), coverage. Two separate auth mechanisms — each
+    // named explicitly so users aren't surprised at GitHub's consent screens.
+    for (const label of ["Sign in", "Starring scope", "Starring token", "Coverage"]) {
+      await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
     }
 
-    // The card container should not be horizontally scrollable
-    const container = page.getByTestId("how-it-works-cards");
+    // The strip container should not be horizontally scrollable
+    const container = page.getByTestId("trust-strip");
     await expect(container).toBeVisible();
     const overflowX = await container.evaluate((el) => getComputedStyle(el).overflowX);
     expect(overflowX).not.toBe("auto");

@@ -1,9 +1,7 @@
 - Read @CLAUDE.md — contains accumulated learnings, pitfalls, and project instructions. This is critical context to avoid repeating mistakes.
 - Read @DNA.md — architectural blueprint, conventions, and quality gates.
 - Read @SPEC.md — project specification and design decisions.
-- Pick the most important incompleted phase from @TASKS.md, built it in a new branch and git worktree, commit the changes, raise a PR with minimal PR description (what's the PR addressing/solving, how it's solving it, and any other relevant information) and exit.
-- While building a phase, check if the phase is marked as planned in @TASKS.md. If it is, mark it as in progress and proceed with the implementation. If it is not, enter in plan mode, replace the phase's document with the new plan and ask me to approve it. After approval, mark the phase as in progress and finish the session.
-- ULTRATHINK
+- Wait for the user's input.
 
 IMPORTANT:
 - Load the /go-tdd skill before writing any Go code

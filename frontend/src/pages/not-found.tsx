@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 
 export default function NotFoundPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 text-center">
+    <main className="flex flex-col items-center justify-center gap-6 px-4 py-24 text-center">
       <h1 className="font-heading text-6xl font-bold tracking-tight text-primary md:text-8xl">
         404
       </h1>

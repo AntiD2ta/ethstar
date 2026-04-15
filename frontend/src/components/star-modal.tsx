@@ -37,6 +37,11 @@ interface StarModalProps {
   cancelOAuth: () => void;
   starResult: { starred: number; failed: number } | null;
   onOpenManualModal: () => void;
+  /** Abort the in-flight starring loop. Rendered inside the progress step
+   *  so the Cancel button sits inside Radix's DismissableLayer tree and is
+   *  actually clickable (the RoamingStar portal rendered outside gets its
+   *  pointer events swallowed by the dialog overlay). */
+  onCancelStarring: () => void;
 }
 
 // The parent should pass a `key` that changes each time the modal opens
@@ -52,6 +57,7 @@ export function StarModal({
   cancelOAuth,
   starResult,
   onOpenManualModal,
+  onCancelStarring,
 }: StarModalProps) {
   const [step, setStep] = useState<Step>("warning");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -100,6 +106,17 @@ export function StarModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={step !== "progress"}
+        // During the progress step the RoamingStar owns the visual surface;
+        // the dialog shell exists only for Radix focus-trap + inert-page.
+        // Render as a transparent, no-border, no-size invisible container
+        // so the star flies free in center. Clicks still pass through
+        // Radix's DismissableLayer onto child interactive elements
+        // (counter + Cancel) because they live inside this portal tree.
+        className={
+          step === "progress"
+            ? "pointer-events-none border-0 bg-transparent p-0 shadow-none max-w-none w-auto [&>button[aria-label='Close']]:hidden z-[60]"
+            : undefined
+        }
         onInteractOutside={(e) => {
           if (step === "progress" || step === "authorizing") {
             e.preventDefault();
@@ -122,10 +139,12 @@ export function StarModal({
                 Authorization Required
               </DialogTitle>
               <DialogDescription>
-                Starring repos requires the <code className="rounded bg-muted px-1 text-xs">public_repo</code> permission.
-                This is broader than we&apos;d like — it&apos;s a GitHub limitation. <br /> <br />
+                This will add a star to <strong>{unstarredCount} public repositories</strong>{" "}
+                on your GitHub account. The starred list is visible on your public profile.
+                <br /> <br />
 
-                Clicking on the "star all repos" button will open a popup window where you can authorize our Github OAuth app to star the repos.
+                Starring requires the <code className="rounded bg-muted px-1 text-xs">public_repo</code> scope —
+                broader than we&apos;d like, but it&apos;s a GitHub limitation. Clicking Proceed opens a popup where you can authorize our OAuth app.
               </DialogDescription>
             </DialogHeader>
 
@@ -209,52 +228,62 @@ export function StarModal({
           </>
         )}
 
-        {step === "progress" && (() => {
-          const pct = progress.total > 0 ? (progress.starred / progress.total) * 100 : 0;
-          return <>
-            <DialogHeader>
+        {step === "progress" && (
+          // Progress step: the RoamingStar takes over as the visual progress
+          // indicator in center viewport. The modal shell stays mounted for
+          // Radix focus-trap + inert-page semantics. The counter + Cancel
+          // UI live *inside* this DialogContent so Radix's DismissableLayer
+          // doesn't swallow the Cancel button's click (anything rendered
+          // outside the dialog portal gets its pointer events intercepted).
+          <>
+            <DialogHeader className="sr-only">
               <DialogTitle>Starring Repositories</DialogTitle>
               <DialogDescription>
-                {progress.starred}/{progress.total} repos starred
+                {progress.starred} of {progress.total} repositories starred.
               </DialogDescription>
             </DialogHeader>
-
-            <div className="space-y-3 py-4">
-              {/* Progress bar with diamond cursor */}
-              <div className="relative">
-                <div className="relative h-3 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary shadow-[0_0_12px_var(--primary)] transition-all duration-300 ease-out"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                {/* Diamond cursor */}
-                <div
-                  className="absolute -top-1 transition-all duration-300 ease-out"
-                  style={{ left: `calc(${pct}% - 10px)` }}
-                >
-                  <svg
-                    viewBox="0 0 170 285"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                    className="size-5 diamond-shake"
-                  >
-                    <polygon points="85,0 170,120 85,215 0,120" fill="oklch(0.52 0.10 270)" />
-                    <polygon points="0,150 85,235 85,285" fill="oklch(0.44 0.10 270)" />
-                    <polygon points="85,235 170,150 85,285" fill="oklch(0.37 0.11 272)" />
-                  </svg>
-                </div>
-              </div>
-
-              {progress.current && (
-                <p aria-live="polite" className="truncate text-center text-sm text-muted-foreground">
-                  Starring {progress.current}…
-                </p>
-              )}
+            <div aria-live="polite" className="sr-only">
+              {progress.current ? `Starring ${progress.current}` : null}
             </div>
-          </>;
-        })()}
+            {/* Counter + help + Cancel cluster. Fixed-positioned at ~55%
+                viewport so it lands visually beneath the RoamingStar's
+                spinning diamond (star center: 45% viewport, half-height
+                ≈ 67px, +24px gap). `pointer-events-auto` reactivates
+                clicks on just this cluster — the rest of DialogContent is
+                `pointer-events-none` so the Radix overlay's dim-only
+                behavior is preserved over the surrounding page. */}
+            <div
+              className="pointer-events-auto fixed left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
+              style={{ top: "calc(45% + 92px)" }}
+            >
+              <p
+                role="status"
+                aria-live="polite"
+                data-testid="takeover-counter"
+                className="font-heading text-xl font-bold tracking-tight whitespace-nowrap text-foreground"
+              >
+                Starring {progress.starred} / {progress.total}
+              </p>
+              {/* Scope sublabel — rewritten from the uppercase-tracked 11px
+                  register (unreadable at 65% opacity on a dim scrim, photo
+                  2026-04-15) to a natural-case 13px italic at 85% opacity.
+                  Drops the tracking/caps styling that fought the glass bg;
+                  italic signals "aside, context" rather than competing with
+                  the bold counter above. */}
+              <p className="whitespace-nowrap text-[13px] italic text-foreground/85">
+                on your GitHub account
+              </p>
+              <button
+                type="button"
+                onClick={onCancelStarring}
+                data-testid="takeover-cancel"
+                className="mt-1 whitespace-nowrap rounded-full border border-border bg-background/70 px-4 py-1.5 text-xs font-medium text-foreground/85 backdrop-blur hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                Cancel <span className="ml-1 text-foreground/55">(Esc)</span>
+              </button>
+            </div>
+          </>
+        )}
 
         {step === "complete" && (
           <>

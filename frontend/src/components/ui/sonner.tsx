@@ -30,6 +30,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        // Sonner's default description color is the same foreground at ~0.5
+        // alpha, which renders as unreadable grey on a dark popover surface
+        // (photo 2026-04-15: "Your GitHub token was discarded…" barely
+        // visible). Bumping the description to the full popover-foreground
+        // at 85% gives roughly 9:1 against var(--popover) — clears WCAG AAA
+        // for normal text and matches the title weight hierarchy without
+        // making the description compete with the title.
+        classNames: {
+          description: "!text-popover-foreground/85",
+        },
+      }}
       {...props}
     />
   )

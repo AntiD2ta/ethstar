@@ -12,6 +12,37 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
+import { seedAuth, seedConsent } from "./helpers";
+
+function mockAuthedApis(page: import("@playwright/test").Page) {
+  return Promise.all([
+    page.route("https://api.github.com/user", (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+      }),
+    ),
+    page.route("https://api.github.com/user/starred/**", (r) =>
+      r.fulfill({ status: 404, body: "" }),
+    ),
+    // Force REST fallback so we don't issue an un-mocked GraphQL request.
+    page.route("https://api.github.com/graphql", (r) =>
+      r.fulfill({ status: 401, body: "" }),
+    ),
+    page.route("**/api/stats", (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+      }),
+    ),
+  ]);
+}
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 test("home page renders hero headline", async ({ page }) => {
   await page.goto("/");
@@ -28,7 +59,7 @@ test("home page shows unauthenticated CTAs", async ({ page }) => {
     page.getByRole("button", { name: "Connect via GitHub" }).first(),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "View Repositories" }),
+    page.getByRole("button", { name: /browse the repositories/i }),
   ).toBeVisible();
 });
 
@@ -111,10 +142,73 @@ test("marquees expose per-category accessible labels", async ({ page }) => {
   }
 });
 
-test("progress bar and star-all button are hidden when unauthenticated", async ({
+test("unauthenticated: RoamingStar dormant CTA names the action and provider", async ({ page }) => {
+  await page.goto("/");
+  // Dormant slot is present with the disconnected-state button/label.
+  await expect(page.getByTestId("roaming-star-dormant-slot")).toBeVisible();
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toBeVisible();
+  await expect(star).toHaveAttribute("data-status", "disconnected");
+  // Primary line surfaces the noun; secondary names the provider + direction.
+  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  await expect(page.getByText("Sign in with GitHub ↗").first()).toBeVisible();
+  // The legacy "Star All N Remaining" button should no longer exist.
+  await expect(page.getByRole("button", { name: /Star All \d+ Remaining/i })).toHaveCount(0);
+});
+
+test("exactly one RoamingStar exists at any scroll position", async ({ page }) => {
+  // Regression guard against mounting both a dormant and floating star. The
+  // component renders one or the other based on hero visibility.
+  await page.goto("/");
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(1);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(1);
+});
+
+test("authenticated: RoamingStar shows 'Begin starring' when hero is visible", async ({
   page,
 }) => {
+  await seedAuth(page);
+  await mockAuthedApis(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByLabel("Starring progress")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Star All/i })).toHaveCount(0);
+  await expect(page.getByTestId("roaming-star-dormant-slot")).toBeVisible();
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toBeVisible();
+  // Once the checkStars loop resolves, status moves from disconnected to ready.
+  await expect(star).toHaveAttribute("data-status", "ready", { timeout: 5_000 });
+});
+
+test("authenticated: RoamingStar still renders after scrolling past hero", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  await mockAuthedApis(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.getByTestId("roaming-star-button")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2));
+  // Still exactly one star, now in the portal (roaming mode).
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(1);
+});
+
+test.describe("mobile hero viewport", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("hero fits within a single viewport on mobile", async ({ page }) => {
+    await page.goto("/");
+    const hero = page.getByTestId("hero-section");
+    const box = await hero.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThanOrEqual(844);
+  });
+
+  test("hero stats row is hidden on mobile (compact inline summary only)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    // role="group" on the 3-stat row should be absent from the a11y tree on <md.
+    const statGroup = page.getByRole("group", { name: "Site statistics" });
+    await expect(statGroup).toBeHidden();
+  });
 });

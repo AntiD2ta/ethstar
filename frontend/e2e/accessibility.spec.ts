@@ -98,13 +98,13 @@ test.describe("Accessibility", () => {
   }) => {
     await page.goto("/");
 
-    // How It Works section
-    const howSection = page.locator(
-      'section[aria-labelledby="how-it-works-heading"]',
+    // Trust strip section (replaces the prior How It Works cards)
+    const trustSection = page.locator(
+      'section[aria-labelledby="trust-strip-heading"]',
     );
-    await expect(howSection).toHaveCount(1);
-    await expect(howSection.locator("#how-it-works-heading")).toContainText(
-      "How It Works",
+    await expect(trustSection).toHaveCount(1);
+    await expect(trustSection.locator("#trust-strip-heading")).toContainText(
+      /What we ask/,
     );
 
     // Support footer

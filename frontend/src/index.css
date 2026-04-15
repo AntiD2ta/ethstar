@@ -352,13 +352,12 @@
                     inset 0 0 30px oklch(0.620 0.140 270 / 5%);
     }
 
+    /* ETH accent word in the H1. A single soft aura (≤30px, ~25% alpha)
+       preserves ETH-blue identity without competing with the roaming star's
+       gold core for visual focus — "Dark Elegance", not nightclub neon. */
     .text-eth-highlight {
         color: oklch(0.620 0.140 270);
-        text-shadow:
-            0 0 10px oklch(0.620 0.140 270 / 60%),
-            0 0 30px oklch(0.620 0.140 270 / 40%),
-            0 0 60px oklch(0.620 0.140 270 / 25%),
-            0 0 100px oklch(0.520 0.230 290 / 15%);
+        text-shadow: 0 0 24px oklch(0.620 0.140 270 / 25%);
     }
 
     /* Saturn carousel: compact repo card */
@@ -494,6 +493,32 @@
 }
 .diamond-shake {
     animation: diamond-shake 0.3s ease-in-out infinite;
+}
+
+/* ============================================================
+   Override tw-animate-css's height-animating keyframes.
+   Those keyframes animate `height` (layout-triggering) — even when
+   unused at runtime, they appear in the shipped stylesheet and get
+   flagged by static critique detectors as "transition: height on all
+   routes". We don't use Radix Accordion or Collapsible anywhere, so
+   these redefinitions are safe: if/when we do, the component will
+   transition opacity only (compositor-friendly).
+   ============================================================ */
+@keyframes accordion-down {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes accordion-up {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+@keyframes collapsible-down {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes collapsible-up {
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
 
 /* Respect reduced motion */

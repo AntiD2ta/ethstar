@@ -12,7 +12,11 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
-import { seedAuth } from "./helpers";
+import { seedAuth, seedConsent } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 // --- Auth loading state ---
 
@@ -225,10 +229,10 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
 
   await page.goto("/");
 
-  // Wait for star checks to complete, then click "Star All" (opens StarModal).
-  const starAllBtn = page.getByRole("button", { name: /Star All/i }).first();
-  await expect(starAllBtn).toBeVisible({ timeout: 15000 });
-  await starAllBtn.click();
+  // Wait for star checks to complete (status=ready), then click the RoamingStar.
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "ready", { timeout: 15000 });
+  await star.click();
 
   // StarModal opens at warning step — click "Proceed" to trigger OAuth popup (mocked above).
   await expect(
@@ -236,10 +240,16 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
   ).toBeVisible();
   await page.getByRole("button", { name: /Proceed/ }).click();
 
-  // Wait for the modal complete step showing starred count.
+  // The modal auto-closes on zero-failure completion; wait for the success toast
+  // instead of the legacy "complete" step text. The toast now splits into a
+  // title + description line (the "token discarded" detail replaces the old
+  // standalone "complete" modal).
   await expect(
-    page.getByText(/starred 2 repos/i),
+    page.getByText(/All 2 repos starred/),
   ).toBeVisible({ timeout: 30000 });
+  await expect(
+    page.getByText(/Your GitHub token was discarded/),
+  ).toBeVisible();
 
   // The POST should include new (2) + pending (5) = 7.
   await expect

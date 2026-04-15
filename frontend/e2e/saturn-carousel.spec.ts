@@ -13,6 +13,11 @@
 
 import { test, expect } from "@playwright/test";
 import { REPOSITORIES } from "../src/lib/repos";
+import { seedConsent } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await seedConsent(page);
+});
 
 test.describe("Saturn Carousel", () => {
   test("renders the carousel section on desktop", async ({ page }) => {
