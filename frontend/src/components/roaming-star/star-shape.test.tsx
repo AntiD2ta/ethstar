@@ -88,13 +88,16 @@ describe("StarShape", () => {
     const { container } = render(
       <StarShape size={56} fillLevel={0.5} status="partial-failure" />,
     );
-    // The outline stroke is the 2nd path (fill path is first, outline on top).
-    const paths = container.querySelectorAll("path");
-    expect(paths.length).toBeGreaterThanOrEqual(2);
-    const outline = paths[paths.length - 1]!;
-    const stroke = outline.getAttribute("stroke") ?? "";
-    // Warm purple-red stroke (oklch with hue ~340).
-    expect(stroke).toContain("oklch");
-    expect(stroke).toContain("340");
+    // Three paths: gold fill + upper outline + lower outline. Any
+    // stroke-bearing path should carry the warm hue.
+    const paths = Array.from(container.querySelectorAll("path"));
+    const outlines = paths.filter((p) => p.getAttribute("stroke"));
+    expect(outlines.length).toBeGreaterThanOrEqual(1);
+    for (const outline of outlines) {
+      const stroke = outline.getAttribute("stroke") ?? "";
+      // Warm purple-red stroke (oklch with hue ~340).
+      expect(stroke).toContain("oklch");
+      expect(stroke).toContain("340");
+    }
   });
 });

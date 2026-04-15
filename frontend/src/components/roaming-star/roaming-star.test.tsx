@@ -88,24 +88,25 @@ describe("RoamingStar", () => {
     const btn = screen.getByTestId("roaming-star-button");
     expect(btn).toHaveAttribute(
       "aria-label",
-      "Light it up — continue with GitHub to start starring repositories",
+      "Star every Ethereum repo — sign in with GitHub to begin",
     );
     expect(btn.tagName).toBe("BUTTON");
     expect(btn).toHaveAttribute("data-status", "disconnected");
   });
 
-  it("shows the two-line disconnected label", () => {
+  it("shows the two-line disconnected label naming the action and the provider", () => {
     renderStar();
-    expect(screen.getByText("Light it up")).toBeInTheDocument();
-    expect(screen.getByText("↗ Continue with GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+    expect(screen.getByText("Sign in with GitHub ↗")).toBeInTheDocument();
   });
 
-  it("switches to the 'Begin starring' single-line label when ready", () => {
+  it("switches to the 'Begin starring' label with a repos-remaining caption when ready", () => {
     renderStar({
       state: { status: "ready", fillLevel: 0.5, remaining: 5 },
     });
     expect(screen.getByText("Begin starring")).toBeInTheDocument();
-    expect(screen.queryByText("↗ Continue with GitHub")).not.toBeInTheDocument();
+    expect(screen.getByText("5 repos to go")).toBeInTheDocument();
+    expect(screen.queryByText("Sign in with GitHub ↗")).not.toBeInTheDocument();
   });
 
   it("calls onTrigger when clicked in dormant mode", async () => {
@@ -157,7 +158,7 @@ describe("RoamingStar", () => {
     expect(btn.getAttribute("aria-label")).toMatch(/percent/);
   });
 
-  it("partial-failure state renders the retry label with the failed count", () => {
+  it("partial-failure state renders a concrete retry label with the failed count", () => {
     renderStar({
       state: {
         status: "partial-failure",
@@ -166,7 +167,7 @@ describe("RoamingStar", () => {
         remaining: 3,
       },
     });
-    expect(screen.getByText(/Retry · 3 couldn't be starred/)).toBeInTheDocument();
+    expect(screen.getByText(/3 failed — retry/)).toBeInTheDocument();
   });
 
   describe("OAuth popup label states (spec brief §Labels)", () => {
@@ -179,10 +180,10 @@ describe("RoamingStar", () => {
           oauthStatus: "pending",
         },
       });
-      expect(screen.getByText("Light it up")).toBeInTheDocument();
+      expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
       expect(screen.getByText("Waiting for GitHub…")).toBeInTheDocument();
       expect(
-        screen.queryByText("↗ Continue with GitHub"),
+        screen.queryByText("Sign in with GitHub ↗"),
       ).not.toBeInTheDocument();
     });
 
@@ -195,12 +196,12 @@ describe("RoamingStar", () => {
           oauthStatus: "blocked",
         },
       });
-      expect(screen.getByText("Light it up")).toBeInTheDocument();
+      expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
       expect(
         screen.getByText("Popup blocked — click to retry"),
       ).toBeInTheDocument();
       expect(
-        screen.queryByText("↗ Continue with GitHub"),
+        screen.queryByText("Sign in with GitHub ↗"),
       ).not.toBeInTheDocument();
     });
 
@@ -213,7 +214,7 @@ describe("RoamingStar", () => {
           oauthStatus: "idle",
         },
       });
-      expect(screen.getByText("↗ Continue with GitHub")).toBeInTheDocument();
+      expect(screen.getByText("Sign in with GitHub ↗")).toBeInTheDocument();
     });
   });
 

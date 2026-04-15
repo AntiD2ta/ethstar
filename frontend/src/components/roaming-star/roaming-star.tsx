@@ -28,8 +28,6 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   BREATHE_PERIOD_MS,
   BREATHE_SCALE_MAX,
-  CANCEL_CONFIRM_TIMEOUT_MS,
-  CANCEL_GESTURE,
   DORMANT_STAR_SIZE_PX,
   DURATION_FLIP_DORMANT_TO_ROAMING,
   DURATION_FLIP_TO_TAKEOVER,
@@ -254,24 +252,28 @@ export const RoamingStar = memo(function RoamingStar({
     trail.setSpawning(mode === "roaming");
   }, [mode, trail]);
 
-  // ARIA label per brief.
+  // ARIA label per brief. Primary label copy is explicit about the action
+  // (so screen-reader users hear "Star every Ethereum repo" rather than the
+  // ornamental "Light it up" line).
   const ariaLabel = useMemo(() => {
     switch (state.status) {
       case "disconnected":
-        return "Light it up — continue with GitHub to start starring repositories";
+        return "Star every Ethereum repo — sign in with GitHub to begin";
       case "ready":
         return "Begin starring all Ethereum repositories";
       case "in-progress":
         return `Starring ${state.fillLevel > 0 ? Math.round(state.fillLevel * 100) : 0} percent complete`;
       case "partial-failure":
-        return `Retry — ${state.failedCount ?? 0} couldn't be starred`;
+        return `Retry — ${state.failedCount ?? 0} repos failed to star`;
       case "success":
         return "All repositories starred";
     }
   }, [state.status, state.fillLevel, state.failedCount]);
 
-  // Two-line label text. The disconnected secondary line is dynamic per brief:
-  // pending popup → "Waiting for GitHub…"; blocked → "Popup blocked — click to retry".
+  // Two-line label text. The disconnected primary line names the action
+  // (review: "Light it up hides the GitHub action — attach a noun"); the
+  // secondary line carries the auth-popup lifecycle so first-timers see
+  // exactly what the click will do.
   const labelLines = useMemo<[string, string | null]>(() => {
     if (state.status === "disconnected") {
       const secondary =
@@ -279,20 +281,20 @@ export const RoamingStar = memo(function RoamingStar({
           ? "Waiting for GitHub…"
           : state.oauthStatus === "blocked"
             ? "Popup blocked — click to retry"
-            : "↗ Continue with GitHub";
-      return ["Light it up", secondary];
+            : "Sign in with GitHub ↗";
+      return ["Star every Ethereum repo", secondary];
     }
     if (state.status === "ready") {
-      return ["Begin starring", null];
+      return ["Begin starring", `${state.remaining ?? 0} repos to go`];
     }
     if (state.status === "in-progress") {
       return [state.counterLabel ?? "Starring…", null];
     }
     if (state.status === "partial-failure") {
-      return [`Retry · ${state.failedCount ?? 0} couldn't be starred`, null];
+      return [`${state.failedCount ?? 0} failed — retry`, null];
     }
     return ["All starred", null];
-  }, [state.status, state.counterLabel, state.failedCount, state.oauthStatus]);
+  }, [state.status, state.counterLabel, state.failedCount, state.remaining, state.oauthStatus]);
 
   // Wrap onTrigger so we snapshot the prior focused element *before* firing.
   // The parent opens a Radix Dialog (which steals focus) on takeover; we need
@@ -317,27 +319,29 @@ export const RoamingStar = memo(function RoamingStar({
     [triggerWithFocusCapture],
   );
 
-  // Click-on-star gesture confirm helper (variant B of the cancel prototype).
-  const [pendingCancel, setPendingCancel] = useState(false);
-  useEffect(() => {
-    if (!pendingCancel) return;
-    const t = setTimeout(() => setPendingCancel(false), CANCEL_CONFIRM_TIMEOUT_MS);
-    return () => clearTimeout(t);
-  }, [pendingCancel]);
-
   const handleStarClick = useCallback(() => {
-    if (mode === "takeover" && CANCEL_GESTURE === "click") {
-      if (pendingCancel) {
-        setPendingCancel(false);
-        onCancel?.();
-      } else {
-        setPendingCancel(true);
-      }
-      return;
-    }
+    // The star is inert during takeover — the Cancel button + Esc handle abort.
+    // Shipping a single cancel affordance (button) keeps the surface consistent
+    // and removes the "click once to arm, again to cancel" prototype.
     if (mode === "takeover") return;
     triggerWithFocusCapture();
-  }, [mode, pendingCancel, onCancel, triggerWithFocusCapture]);
+  }, [mode, triggerWithFocusCapture]);
+
+  // Keyboard reach for cancel — Alex (keyboard-first persona) should be able
+  // to abort without chasing the Cancel button. Esc fires onCancel directly
+  // during takeover. StarModal already suppresses Esc-close at its level;
+  // this listener sits underneath and captures first.
+  useEffect(() => {
+    if (mode !== "takeover") return;
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape" && onCancel) {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [mode, onCancel]);
 
   if (hidden || mode === "dismissed") return null;
 
@@ -361,12 +365,19 @@ export const RoamingStar = memo(function RoamingStar({
         />
       )}
       {mode === "dormant" && (
-        <div className="flex flex-col items-center gap-0.5 text-sm">
-          <span className="font-heading text-base font-semibold text-foreground">
+        <div className="flex flex-col items-center gap-1.5">
+          {/* Primary line matches the hero H1 register: same family, bold,
+              tracking-tight. Scaled down from 4xl → lg/xl so it acts as a
+              sub-headline to the CTA, not a competing heading. */}
+          <span className="font-heading text-lg font-bold tracking-tight text-foreground md:text-xl">
             {labelLines[0]}
           </span>
           {labelLines[1] && (
-            <span className="text-xs text-muted-foreground">{labelLines[1]}</span>
+            // Uppercase-tracked secondary — mirrors the hero stats row, so
+            // the cluster reads as one voice instead of 2–3 typefaces.
+            <span className="font-heading text-[11px] uppercase tracking-widest text-muted-foreground">
+              {labelLines[1]}
+            </span>
           )}
         </div>
       )}
@@ -381,7 +392,12 @@ export const RoamingStar = memo(function RoamingStar({
   // roaming position to center. Roaming drift updates position per rAF
   // (~16ms), so a transition that long would smear the motion — we pay the
   // cost only in takeover/supernova where the position is stable.
-  const takeoverTransition = `left ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, top ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, width ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, height ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}`;
+  //
+  // Only `left` and `top` are transitioned. `width`/`height` are layout
+  // properties — transitioning them triggers layout every frame (flagged by
+  // the deterministic anti-pattern scan). Size changes on mode flip snap
+  // and are masked by the scale/position flight.
+  const takeoverTransition = `left ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}, top ${DURATION_FLIP_TO_TAKEOVER}ms ${EASE_OUT_EXPO}`;
 
   const floatingStyle: CSSProperties = {
     position: "fixed",
@@ -393,7 +409,7 @@ export const RoamingStar = memo(function RoamingStar({
     pointerEvents: mode === "takeover" || mode === "roaming" ? "auto" : "none",
     transition:
       reducedMotion
-        ? "opacity 220ms linear, width 220ms linear, height 220ms linear"
+        ? "opacity 220ms linear"
         : mode === "takeover" || mode === "supernova"
           ? takeoverTransition
           : undefined,
@@ -410,19 +426,10 @@ export const RoamingStar = memo(function RoamingStar({
 
   const floatingBlock = (mode === "roaming" || mode === "takeover" || mode === "supernova") && (
     <>
-      {/* Dimmer backdrop during takeover (brief: ~8%) */}
-      {mode === "takeover" && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "oklch(0 0 0 / 0.08)",
-            zIndex: 54,
-            pointerEvents: "none",
-          }}
-        />
-      )}
+      {/* Takeover scrim is provided by Radix's DialogOverlay (50% black)
+          behind StarModal. A second 22% layer here stacked on top read as
+          ~60% dim and over-dulled the page; the single Radix overlay is
+          strong enough. */}
 
       <canvas
         ref={canvasRef}
@@ -445,11 +452,7 @@ export const RoamingStar = memo(function RoamingStar({
             fillLevel={state.fillLevel}
             status={state.status}
             reducedMotion={reducedMotion}
-            ariaLabel={
-              mode === "takeover" && pendingCancel
-                ? "Click again to cancel"
-                : ariaLabel
-            }
+            ariaLabel={ariaLabel}
             onClick={handleStarClick}
             onKey={handleKey}
             breathing={false}
@@ -482,42 +485,12 @@ export const RoamingStar = memo(function RoamingStar({
         )}
       </div>
 
-      {/* Takeover counter + cancel (both variants rendered conditionally) */}
-      {mode === "takeover" && (
-        <div
-          style={{
-            position: "fixed",
-            left: "50%",
-            top: `calc(${TAKEOVER_Y_RATIO * 100}% + ${(dormantSize * TAKEOVER_SCALE) / 2 + 24}px)`,
-            transform: "translateX(-50%)",
-            zIndex: 56,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <p
-            role="status"
-            aria-live="polite"
-            className="font-heading text-lg text-foreground"
-          >
-            {state.counterLabel ?? labelLines[0]}
-          </p>
-          {CANCEL_GESTURE === "button" && onCancel && (
-            <button
-              type="button"
-              onClick={() => onCancel?.()}
-              className="rounded-full border border-border bg-background/50 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur hover:bg-accent hover:text-foreground"
-            >
-              Cancel
-            </button>
-          )}
-          {CANCEL_GESTURE === "click" && pendingCancel && (
-            <p className="text-xs text-muted-foreground">Click again to cancel</p>
-          )}
-        </div>
-      )}
+      {/* During takeover, the counter + help sublabel + Cancel button are
+          rendered by `StarModal` inside its `DialogContent` — Radix's
+          DismissableLayer swallows pointer events on anything sibling to
+          the dialog portal, so the cancel click only lands when it lives
+          inside the dialog tree. The RoamingStar keeps ownership of the
+          visual star + the global Esc handler below. */}
     </>
   );
 
@@ -604,4 +577,3 @@ function StarButton({
   );
 }
 
-export { CANCEL_GESTURE } from "./constants";

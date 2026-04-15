@@ -31,7 +31,7 @@ export interface StarAllResult {
 export interface GithubSpyOverrides {
   getUser?: (token: string) => Promise<GitHubUser>;
   isStarred?: (token: string, owner: string, name: string) => Promise<boolean>;
-  starRepo?: (token: string, owner: string, name: string) => Promise<void>;
+  starRepo?: (token: string, owner: string, name: string, signal?: AbortSignal) => Promise<void>;
   checkAllStars?: (
     token: string,
     repos: Repository[],
@@ -42,6 +42,7 @@ export interface GithubSpyOverrides {
     repos: Repository[],
     onProgress: (repo: Repository, status: StarStatus) => void,
     onRateLimit?: (waitMs: number) => void,
+    signal?: AbortSignal,
   ) => Promise<StarAllResult>;
 }
 

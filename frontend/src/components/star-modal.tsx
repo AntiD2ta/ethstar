@@ -37,6 +37,11 @@ interface StarModalProps {
   cancelOAuth: () => void;
   starResult: { starred: number; failed: number } | null;
   onOpenManualModal: () => void;
+  /** Abort the in-flight starring loop. Rendered inside the progress step
+   *  so the Cancel button sits inside Radix's DismissableLayer tree and is
+   *  actually clickable (the RoamingStar portal rendered outside gets its
+   *  pointer events swallowed by the dialog overlay). */
+  onCancelStarring: () => void;
 }
 
 // The parent should pass a `key` that changes each time the modal opens
@@ -52,6 +57,7 @@ export function StarModal({
   cancelOAuth,
   starResult,
   onOpenManualModal,
+  onCancelStarring,
 }: StarModalProps) {
   const [step, setStep] = useState<Step>("warning");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -102,11 +108,13 @@ export function StarModal({
         showCloseButton={step !== "progress"}
         // During the progress step the RoamingStar owns the visual surface;
         // the dialog shell exists only for Radix focus-trap + inert-page.
-        // Render as a transparent, no-border invisible container so the
-        // dimmed backdrop shows through and the star flies free in center.
+        // Render as a transparent, no-border, no-size invisible container
+        // so the star flies free in center. Clicks still pass through
+        // Radix's DismissableLayer onto child interactive elements
+        // (counter + Cancel) because they live inside this portal tree.
         className={
           step === "progress"
-            ? "border-0 bg-transparent p-0 shadow-none [&>button[aria-label='Close']]:hidden"
+            ? "pointer-events-none border-0 bg-transparent p-0 shadow-none max-w-none w-auto [&>button[aria-label='Close']]:hidden z-[60]"
             : undefined
         }
         onInteractOutside={(e) => {
@@ -131,10 +139,12 @@ export function StarModal({
                 Authorization Required
               </DialogTitle>
               <DialogDescription>
-                Starring repos requires the <code className="rounded bg-muted px-1 text-xs">public_repo</code> permission.
-                This is broader than we&apos;d like — it&apos;s a GitHub limitation. <br /> <br />
+                This will add a star to <strong>{unstarredCount} public repositories</strong>{" "}
+                on your GitHub account. The starred list is visible on your public profile.
+                <br /> <br />
 
-                Clicking on the "star all repos" button will open a popup window where you can authorize our Github OAuth app to star the repos.
+                Starring requires the <code className="rounded bg-muted px-1 text-xs">public_repo</code> scope —
+                broader than we&apos;d like, but it&apos;s a GitHub limitation. Clicking Proceed opens a popup where you can authorize our OAuth app.
               </DialogDescription>
             </DialogHeader>
 
@@ -221,9 +231,10 @@ export function StarModal({
         {step === "progress" && (
           // Progress step: the RoamingStar takes over as the visual progress
           // indicator in center viewport. The modal shell stays mounted for
-          // Radix focus-trap + inert-page semantics. Sr-only text keeps the
-          // counter audible for screen readers; the star itself is decorative
-          // (aria-hidden on the SVG, role+label on the button).
+          // Radix focus-trap + inert-page semantics. The counter + Cancel
+          // UI live *inside* this DialogContent so Radix's DismissableLayer
+          // doesn't swallow the Cancel button's click (anything rendered
+          // outside the dialog portal gets its pointer events intercepted).
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Starring Repositories</DialogTitle>
@@ -234,10 +245,37 @@ export function StarModal({
             <div aria-live="polite" className="sr-only">
               {progress.current ? `Starring ${progress.current}` : null}
             </div>
-            {/* Bleed through to the page: the dialog content is transparent
-                during this step so the star animates over the dimmed backdrop
-                without visual competition. */}
-            <div aria-hidden="true" className="min-h-[40vh]" />
+            {/* Counter + help + Cancel cluster. Fixed-positioned at ~55%
+                viewport so it lands visually beneath the RoamingStar's
+                spinning diamond (star center: 45% viewport, half-height
+                ≈ 67px, +24px gap). `pointer-events-auto` reactivates
+                clicks on just this cluster — the rest of DialogContent is
+                `pointer-events-none` so the Radix overlay's dim-only
+                behavior is preserved over the surrounding page. */}
+            <div
+              className="pointer-events-auto fixed left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5"
+              style={{ top: "calc(45% + 92px)" }}
+            >
+              <p
+                role="status"
+                aria-live="polite"
+                data-testid="takeover-counter"
+                className="font-heading text-xl font-bold tracking-tight text-foreground"
+              >
+                Starring {progress.starred} / {progress.total}
+              </p>
+              <p className="font-heading text-[11px] uppercase tracking-widest text-muted-foreground">
+                public repos on your GitHub account
+              </p>
+              <button
+                type="button"
+                onClick={onCancelStarring}
+                data-testid="takeover-cancel"
+                className="mt-1 rounded-full border border-border bg-background/60 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                Cancel <span className="ml-1 opacity-60">(Esc)</span>
+              </button>
+            </div>
           </>
         )}
 

@@ -70,10 +70,37 @@ export const TAKEOVER_Y_RATIO = 0.45;
 export const TAKEOVER_SCALE = 2.4;
 export const TAKEOVER_SPIN_PERIOD_MS = 2600;
 
-// Star geometry (viewBox 100x100, 5-point star).
+// Shape geometry (viewBox 100x100).
+//
+// Canonical Ethereum octahedron — coordinates mirror `css-diamond.tsx` so
+// the roaming star reads as the same mark users already see elsewhere in
+// the app. Two paths, not one rhombus: an upper kite with shoulder-and-
+// waist proportions and a lower chevron with a V-notch.
+//
+//   Upper kite  : peak(50,2) → R-shoulder(79,42.4) → waist(50,74.5) →
+//                 L-shoulder(21,42.4) → close.
+//   Lower chevron: L-outer(21,52.6) → V-notch(50,81.2) → R-outer(79,52.6) →
+//                  apex(50,98) → close.
+//
+// The geometry is intentionally *not* vertically symmetric — the authentic
+// ETH diamond has a taller upper kite and a shorter lower chevron. To keep
+// `fillLevel` optics honest, consumers pass a calibrated value (the "ready"
+// state uses 0.42, not 0.5) so the rising gold fill reads as visually half.
 export const STAR_VIEWBOX = "0 0 100 100";
-export const STAR_PATH =
-  "M50 6 L61.8 37.6 L95.1 40.5 L70 62.6 L77.6 95.1 L50 78.3 L22.4 95.1 L30 62.6 L4.9 40.5 L38.2 37.6 Z";
+export const STAR_PATH_UPPER = "M50 2 L79 42.4 L50 74.5 L21 42.4 Z";
+export const STAR_PATH_LOWER = "M21 52.6 L50 81.2 L79 52.6 L50 98 Z";
+// Combined path for the clipped gold fill. `fillRule="evenodd"` is not
+// needed here — the two sub-paths don't overlap in x/y where ink is drawn.
+export const STAR_PATH = `${STAR_PATH_UPPER} ${STAR_PATH_LOWER}`;
+
+// fillLevel for the "ready" / "partial-failure" states on the authentic
+// (asymmetric) ETH silhouette. 0.58 maps to clip rect y=42 — the equator
+// line — so the gold covers the full lower chevron *and* the upper kite's
+// bottom waist up to the widest point. Visually reads as a balanced half.
+// Lower values leave the upper kite empty and make the fill feel
+// bottom-heavy; higher values push past the equator and no longer look
+// "paused at the halfway point".
+export const READY_FILL_LEVEL = 0.58;
 
 // Dormant sizing.
 export const DORMANT_STAR_SIZE_PX = 56;
@@ -83,11 +110,3 @@ export const ROAMING_STAR_SIZE_PX = 40;
 // Session persistence key (matches the ethstar_ prefix convention).
 export const DISMISSED_STORAGE_KEY = "ethstar_star_dismissed";
 export const DISMISSED_VERSION = 1; // bump to invalidate on schema changes
-
-// Cancel-gesture prototype selector — "button" or "click". Brief defers this
-// decision to craft ("try both"). Flip this to A/B in-browser during QA.
-export const CANCEL_GESTURE: "button" | "click" = "button";
-
-// Click-on-star gesture confirm window (variant B of the cancel prototype).
-// Shared between the timeout reset and the "Click again to cancel" hint text.
-export const CANCEL_CONFIRM_TIMEOUT_MS = 1800;

@@ -13,7 +13,6 @@
 
 import type { Ref, ReactNode } from "react";
 import { Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { HeroLogo } from "./hero-logo";
 
 interface HeroSectionProps {
@@ -69,19 +68,27 @@ export function HeroSection({
           {repoCount}+ fundamental repositories in a single action.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-6">
+        <div className="flex flex-col items-center gap-5">
           {/* Primary CTA — the RoamingStar (dormant form) renders here.
               It replaces the legacy "Connect via GitHub" button and the
               inline "Star All" row; the star is the single entry point. */}
           <div className="flex flex-col items-center">{primaryCta}</div>
-          <Button
+          {/* Secondary CTA — editorial text link so the two actions share a
+              visual register. The old shadcn outline pill read like a
+              different design system next to the star + editorial labels. */}
+          <button
+            type="button"
             onClick={onViewRepositories}
-            variant="outline"
-            size="lg"
-            className="rounded-full border border-border bg-transparent px-8 py-3 text-foreground hover:bg-accent"
+            className="group inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            View Repositories
-          </Button>
+            or browse the repositories
+            <span
+              aria-hidden="true"
+              className="text-base leading-none transition-transform group-hover:translate-y-0.5"
+            >
+              ↓
+            </span>
+          </button>
         </div>
 
         {/* Stats row is hidden on <md to keep the mobile hero inside one

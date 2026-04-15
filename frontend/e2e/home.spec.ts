@@ -59,7 +59,7 @@ test("home page shows unauthenticated CTAs", async ({ page }) => {
     page.getByRole("button", { name: "Connect via GitHub" }).first(),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "View Repositories" }),
+    page.getByRole("button", { name: /browse the repositories/i }),
   ).toBeVisible();
 });
 
@@ -142,13 +142,16 @@ test("marquees expose per-category accessible labels", async ({ page }) => {
   }
 });
 
-test("unauthenticated: RoamingStar renders the 'Light it up' CTA", async ({ page }) => {
+test("unauthenticated: RoamingStar dormant CTA names the action and provider", async ({ page }) => {
   await page.goto("/");
   // Dormant slot is present with the disconnected-state button/label.
   await expect(page.getByTestId("roaming-star-dormant-slot")).toBeVisible();
   const star = page.getByTestId("roaming-star-button").first();
   await expect(star).toBeVisible();
   await expect(star).toHaveAttribute("data-status", "disconnected");
+  // Primary line surfaces the noun; secondary names the provider + direction.
+  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  await expect(page.getByText("Sign in with GitHub ↗").first()).toBeVisible();
   // The legacy "Star All N Remaining" button should no longer exist.
   await expect(page.getByRole("button", { name: /Star All \d+ Remaining/i })).toHaveCount(0);
 });

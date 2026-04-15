@@ -39,6 +39,10 @@ interface StarAllOptions extends StarErrorCallbacks {
   /** Ephemeral token for starring (e.g. classic OAuth). If provided, skips
    *  token refresh on 401 — the caller must re-authorize instead. */
   token?: string;
+  /** Abort signal — when triggered, the starring loop breaks at the next
+   *  iteration boundary, cancels the in-flight request, and returns with
+   *  `aborted: true`. No exception is thrown. */
+  signal?: AbortSignal;
 }
 
 interface UseStarsReturn {
@@ -49,7 +53,7 @@ interface UseStarsReturn {
   checkStars: (options?: StarErrorCallbacks) => Promise<void>;
   starAll: (
     options?: StarAllOptions,
-  ) => Promise<{ starred: number; failed: number }>;
+  ) => Promise<{ starred: number; failed: number; aborted: boolean }>;
   retryStar: (repo: Repository, options?: StarErrorCallbacks) => Promise<void>;
   recheckRepo: (repo: Repository) => Promise<void>;
 }
@@ -163,7 +167,7 @@ export function useStars(): UseStarsReturn {
     async (options?: StarAllOptions) => {
       // Use ephemeral token if provided, otherwise the auth context token.
       const effectiveToken = options?.token ?? token;
-      if (!effectiveToken) return { starred: 0, failed: 0 };
+      if (!effectiveToken) return { starred: 0, failed: 0, aborted: false };
       setIsStarring(true);
       abortRef.current = false;
 
@@ -180,30 +184,35 @@ export function useStars(): UseStarsReturn {
           (r) => starStatusesRef.current[repoKey(r)] === "unstarred",
         );
 
+      const wasAborted = () => options?.signal?.aborted === true;
+
       try {
         const result = await starAllUnstarred(
           effectiveToken,
           selectUnstarred(),
           progressHandler,
           options?.onRateLimit,
+          options?.signal,
         );
-        return result;
+        return { ...result, aborted: wasAborted() };
       } catch (err) {
         if (err instanceof TokenExpiredError) {
           // Ephemeral tokens cannot be refreshed — fail immediately.
           if (options?.token) {
             options?.onSessionExpired?.();
-            return { starred: 0, failed: 0 };
+            return { starred: 0, failed: 0, aborted: false };
           }
           const newToken = await refreshToken();
           if (newToken) {
             try {
-              return await starAllUnstarred(
+              const retryResult = await starAllUnstarred(
                 newToken,
                 selectUnstarred(),
                 progressHandler,
                 options?.onRateLimit,
+                options?.signal,
               );
+              return { ...retryResult, aborted: wasAborted() };
             } catch (err2) {
               if (err2 instanceof TokenExpiredError) {
                 logout();
@@ -213,7 +222,7 @@ export function useStars(): UseStarsReturn {
               } else if (err2 instanceof ForbiddenError) {
                 options?.onForbidden?.();
               }
-              return { starred: 0, failed: 0 };
+              return { starred: 0, failed: 0, aborted: false };
             }
           } else {
             options?.onSessionExpired?.();
@@ -223,7 +232,7 @@ export function useStars(): UseStarsReturn {
         } else if (err instanceof ForbiddenError) {
           options?.onForbidden?.();
         }
-        return { starred: 0, failed: 0 };
+        return { starred: 0, failed: 0, aborted: false };
       } finally {
         setIsStarring(false);
       }

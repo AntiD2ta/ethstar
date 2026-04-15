@@ -20,6 +20,7 @@ import { HowItWorksSection } from "@/components/how-it-works-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
 import { RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
+import { READY_FILL_LEVEL } from "@/components/roaming-star/constants";
 import { RoamingStar } from "@/components/roaming-star/roaming-star";
 import type { RoamingStarState } from "@/components/roaming-star/types";
 import { SlideTransition } from "@/components/slide-transition";
@@ -56,7 +57,9 @@ export default function HomePage() {
   const [starModalOpen, setStarModalOpen] = useState(false);
   const [starModalKey, setStarModalKey] = useState(0);
   const [manualModalOpen, setManualModalOpen] = useState(false);
-  const [starResult, setStarResult] = useState<{ starred: number; failed: number } | null>(null);
+  const [starResult, setStarResult] = useState<
+    { starred: number; failed: number; aborted: boolean } | null
+  >(null);
   const { repoMeta, combinedStars, isLoading: metaLoading } = useRepoMeta(REPOSITORIES, token);
   const formattedStars = useMemo(
     () => formatHeroStars(combinedStars ?? FALLBACK_COMBINED_STARS),
@@ -118,9 +121,16 @@ export default function HomePage() {
     setManualModalOpen(true);
   }, []);
 
+  // AbortController owned by home so the RoamingStar's Cancel button (and
+  // Esc) can actually abort the starring loop. Reset per-run in handleStarAll
+  // so a cancelled-then-reopened session doesn't inherit the old aborted flag.
+  const starAbortRef = useRef<AbortController | null>(null);
+
   const handleStarAll = useCallback(() => {
     setStarResult(null);
     setStarModalKey((k) => k + 1);
+    starAbortRef.current?.abort();
+    starAbortRef.current = new AbortController();
     setStarModalOpen(true);
   }, []);
 
@@ -130,8 +140,11 @@ export default function HomePage() {
   // supernova plays over the backdrop fade-out (keeping setState out of
   // effects per the react-hooks/set-state-in-effect rule).
   const handleStartStarring = useCallback(async (ephemeralToken: string) => {
+    const controller = starAbortRef.current ?? new AbortController();
+    starAbortRef.current = controller;
     const result = await starAll({
       token: ephemeralToken,
+      signal: controller.signal,
       onRateLimit: (waitMs) => {
         const seconds = Math.ceil(waitMs / 1000);
         toast.warning(
@@ -146,7 +159,14 @@ export default function HomePage() {
     if (result.starred > 0) {
       reportStars(result.starred, token);
     }
-    if (result.failed === 0 && result.starred > 0) {
+    if (result.aborted) {
+      toast.info(
+        result.starred > 0
+          ? `Starring stopped — ${result.starred} repos were starred before you cancelled.`
+          : "Starring cancelled.",
+      );
+      setStarModalOpen(false);
+    } else if (result.failed === 0 && result.starred > 0) {
       toast.success(
         `All ${result.starred} repos starred. Thanks for supporting Ethereum OSS.`,
       );
@@ -200,14 +220,14 @@ export default function HomePage() {
     if (starResult && starResult.failed > 0) {
       return {
         status: "partial-failure",
-        fillLevel: 0.5,
+        fillLevel: READY_FILL_LEVEL,
         failedCount: starResult.failed,
         remaining: progress.remaining,
       };
     }
     return {
       status: "ready",
-      fillLevel: 0.5,
+      fillLevel: READY_FILL_LEVEL,
       remaining: progress.remaining,
     };
   }, [
@@ -224,9 +244,14 @@ export default function HomePage() {
 
   // Completion signal — drives supernova + closes modal. Guarded so the
   // happy-path auto-closes but the partial-failure case keeps the modal
-  // open so the user can see failures and retry from there.
+  // open so the user can see failures and retry from there. A cancelled
+  // run also skips the supernova (it's a celebratory finale, not a "you
+  // stopped" moment).
   const completed =
-    !isStarring && starResult !== null && starResult.failed === 0;
+    !isStarring &&
+    starResult !== null &&
+    starResult.failed === 0 &&
+    !starResult.aborted;
 
 
   // Star click dispatch: unauth → start OAuth via login; auth → open modal
@@ -239,12 +264,8 @@ export default function HomePage() {
     handleStarAll();
   }, [isAuthenticated, login, handleStarAll]);
 
-  // Cancel — v1 scope: the Cancel button is rendered but the useStars loop
-  // does not expose an abort handle yet. Logged in TASKS.md as follow-up.
-  // For now, this surfaces a toast so users get feedback and the page
-  // returns to idle on the next tick (the loop still finishes in-flight).
   const handleCancelStarring = useCallback(() => {
-    toast.info("Cancel is not yet wired — starring will finish the current batch.");
+    starAbortRef.current?.abort();
   }, []);
 
   return (
@@ -353,6 +374,7 @@ export default function HomePage() {
         cancelOAuth={cancelOAuth}
         starResult={starResult}
         onOpenManualModal={handleOpenManualModal}
+        onCancelStarring={handleCancelStarring}
       />
 
       {/* Manual starring modal — list of unstarred repos with GitHub links */}

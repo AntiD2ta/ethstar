@@ -40,7 +40,7 @@ export type RoamingStarStatus =
 
 /**
  * OAuth popup lifecycle for the disconnected label. Drives the secondary line
- * of the two-line label: idle → "↗ Continue with GitHub", pending → "Waiting
+ * of the two-line label: idle → "Sign in with GitHub ↗", pending → "Waiting
  * for GitHub…", blocked → "Popup blocked — click to retry".
  */
 export type RoamingStarOAuthStatus = "idle" | "pending" | "blocked";

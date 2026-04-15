@@ -141,10 +141,11 @@ export async function starRepo(
   token: string,
   owner: string,
   repo: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   const resp = await networkFetch(
     `${GITHUB_API}/user/starred/${owner}/${repo}`,
-    { method: "PUT", headers: authHeaders(token) },
+    { method: "PUT", headers: authHeaders(token), signal },
   );
 
   if (resp.status === 204) return;
@@ -220,19 +221,42 @@ export async function starAllUnstarred(
   repos: Repository[],
   onProgress: (repo: Repository, status: StarStatus) => void,
   onRateLimit?: (waitMs: number) => void,
+  signal?: AbortSignal,
 ): Promise<StarAllResult> {
   let starred = 0;
   let failed = 0;
 
+  const isAborted = () => signal?.aborted === true;
+  // Abort during an inter-repo sleep should not be treated as a real error.
+  // sleepInterruptible resolves early on abort and the loop short-circuits.
+  const sleepInterruptible = async (ms: number) => {
+    if (isAborted()) return;
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, ms);
+      const onAbort = () => {
+        clearTimeout(t);
+        resolve();
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
+  };
+
   for (let i = 0; i < repos.length; i++) {
+    if (isAborted()) break;
     const repo = repos[i];
     onProgress(repo, "starring");
 
     try {
-      await starRepo(token, repo.owner, repo.name);
+      await starRepo(token, repo.owner, repo.name, signal);
       starred++;
       onProgress(repo, "starred");
     } catch (err) {
+      // AbortError from the in-flight fetch — surface the "starring" state
+      // back to "unstarred" so the card stops flashing, then bail out.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        onProgress(repo, "unstarred");
+        break;
+      }
       if (err instanceof TokenExpiredError) throw err;
       if (err instanceof NetworkError) throw err;
       if (err instanceof ForbiddenError) throw err;
@@ -240,12 +264,20 @@ export async function starAllUnstarred(
         // Wait for retry-after then retry this repo.
         const waitMs = err.retryAfterMs ?? 60_000;
         onRateLimit?.(waitMs);
-        await sleep(waitMs);
+        await sleepInterruptible(waitMs);
+        if (isAborted()) {
+          onProgress(repo, "unstarred");
+          break;
+        }
         try {
-          await starRepo(token, repo.owner, repo.name);
+          await starRepo(token, repo.owner, repo.name, signal);
           starred++;
           onProgress(repo, "starred");
-        } catch {
+        } catch (retryErr) {
+          if (retryErr instanceof DOMException && retryErr.name === "AbortError") {
+            onProgress(repo, "unstarred");
+            break;
+          }
           failed++;
           onProgress(repo, "failed");
         }
@@ -257,7 +289,7 @@ export async function starAllUnstarred(
 
     // Delay between stars to avoid abuse detection (except after the last one).
     if (i < repos.length - 1) {
-      await sleep(STAR_DELAY_MS);
+      await sleepInterruptible(STAR_DELAY_MS);
     }
   }
 
@@ -375,10 +407,6 @@ export async function fetchAllRepoMetaGraphQL(
   }
 
   return result;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Thrown when the token is expired or revoked (HTTP 401). */
