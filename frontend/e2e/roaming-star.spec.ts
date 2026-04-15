@@ -108,8 +108,18 @@ test("no '0 repos to go' flash while checkStars runs on refresh (all-starred)", 
       body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
     }),
   );
+  // Per-route delay is tuned to keep the checking window observable without
+  // letting the full check run long enough to collide with the success-
+  // assertion timeout under parallel Playwright workers. With 58 repos and
+  // concurrency=5 (the internal CONCURRENT_CHECK_LIMIT = 5 constant in
+  // lib/github.ts), total check time is ~12 rounds × delay. 100ms yields
+  // ~1.2s total clean, comfortably under the raised 10s timeout even with
+  // 5× local CPU contention. CHECK_SAMPLE_WINDOW_MS must stay ≥ that ~1.2s
+  // so the sampling loop covers the full checking phase.
+  const MOCK_DELAY_MS = 100;
+  const CHECK_SAMPLE_WINDOW_MS = 1_500;
   await page.route("https://api.github.com/user/starred/**", async (r) => {
-    await new Promise((res) => setTimeout(res, 250));
+    await new Promise((res) => setTimeout(res, MOCK_DELAY_MS));
     await r.fulfill({ status: 204, body: "" });
   });
   await page.route("https://api.github.com/graphql", (r) =>
@@ -129,7 +139,7 @@ test("no '0 repos to go' flash while checkStars runs on refresh (all-starred)", 
   // state with a bogus "0 repos to go" caption. Sample the DOM several times
   // across the check window to catch any transient flicker.
   const star = page.getByTestId("roaming-star-button").first();
-  const deadline = Date.now() + 1500;
+  const deadline = Date.now() + CHECK_SAMPLE_WINDOW_MS;
   while (Date.now() < deadline) {
     const status = await star.getAttribute("data-status");
     if (status === "success") break;
@@ -139,7 +149,9 @@ test("no '0 repos to go' flash while checkStars runs on refresh (all-starred)", 
   }
 
   // And we do eventually resolve to the "All starred" success state.
-  await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
+  // Timeout is generous (10s) so the assertion tolerates parallel-worker CPU
+  // contention on local runs.
+  await expect(star).toHaveAttribute("data-status", "success", { timeout: 10_000 });
   await expect(page.getByText("All starred").first()).toBeVisible();
 });
 
