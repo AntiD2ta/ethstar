@@ -438,8 +438,16 @@ export class RateLimitError extends Error {
 
 /**
  * Thrown when GitHub returns 403 for permission reasons (not rate limiting).
- * Typically means the token lacks the required scope (e.g., Starring: Read
- * instead of Read & Write on the GitHub App).
+ * Two distinct root causes depending on which token was in use:
+ * - Read path (isStarred, fetchRepoMeta, fetchAllRepoMetaGraphQL via the
+ *   GitHub App session token): the App install is missing the required
+ *   permission (e.g., Starring: None where Read was expected).
+ * - Write path (starRepo via the classic-OAuth ephemeral token): almost
+ *   always an organisation-level OAuth app restriction, or a token the user
+ *   revoked mid-flow. Not a GitHub App permission issue — GitHub App tokens
+ *   can't star at all in this architecture (see CLAUDE.md on the hybrid
+ *   OAuth approach).
+ * Callers should route this error to path-specific recovery advice.
  */
 export class ForbiddenError extends Error {
   constructor(context: string) {
