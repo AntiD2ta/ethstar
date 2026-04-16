@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import type { Ref, ReactNode } from "react";
-import { Star } from "lucide-react";
+import { ChalkMark } from "./chalk-mark";
 import { HeroLogo } from "./hero-logo";
 
 interface HeroSectionProps {
@@ -36,6 +36,16 @@ interface HeroSectionProps {
   ref?: Ref<HTMLElement>;
 }
 
+/**
+ * Scene-centric hero. The 3D rotating diamond (`HeroLogo`) is the stage; the
+ * content stacks vertically on the center axis so the star CTA lands inside
+ * the diamond's visual footprint. Rhythm is carried by varied vertical gaps
+ * (tight H1↔subhead, generous to star, tight star↔browse, generous to stats)
+ * rather than by column placement.
+ *
+ * `primaryCta` is still rendered exactly once — RoamingStar owns its own
+ * IntersectionObserver + portal and can't be double-mounted.
+ */
 export function HeroSection({
   repoCount,
   formattedStars,
@@ -50,93 +60,73 @@ export function HeroSection({
     <section
       ref={ref}
       data-testid="hero-section"
-      /* Short-laptop fallback: on viewports ≤800px tall the md:py-20 + gap-8
-         stack pushes the "or browse" secondary CTA below the fold. Arbitrary
-         max-height variants compress padding so the whole CTA cluster stays
-         in one viewport without changing the tall-screen composition. */
-      className="relative flex min-h-dvh flex-col items-center px-4 py-12 text-center md:px-6 md:py-20 [@media(min-width:768px)_and_(max-height:800px)]:py-10"
+      className="relative flex min-h-dvh flex-col px-4 py-12 md:px-6 md:py-20 [@media(min-width:768px)_and_(max-height:800px)]:py-10"
     >
       <HeroLogo />
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-5 md:gap-8 [@media(min-width:768px)_and_(max-height:800px)]:gap-5">
-        <h1 className="font-heading text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl">
-          <span className="text-foreground">Star Every</span>{" "}
-          <span className="text-eth-highlight">Ethereum</span>{" "}
-          <span className="text-foreground">Repo</span>
+      <div
+        data-testid="hero-stack"
+        className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center text-center"
+      >
+        <h1
+          data-testid="hero-h1"
+          className="font-heading text-display font-bold leading-[0.95] tracking-tight"
+        >
+          <span className="text-foreground">Support </span>
+          <span className="text-eth-highlight">Ethereum&apos;s</span>{" "}
+          <span className="relative inline-block text-foreground">
+            builders
+            <ChalkMark className="pointer-events-none absolute left-0 top-full h-3 w-full -translate-y-1" />
+          </span>
         </h1>
 
-        <p className="max-w-2xl text-base text-muted-foreground min-[375px]:text-lg">
-          Support the teams and devs building a decentralized world. Authenticate
-          with GitHub to{" "}
-          <Star
-            size={18}
-            className="inline-block align-text-bottom text-star-gold"
-            fill="currentColor"
-            strokeWidth={0}
+        <p
+          data-testid="hero-subhead"
+          className="mt-6 max-w-[55ch] text-body-lg leading-relaxed text-muted-foreground [@media(min-width:768px)_and_(max-height:800px)]:mt-4"
+        >
+          One tap stars every core Ethereum open-source repo on your GitHub.
+          Each star is a public recognition that tells the teams and devs
+          behind them their work matters.
+        </p>
+
+        {/* Generous gap — this is the tier break between framing copy and the
+            starring moment. The diamond earns the breathing room. */}
+        <div className="mt-10 flex items-center justify-center md:mt-12 [@media(min-width:768px)_and_(max-height:800px)]:mt-6">
+          {primaryCta}
+        </div>
+
+        <button
+          type="button"
+          onClick={onViewRepositories}
+          className="group mt-6 inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(min-width:768px)_and_(max-height:800px)]:mt-4"
+        >
+          {primaryCtaPresent
+            ? "or browse the repositories"
+            : "Browse the repositories"}
+          <span
             aria-hidden="true"
-          />{" "}
-          {repoCount}+ fundamental repositories in a single action.
-        </p>
-
-        <div className="flex flex-col items-center gap-5">
-          {/* Primary CTA — the RoamingStar (dormant form) renders here.
-              It replaces the legacy "Connect via GitHub" button and the
-              inline "Star All" row; the star is the single entry point. */}
-          <div className="flex flex-col items-center">{primaryCta}</div>
-          {/* Secondary CTA — editorial text link so the two actions share a
-              visual register. The old shadcn outline pill read like a
-              different design system next to the star + editorial labels. */}
-          <button
-            type="button"
-            onClick={onViewRepositories}
-            className="group inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="text-base leading-none transition-transform group-hover:translate-y-0.5"
           >
-            {primaryCtaPresent ? "or browse the repositories" : "Browse the repositories"}
-            <span
-              aria-hidden="true"
-              className="text-base leading-none transition-transform group-hover:translate-y-0.5"
-            >
-              ↓
-            </span>
-          </button>
-        </div>
+            ↓
+          </span>
+        </button>
 
-        {/* Stats row is hidden on <md to keep the mobile hero inside one
-            viewport. Phase E owns the hero reframe — until then, a single
-            inline summary lives below for cognitive clarity on small screens. */}
-        <p className="text-xs text-muted-foreground md:hidden" aria-label="Site statistics">
-          <span className="font-semibold text-primary">{repoCount}+</span> repos ·{" "}
-          <span className="font-semibold text-primary">{formattedStars}</span> combined stars
+        <p
+          data-testid="hero-meta"
+          className="mt-10 text-caption text-muted-foreground md:mt-14 [@media(min-width:768px)_and_(max-height:800px)]:mt-6"
+          aria-label="Site statistics"
+        >
+          <span className="font-semibold text-primary">{repoCount}+</span>{" "}
+          repos ·{" "}
+          <span className="font-semibold text-primary">{formattedStars}</span>{" "}
+          combined stars ·{" "}
+          <span className="font-semibold text-primary">{categoryCount}</span>{" "}
+          categories
         </p>
-
-        <div className="hidden items-center gap-3 text-center md:flex md:gap-10" aria-label="Site statistics" role="group">
-          <div aria-label={`${repoCount}+ repositories`}>
-            <span className="text-2xl font-bold text-primary">{repoCount}+</span>
-            <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
-              Repos
-            </span>
-          </div>
-          <span className="text-border" aria-hidden="true">·</span>
-          <div aria-label={`${formattedStars} combined stars`}>
-            <span className="text-2xl font-bold text-primary">{formattedStars}</span>
-            <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
-              Combined Stars
-            </span>
-          </div>
-          <span className="text-border" aria-hidden="true">·</span>
-          <div aria-label={`${categoryCount} categories`}>
-            <span className="text-2xl font-bold text-primary">{categoryCount}</span>
-            <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
-              Categories
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Rendered at the bottom of the hero viewport */}
-      {children && (
-        <div className="relative z-10 w-full">{children}</div>
-      )}
+      {children && <div className="relative z-10 w-full">{children}</div>}
     </section>
   );
 }

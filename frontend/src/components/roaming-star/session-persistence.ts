@@ -11,7 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { DISMISSED_STORAGE_KEY, DISMISSED_VERSION } from "./constants";
+import {
+  DISCOVERY_HINT_STORAGE_KEY,
+  DISMISSED_STORAGE_KEY,
+  DISMISSED_VERSION,
+} from "./constants";
 
 interface DismissedRecord {
   v: number;
@@ -60,6 +64,39 @@ export function clearDismissed(): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(DISMISSED_STORAGE_KEY);
+  } catch {
+    // Ignore.
+  }
+}
+
+// Discovery-hint one-shot guard. Tab-scoped via sessionStorage: a new tab
+// gets a fresh hint (different session), but re-renders or remounts within
+// the same tab — including React StrictMode's double-mount — see the seen
+// flag and skip. We store "1" rather than a structured record because the
+// only question is "has this ever fired in this tab"; no metadata to parse.
+export function hasSeenDiscoveryHint(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(DISCOVERY_HINT_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markDiscoveryHintSeen(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(DISCOVERY_HINT_STORAGE_KEY, "1");
+  } catch {
+    // Storage quota or disabled — silently degrade. Worst case: hint fires
+    // a second time in the same tab, which is gentle and not broken.
+  }
+}
+
+export function clearDiscoveryHintSeen(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(DISCOVERY_HINT_STORAGE_KEY);
   } catch {
     // Ignore.
   }

@@ -4,7 +4,7 @@
   </a>
 
   <h1>Ethstar</h1>
-  <p>One-click tool to star all core Ethereum protocol GitHub repositories.</p>
+  <p>Support Ethereum's builders — one tap stars every core protocol repo on your GitHub.</p>
 
   [![CI](https://github.com/AntiD2ta/ethstar/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AntiD2ta/ethstar/actions/workflows/ci.yml)
   [![Go Report Card](https://goreportcard.com/badge/github.com/AntiD2ta/ethstar)](https://goreportcard.com/report/github.com/AntiD2ta/ethstar)

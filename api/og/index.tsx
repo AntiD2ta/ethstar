@@ -47,8 +47,8 @@ async function loadGoogleFont(
 }
 
 export default async function handler() {
-  const title = "Star Every Ethereum Repo";
-  const subtitle = `Support ${REPO_COUNT}+ core protocol repositories in a single click`;
+  const title = "Support Ethereum's builders";
+  const subtitle = `One tap stars all ${REPO_COUNT}+ core protocol repos on your GitHub`;
 
   const [spaceGrotesk, inter] = await Promise.all([
     loadGoogleFont("Space Grotesk", 700, title),
@@ -112,9 +112,9 @@ export default async function handler() {
             lineHeight: 1,
           }}
         >
-          <span style={{ color: "#e4e4f0" }}>Star Every </span>
-          <span style={{ color: "#6366f1" }}>Ethereum</span>
-          <span style={{ color: "#e4e4f0" }}> Repo</span>
+          <span style={{ color: "#e4e4f0" }}>Support </span>
+          <span style={{ color: "#6366f1" }}>Ethereum&apos;s</span>
+          <span style={{ color: "#e4e4f0" }}> builders</span>
         </div>
 
         {/* Subtitle */}

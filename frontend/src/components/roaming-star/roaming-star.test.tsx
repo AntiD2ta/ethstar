@@ -16,7 +16,12 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, useState } from "react";
 import { RoamingStar } from "./roaming-star";
-import { DISMISSED_STORAGE_KEY } from "./constants";
+import {
+  DISCOVERY_HINT_DELAY_MS,
+  DISCOVERY_HINT_STORAGE_KEY,
+  DISCOVERY_HINT_TEXT,
+  DISMISSED_STORAGE_KEY,
+} from "./constants";
 import type { RoamingStarState } from "./types";
 
 // Stub IntersectionObserver: default to "visible" so the star stays dormant
@@ -55,6 +60,7 @@ class StubIO implements IntersectionObserver {
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   vi.stubGlobal("IntersectionObserver", StubIO);
 });
 
@@ -88,7 +94,7 @@ describe("RoamingStar", () => {
     const btn = screen.getByTestId("roaming-star-button");
     expect(btn).toHaveAttribute(
       "aria-label",
-      "Star every Ethereum repo — sign in with GitHub to begin",
+      "Star all 17 Ethereum repos — sign in with GitHub to begin",
     );
     expect(btn.tagName).toBe("BUTTON");
     expect(btn).toHaveAttribute("data-status", "disconnected");
@@ -96,7 +102,7 @@ describe("RoamingStar", () => {
 
   it("shows the two-line disconnected label naming the action and the provider", () => {
     renderStar();
-    expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+    expect(screen.getByText("Star all 17 now")).toBeInTheDocument();
     expect(screen.getByText("Sign in with GitHub ↗")).toBeInTheDocument();
   });
 
@@ -144,7 +150,7 @@ describe("RoamingStar", () => {
 
   it("clears stale dismissal when the user is disconnected on mount", () => {
     // Completed a prior session, then logged out. Without this clear, the
-    // dormant CTA would vanish on a page that prompts "Connect via GitHub".
+    // dormant CTA would vanish on a page that prompts "Sign in with GitHub".
     window.localStorage.setItem(
       DISMISSED_STORAGE_KEY,
       JSON.stringify({ v: 1, dismissedAt: Date.now() }),
@@ -197,7 +203,7 @@ describe("RoamingStar", () => {
           oauthStatus: "pending",
         },
       });
-      expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+      expect(screen.getByText("Star all 17 now")).toBeInTheDocument();
       expect(screen.getByText("Waiting for GitHub…")).toBeInTheDocument();
       expect(
         screen.queryByText("Sign in with GitHub ↗"),
@@ -213,7 +219,7 @@ describe("RoamingStar", () => {
           oauthStatus: "blocked",
         },
       });
-      expect(screen.getByText("Star every Ethereum repo")).toBeInTheDocument();
+      expect(screen.getByText("Star all 17 now")).toBeInTheDocument();
       expect(
         screen.getByText("Popup blocked — click to retry"),
       ).toBeInTheDocument();
@@ -290,10 +296,10 @@ describe("RoamingStar", () => {
       try {
         renderStar();
         // The roaming-mode label pill is identified by data-testid and echoes
-        // labelLines[0] — "Star every Ethereum repo" in the disconnected state.
+        // labelLines[0] — "Star all 17 now" in the disconnected state (Phase E).
         const label = screen.getByTestId("roaming-star-label");
         expect(label).toBeInTheDocument();
-        expect(label).toHaveTextContent("Star every Ethereum repo");
+        expect(label).toHaveTextContent("Star all 17 now");
       } finally {
         if (prevAnimate === undefined) {
           delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
@@ -387,6 +393,186 @@ describe("RoamingStar", () => {
       }
 
       expect(document.activeElement).toBe(adjacent);
+    });
+  });
+
+  describe("Phase E.2 — same-session settle & replay", () => {
+    // Harness that drives the completion cycle while letting the test flip
+    // `state.status` from "in-progress" → "success" at the moment the parent
+    // would in production (starResult set, allDone true). Exposes refs to
+    // the setters so each test can orchestrate its own timeline.
+    function CycleHarness({
+      initialState = {
+        status: "in-progress" as const,
+        fillLevel: 0.5,
+        remaining: 3,
+      },
+    }: {
+      initialState?: RoamingStarState;
+    }) {
+      const heroRef = createRef<HTMLElement>();
+      const [state, setState] = useState<RoamingStarState>(initialState);
+      const [inProgress, setInProgress] = useState(true);
+      const [completed, setCompleted] = useState(false);
+      return (
+        <>
+          <section ref={heroRef as React.RefObject<HTMLElement>}>
+            <RoamingStar
+              heroRef={heroRef}
+              state={state}
+              inProgress={inProgress}
+              completed={completed}
+              onTrigger={vi.fn()}
+            />
+          </section>
+          <button
+            type="button"
+            data-testid="complete"
+            onClick={() => {
+              setInProgress(false);
+              setCompleted(true);
+              setState({ status: "success", fillLevel: 1, remaining: 0 });
+            }}
+          >
+            complete
+          </button>
+        </>
+      );
+    }
+
+    it("settles into the all-starred terminal state after supernova — no auto-dismiss", async () => {
+      render(<CycleHarness />);
+      const complete = screen.getByTestId("complete");
+      vi.useFakeTimers();
+      try {
+        // Trigger the completion — mode flips in-progress → supernova.
+        await act(async () => {
+          complete.click();
+        });
+        // Flush the supernova fade envelope (SUPERNOVA_FADE_MS * 1.6 ~ 1760ms).
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2000);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      // Dormant slot still mounted — the slot does NOT auto-dismiss.
+      const star = screen.getByTestId("roaming-star-button");
+      expect(star).toBeInTheDocument();
+      expect(star).toHaveAttribute("data-status", "success");
+      expect(screen.getByText("All starred")).toBeInTheDocument();
+      // And the legacy auto-dismissal flag must NOT have been written —
+      // only explicit × dismissal writes that key.
+      expect(window.localStorage.getItem(DISMISSED_STORAGE_KEY)).toBeNull();
+    });
+
+    it("explicit × dismiss affordance writes the session-dismissal flag and unmounts the star", async () => {
+      const user = userEvent.setup();
+      render(<CycleHarness />);
+      const complete = screen.getByTestId("complete");
+      vi.useFakeTimers();
+      try {
+        await act(async () => {
+          complete.click();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2000);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      // The × affordance is present and keyboard-reachable with the
+      // "Dismiss completion" aria-label.
+      const dismiss = screen.getByTestId("roaming-star-dismiss");
+      expect(dismiss).toHaveAttribute("aria-label", "Dismiss completion");
+
+      await user.click(dismiss);
+
+      expect(screen.queryByTestId("roaming-star-button")).not.toBeInTheDocument();
+      // Flag written. Shape is validated by session-persistence tests.
+      expect(
+        window.localStorage.getItem(DISMISSED_STORAGE_KEY),
+      ).not.toBeNull();
+    });
+
+    it("discovery hint fires once per tab and is suppressed thereafter", async () => {
+      const { unmount } = render(<CycleHarness />);
+      vi.useFakeTimers();
+      try {
+        await act(async () => {
+          screen.getByTestId("complete").click();
+        });
+        // Flush the supernova envelope so `supernovaSettled` flips true.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2000);
+        });
+        // Before the hint delay elapses the pill is not visible.
+        expect(
+          screen.queryByText(DISCOVERY_HINT_TEXT),
+        ).not.toBeInTheDocument();
+
+        // Advance past the hint delay — pill becomes visible.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(DISCOVERY_HINT_DELAY_MS + 20);
+        });
+        expect(screen.getByText(DISCOVERY_HINT_TEXT)).toBeInTheDocument();
+        // And sessionStorage now holds the one-shot guard.
+        expect(
+          window.sessionStorage.getItem(DISCOVERY_HINT_STORAGE_KEY),
+        ).toBe("1");
+      } finally {
+        vi.useRealTimers();
+      }
+
+      // Re-mount within the same "tab" (sessionStorage survives unmount).
+      // The second completion cycle must NOT show the hint again.
+      unmount();
+      render(<CycleHarness />);
+      vi.useFakeTimers();
+      try {
+        await act(async () => {
+          screen.getByTestId("complete").click();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(
+            2000 + DISCOVERY_HINT_DELAY_MS + 200,
+          );
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+      // The discovery pill container still exists (aria-live always-mounted
+      // so SRs can announce on first reveal), but the visible TEXT is not.
+      expect(
+        screen.queryByText(DISCOVERY_HINT_TEXT),
+      ).not.toBeInTheDocument();
+    });
+
+    it("throttles replay taps so a rapid click-storm fires at most one burst per 1.5s", async () => {
+      const user = userEvent.setup();
+      // Direct render with state already at success — simulates the "page
+      // refresh reaches terminal" path the same-session flow now mirrors.
+      renderStar({
+        state: { status: "success", fillLevel: 1, remaining: 0 },
+      });
+
+      // Pulse wrappers must be queried by selector after each click — the
+      // celebrate wrapper has its React `key` bumped on each replay, which
+      // detaches the prior DOM node. A cached `star` reference would point
+      // to a detached subtree and `closest()` would wrongly return null.
+      const selector = ".roaming-star-celebrate, .roaming-star-celebrate-rm";
+
+      // First click — celebrate wrapper mounts with the pulse class.
+      await user.click(screen.getByTestId("roaming-star-button"));
+      expect(document.querySelectorAll(selector).length).toBe(1);
+
+      // Immediate second click — throttle swallows it. No new wrapper is
+      // mounted because the key didn't advance. Still one pulse wrapper
+      // on the page — no stacked/duplicated burst.
+      await user.click(screen.getByTestId("roaming-star-button"));
+      expect(document.querySelectorAll(selector).length).toBe(1);
     });
   });
 });

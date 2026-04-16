@@ -78,6 +78,19 @@
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
 
+    /* -- Editorial Type Scale (Phase E) --
+       1.333 (perfect-fourth) modular scale anchored on the 16px body. Display
+       uses clamp() so the H1 fluidly rides between 40px (mobile) and 76px
+       (large desktop) without devolving into a 7xl wall on tablets. The scale
+       lets editorial weight + italic carry emphasis, replacing the multi-shadow
+       glow word that was the page's loudest AI-slop tell. */
+    --text-display: clamp(2.5rem, 6.5vw, 4.75rem);   /* H1 — hero only */
+    --text-h2: clamp(1.75rem, 3.2vw, 2.25rem);       /* section heads */
+    --text-h3: 1.5rem;                                /* sub-heads */
+    --text-body-lg: 1.125rem;                         /* hero subhead */
+    --text-body: 1rem;                                /* body */
+    --text-caption: 0.8125rem;                        /* meta / stats */
+
     /* -- Custom Animations -- */
     --animate-marquee: marquee 30s linear infinite;
     --animate-marquee-reverse: marquee-reverse 30s linear infinite;
@@ -333,10 +346,11 @@
         will-change: filter, transform;
     }
 
-    /* Glassmorphism */
+    /* Glassmorphism — Phase E quieter pass: blur 12 → 6px halves the GPU
+       cost and the "AI gloss" tell while still producing surface depth. */
     .glass {
         background: oklch(0.230 0.022 280 / 50%);
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(6px);
         border: 1px solid oklch(0.380 0.028 280 / 25%);
     }
 
@@ -369,7 +383,7 @@
         height: 100px;
         padding: 10px 12px;
         background: oklch(0.230 0.022 280 / 60%);
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(6px);
         border: 1px solid oklch(0.380 0.028 280 / 25%);
         border-radius: 0.75rem;
         text-decoration: none;
