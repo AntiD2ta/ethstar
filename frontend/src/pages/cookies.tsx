@@ -12,6 +12,7 @@
 // limitations under the License.
 
 import { Link } from "react-router";
+import { BackBreadcrumb } from "@/components/back-breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -105,11 +106,7 @@ export default function CookiesPage() {
   const { openBanner } = useConsent();
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-      <nav className="mb-6 text-sm">
-        <Link to="/" className="text-muted-foreground hover:text-foreground">
-          ← Back to Ethstar
-        </Link>
-      </nav>
+      <BackBreadcrumb />
 
       <header className="mb-8 flex flex-col gap-4">
         <div>
@@ -127,7 +124,7 @@ export default function CookiesPage() {
         </div>
       </header>
 
-      <article className="prose prose-invert max-w-none prose-headings:font-heading prose-a:text-primary">
+      <article className="prose prose-invert max-w-[65ch] prose-headings:font-heading prose-a:text-primary">
         <h2>How we use storage</h2>
         <p>
           Ethstar uses browser cookies and <code>localStorage</code> for two
@@ -167,7 +164,7 @@ export default function CookiesPage() {
         </Table>
       </div>
 
-      <article className="prose prose-invert mt-8 max-w-none prose-headings:font-heading prose-a:text-primary">
+      <article className="prose prose-invert mt-8 max-w-[65ch] prose-headings:font-heading prose-a:text-primary">
         <h2>Third-party details</h2>
         <p>
           Vercel Analytics and Speed Insights load from{" "}

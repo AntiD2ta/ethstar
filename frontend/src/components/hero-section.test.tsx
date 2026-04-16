@@ -21,6 +21,7 @@ const renderHero = (overrides: Partial<ComponentProps<typeof HeroSection>> = {})
     <HeroSection
       repoCount={58}
       formattedStars="125K"
+      starsAreLive
       categoryCount={5}
       onViewRepositories={() => {}}
       primaryCta={<button type="button">Star all 58 now</button>}

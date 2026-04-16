@@ -804,6 +804,25 @@ export const RoamingStar = memo(function RoamingStar({
             }}
           >
             {labelLines[0]}
+            {/* Remaining-count badge on the sticky floating CTA — the
+                `(N left)` affordance requested by the trust-safety spec.
+                Surfaces the unstarred count without forcing the user back
+                to the hero to see the dormant label. Only shown when we
+                have a positive remaining count so an all-done state keeps
+                its clean look. */}
+            {labelLines[1] && state.remaining !== undefined && state.remaining > 0 && (
+              <span
+                data-testid="roaming-star-count-badge"
+                style={{
+                  marginLeft: 8,
+                  paddingLeft: 8,
+                  borderLeft: "1px solid oklch(0.45 0.028 280 / 0.4)",
+                  color: "var(--muted-foreground)",
+                }}
+              >
+                {state.remaining} left
+              </span>
+            )}
           </div>
         )}
       </div>

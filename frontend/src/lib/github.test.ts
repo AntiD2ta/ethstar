@@ -30,6 +30,10 @@ import { installFetchStub } from "@/test/fetch-stub";
 
 const TOKEN = "ghu_testtoken";
 
+// Must match STAR_DELAY_MS in github.ts. Tests advance timers by one delay
+// interval to let sleepInterruptible resolve on abort.
+const STAR_DELAY_MS_TEST = 1000;
+
 function assertAuthHeaders(headers: HeadersInit | undefined) {
   expect(headers).toBeDefined();
   const h = headers as Record<string, string>;
@@ -634,6 +638,48 @@ describe("starAllUnstarred", () => {
     // Only the first repo should have been attempted (starring status),
     // then the loop stops — no retries, no subsequent repos.
     expect(events).toEqual([["repo0", "starring"]]);
+  });
+
+  it("stop-after-current: abort between repos halts the loop after the in-flight PUT completes", async () => {
+    const repos = makeRepos(3);
+    const stub = installFetchStub();
+    stub.enqueue({ status: 204 }, { status: 204 }, { status: 204 });
+    const controller = new AbortController();
+    const events: Array<[string, string]> = [];
+
+    const promise = starAllUnstarred(
+      TOKEN,
+      repos,
+      (repo, status) => {
+        events.push([repo.name, status]);
+      },
+      undefined,
+      controller.signal,
+    );
+
+    // First PUT fires immediately and completes.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stub.callCount()).toBe(1);
+    expect(events).toEqual([
+      ["repo0", "starring"],
+      ["repo0", "starred"],
+    ]);
+
+    // User clicks "Stop after current" during the inter-repo sleep.
+    controller.abort();
+    // The sleep should resolve early and the loop check should break
+    // before firing a second PUT.
+    await vi.advanceTimersByTimeAsync(STAR_DELAY_MS_TEST);
+    const result = await promise;
+
+    // repo0 was starred; repo1/repo2 never dispatched.
+    expect(stub.callCount()).toBe(1);
+    expect(result).toEqual({ starred: 1, failed: 0 });
+    // Crucially: no "unstarred" reversion for repo0 — the commit is honoured.
+    expect(events).toEqual([
+      ["repo0", "starring"],
+      ["repo0", "starred"],
+    ]);
   });
 });
 

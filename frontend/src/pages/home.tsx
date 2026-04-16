@@ -61,10 +61,17 @@ export default function HomePage() {
     { starred: number; failed: number; aborted: boolean } | null
   >(null);
   const { repoMeta, combinedStars, isLoading: metaLoading } = useRepoMeta(REPOSITORIES, token);
-  const formattedStars = useMemo(
-    () => formatHeroStars(combinedStars ?? FALLBACK_COMBINED_STARS),
-    [combinedStars],
-  );
+  // `starsAreLive` drives both the `~` prefix (honest placeholder marker)
+  // and the opacity cross-fade. Derived from combinedStars instead of
+  // metaLoading because metaLoading flips true → false even when the fetch
+  // fails and we stay on the fallback forever.
+  const starsAreLive = combinedStars !== null;
+  // `starsAreLive` is derived from `combinedStars` — it cannot change
+  // independently, so only the base value belongs in the dep array.
+  const formattedStars = useMemo(() => {
+    const formatted = formatHeroStars(combinedStars ?? FALLBACK_COMBINED_STARS);
+    return combinedStars !== null ? formatted : `~${formatted}`;
+  }, [combinedStars]);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const reposRef = useRef<HTMLDivElement | null>(null);
@@ -179,12 +186,9 @@ export default function HomePage() {
       reportStars(result.starred, token);
     }
     if (result.aborted) {
-      toast.info(
-        result.starred > 0
-          ? `Starring stopped — ${result.starred} repos were starred before you cancelled.`
-          : "Starring cancelled.",
-      );
-      setStarModalOpen(false);
+      // Don't close the modal — the modal's "stopped" terminal state owns the
+      // "Stopped at X of Y" summary. A toast would duplicate the message and
+      // announce a dismissal the user didn't yet acknowledge.
     } else if (result.failed === 0 && result.starred > 0) {
       toast.success(`All ${result.starred} repos starred`, {
         description:
@@ -324,6 +328,7 @@ export default function HomePage() {
         ref={heroRef}
         repoCount={REPOSITORIES.length}
         formattedStars={formattedStars}
+        starsAreLive={starsAreLive}
         categoryCount={CATEGORIES.length}
         onViewRepositories={scrollToRepos}
         // The star supernovas and self-dismisses once the user has starred
@@ -365,6 +370,7 @@ export default function HomePage() {
       <TrustStripSection
         repoCount={REPOSITORIES.length}
         formattedStars={formattedStars}
+        starsAreLive={starsAreLive}
       />
 
       <SlideTransition />
@@ -376,6 +382,28 @@ export default function HomePage() {
         tabIndex={-1}
         className="flex flex-col gap-12 py-12 focus:outline-none"
       >
+        {/* Summary line — visible only once checkStars has resolved every
+            repo. While checking, or before auth, we suppress the line to
+            avoid a flash of stale/incorrect counts. */}
+        {isAuthenticated && !isChecking && progress.total > 0 && (
+          <p
+            data-testid="repos-summary"
+            className="px-4 text-center text-sm text-muted-foreground sm:px-6"
+            role="status"
+            aria-live="polite"
+          >
+            {unstarredRepos.length === 0 ? (
+              <>All {progress.total} repos starred — thank you.</>
+            ) : (
+              <>
+                <strong className="text-foreground">
+                  {unstarredRepos.length} of {progress.total}
+                </strong>{" "}
+                unstarred
+              </>
+            )}
+          </p>
+        )}
         {CATEGORIES.map((category) => (
           <RepoSection
             key={category.name}
@@ -414,6 +442,7 @@ export default function HomePage() {
         starResult={starResult}
         onOpenManualModal={handleOpenManualModal}
         onCancelStarring={handleCancelStarring}
+        popupBlocked={oauthStatus === "blocked"}
       />
 
       {/* Manual starring modal — list of unstarred repos with GitHub links */}

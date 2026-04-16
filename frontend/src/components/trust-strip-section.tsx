@@ -17,6 +17,9 @@ import { KeyRound, Eraser, BookOpenCheck, UserCheck } from "lucide-react";
 interface TrustStripSectionProps {
   repoCount: number;
   formattedStars: string;
+  /** True once live stargazer data has loaded. When false the coverage
+   *  value uses an `~` prefix and is dimmed to signal placeholder status. */
+  starsAreLive: boolean;
 }
 
 type IconComponent = React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" }>;
@@ -78,6 +81,7 @@ const TRUST_ITEMS: ReadonlyArray<Omit<TrustItemData, "value"> & { value?: string
 export const TrustStripSection = memo(function TrustStripSection({
   repoCount,
   formattedStars,
+  starsAreLive,
 }: TrustStripSectionProps) {
   const coverageValue = `${repoCount} repos · ${formattedStars} stars`;
   return (
@@ -96,15 +100,19 @@ export const TrustStripSection = memo(function TrustStripSection({
         data-testid="trust-strip"
         className="grid w-full max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6"
       >
-        {TRUST_ITEMS.map((item) => (
-          <TrustItem
-            key={item.label}
-            icon={item.icon}
-            label={item.label}
-            value={item.value ?? coverageValue}
-            detail={item.detail}
-          />
-        ))}
+        {TRUST_ITEMS.map((item) => {
+          const isCoverage = item.value === undefined;
+          return (
+            <TrustItem
+              key={item.label}
+              icon={item.icon}
+              label={item.label}
+              value={item.value ?? coverageValue}
+              detail={item.detail}
+              dimValue={isCoverage && !starsAreLive}
+            />
+          );
+        })}
       </ul>
     </section>
   );
@@ -115,9 +123,12 @@ interface TrustItemProps {
   label: string;
   value: string;
   detail: string;
+  /** When true, renders the primary value at reduced opacity to signal
+   *  placeholder/fallback status. Used while live stargazer data loads. */
+  dimValue?: boolean;
 }
 
-function TrustItem({ icon: Icon, label, value, detail }: TrustItemProps) {
+function TrustItem({ icon: Icon, label, value, detail, dimValue }: TrustItemProps) {
   return (
     <li className="flex flex-1 flex-col gap-2 text-left">
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -126,7 +137,9 @@ function TrustItem({ icon: Icon, label, value, detail }: TrustItemProps) {
           {label}
         </span>
       </div>
-      <p className="font-heading text-base font-semibold text-foreground md:text-lg">
+      <p
+        className={`font-heading text-base font-semibold text-foreground transition-opacity duration-500 md:text-lg ${dimValue ? "opacity-60" : "opacity-100"}`}
+      >
         {value}
       </p>
       <p className="text-xs leading-relaxed text-muted-foreground md:text-sm">

@@ -187,4 +187,18 @@ describe("ConsentBanner", () => {
     });
     expect(screen.queryByTestId("consent-banner")).not.toBeInTheDocument();
   });
+
+  it("main view is a non-modal bottom sheet, not a Dialog", () => {
+    render(<ConsentBanner />, { wrapper: Wrapper });
+    const banner = screen.getByTestId("consent-banner");
+    // Bottom sheet: rendered as a <section>, not a dialog.
+    expect(banner.tagName).toBe("SECTION");
+    // No dialog is present on the main view — dialog mounts only when the
+    // Preferences view is open.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // Pinned to bottom via Tailwind utility class — fragile but catches a
+    // regression to centered positioning.
+    expect(banner.className).toContain("bottom-0");
+    expect(banner.className).toContain("fixed");
+  });
 });

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import { useCallback, useState } from "react";
-import { AlertTriangle, Check, ExternalLink, Loader2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Loader2, OctagonX, ShieldAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,23 +25,37 @@ import { Button } from "@/components/ui/button";
 import { STAR_OAUTH_ERROR } from "@/hooks/use-star-oauth";
 import type { StarProgress } from "@/lib/types";
 
-type Step = "warning" | "authorizing" | "progress" | "complete";
+type Step = "warning" | "authorizing" | "progress" | "complete" | "stopped";
+
+type StarResult = { starred: number; failed: number; aborted: boolean };
+
+// Single source of truth for the popup-blocked message. Kept as a module
+// constant so the three places that reference it (setAuthError, the help
+// banner gate, and the generic-error banner negation) stay synchronized.
+const POPUP_BLOCKED_MSG =
+  "Popup was blocked. Please allow popups for this site and try again.";
 
 interface StarModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   unstarredCount: number;
   progress: StarProgress;
-  onStartStarring: (token: string) => Promise<{ starred: number; failed: number }>;
+  onStartStarring: (token: string) => Promise<StarResult>;
   requestToken: () => Promise<string>;
   cancelOAuth: () => void;
-  starResult: { starred: number; failed: number } | null;
+  starResult: StarResult | null;
   onOpenManualModal: () => void;
-  /** Abort the in-flight starring loop. Rendered inside the progress step
-   *  so the Cancel button sits inside Radix's DismissableLayer tree and is
-   *  actually clickable (the RoamingStar portal rendered outside gets its
-   *  pointer events swallowed by the dialog overlay). */
+  /** Abort the in-flight starring loop after the current PUT finishes.
+   *  Rendered inside the progress step so the button sits inside Radix's
+   *  DismissableLayer tree and is actually clickable (the RoamingStar portal
+   *  rendered outside gets its pointer events swallowed by the dialog
+   *  overlay). */
   onCancelStarring: () => void;
+  /** When true, the OAuth popup was blocked on the last attempt. Surfaces
+   *  inline recovery help on the warning step. Separate from `authError`
+   *  because popup-blocked needs its own non-dismissable guidance rather
+   *  than a generic error banner. */
+  popupBlocked?: boolean;
 }
 
 // The parent should pass a `key` that changes each time the modal opens
@@ -58,6 +72,7 @@ export function StarModal({
   starResult,
   onOpenManualModal,
   onCancelStarring,
+  popupBlocked,
 }: StarModalProps) {
   const [step, setStep] = useState<Step>("warning");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -68,12 +83,16 @@ export function StarModal({
     try {
       const token = await requestToken();
       setStep("progress");
-      await onStartStarring(token);
-      setStep("complete");
+      const result = await onStartStarring(token);
+      // An aborted run routes to the "stopped" terminal state so the user
+      // sees exactly how many repos were starred before they hit
+      // "Stop after current" — distinct visual from the success/failure
+      // complete state, using the same result record.
+      setStep(result.aborted ? "stopped" : "complete");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       if (msg === STAR_OAUTH_ERROR.POPUP_BLOCKED) {
-        setAuthError("Popup was blocked. Please allow popups for this site and try again.");
+        setAuthError(POPUP_BLOCKED_MSG);
         setStep("warning");
       } else if (msg === STAR_OAUTH_ERROR.POPUP_CLOSED) {
         setAuthError("Authorization window was closed. Click \"Star all\" to try again.");
@@ -99,6 +118,7 @@ export function StarModal({
     step === "warning" ? "Authorization required"
     : step === "authorizing" ? "Authorizing with GitHub"
     : step === "progress" ? "Starring repositories in progress"
+    : step === "stopped" && starResult ? `Stopped: ${starResult.starred} of ${progress.total} starred`
     : starResult ? `Complete: ${starResult.starred} starred, ${starResult.failed} failed`
     : null;
 
@@ -175,7 +195,31 @@ export function StarModal({
               </div>
             </div>
 
-            {authError && (
+            {(popupBlocked || authError === POPUP_BLOCKED_MSG) && (
+              <div
+                role="alert"
+                data-testid="popup-blocked-help"
+                className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>
+                  Popup blocked by your browser. Allow popups for this site and
+                  click Proceed again. See{" "}
+                  <a
+                    href="https://support.google.com/chrome/answer/95472"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-amber-100"
+                  >
+                    how to enable popups
+                    <ExternalLink className="ml-0.5 inline size-3" aria-hidden="true" />
+                  </a>
+                  .
+                </span>
+              </div>
+            )}
+
+            {authError && authError !== POPUP_BLOCKED_MSG && (
               <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 {authError}
@@ -281,7 +325,7 @@ export function StarModal({
                 data-testid="takeover-cancel"
                 className="mt-1 whitespace-nowrap rounded-full border border-border bg-background/70 px-4 py-1.5 text-xs font-medium text-foreground/85 backdrop-blur hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                Cancel <span className="ml-1 text-foreground/55">(Esc)</span>
+                Stop after current
               </button>
             </div>
           </>
@@ -320,6 +364,31 @@ export function StarModal({
               <Button onClick={() => onOpenChange(false)}>Close</Button>
             </DialogFooter>
           </>
+        )}
+
+        {step === "stopped" && (
+          <div data-testid="star-modal-stopped">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <OctagonX className="size-5 text-muted-foreground" aria-hidden="true" />
+                Stopped at {starResult?.starred ?? 0} of {progress.total}
+              </DialogTitle>
+              <DialogDescription>
+                {starResult && starResult.starred > 0
+                  ? `${starResult.starred} ${starResult.starred === 1 ? "repo" : "repos"} starred before you stopped. `
+                  : "No repos were starred. "}
+                You can reopen the flow and pick up the remaining {progress.remaining} later.
+              </DialogDescription>
+            </DialogHeader>
+
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your GitHub token has been discarded.
+            </p>
+
+            <DialogFooter className="mt-4">
+              <Button onClick={() => onOpenChange(false)}>Close</Button>
+            </DialogFooter>
+          </div>
         )}
       </DialogContent>
     </Dialog>

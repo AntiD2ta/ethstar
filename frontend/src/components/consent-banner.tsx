@@ -12,6 +12,8 @@
 // limitations under the License.
 
 import { useState } from "react";
+import { X } from "lucide-react";
+import { Link } from "react-router";
 import {
   Dialog,
   DialogContent,
@@ -32,13 +34,16 @@ function preventClose(e: Event) {
 
 type BannerView = "main" | "preferences";
 
+// Main view is a non-blocking bottom sheet — pinned to the viewport bottom,
+// never dims the hero, never intercepts clicks on the hero CTA. GDPR
+// compliance is preserved by gating optional scripts on
+// `consent.statistics === true` in `consent-aware-analytics.tsx` rather than
+// by hard-modalling the UI. The preferences pane stays a proper modal
+// Dialog because fine-grained toggles benefit from focus-trap.
 export function ConsentBanner() {
   const { consent, bannerOpen, acceptAll, rejectAll, savePreferences, closeBanner } =
     useConsent();
 
-  // A single Dialog swaps its content between the main banner and the
-  // preferences pane. Rendering two stacked Dialogs would create nested
-  // focus traps and announce two modals to assistive tech.
   const [view, setView] = useState<BannerView>("main");
 
   // Pre-seed the preferences toggle from current consent (or `false` on first visit).
@@ -48,17 +53,15 @@ export function ConsentBanner() {
     consent?.statistics ?? false,
   );
 
-  // No choice yet ⇒ modal is hard-modal (cannot be dismissed without choosing).
+  // First-visit = no stored choice. Bottom sheet persists (no close button)
+  // until the user makes a choice. Preferences modal still prevents
+  // outside-click + Escape dismissal on first visit so the user can't
+  // accidentally bypass consent capture.
   const firstVisit = consent === null;
 
-  function handleOpenChange(open: boolean) {
+  function handlePreferencesOpenChange(open: boolean) {
     if (open) return;
-    // Allow close only if a choice is already stored (re-opened via footer).
-    // Reset to the main view so the next reopen starts there.
-    if (!firstVisit) {
-      setView("main");
-      closeBanner();
-    }
+    setView("main");
   }
 
   function openPreferences() {
@@ -85,131 +88,142 @@ export function ConsentBanner() {
     savePreferences({ statistics: prefStatistics });
   }
 
-  return (
-    <Dialog open={bannerOpen} onOpenChange={handleOpenChange}>
-      <DialogContent
-        showCloseButton={!firstVisit && view === "main"}
-        onPointerDownOutside={firstVisit ? preventClose : undefined}
-        onEscapeKeyDown={firstVisit ? preventClose : undefined}
-        onInteractOutside={firstVisit ? preventClose : undefined}
-        className="sm:max-w-xl"
-        data-testid="consent-banner"
-      >
-        {view === "main" ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Cookies &amp; your privacy</DialogTitle>
-              <DialogDescription>
-                We use strictly necessary storage to keep you signed in and to
-                cache GitHub data. With your consent, we also collect anonymous
-                analytics (via Vercel) to understand how the site is used. You
-                can change your choice at any time from the footer.
-              </DialogDescription>
-            </DialogHeader>
+  function handleClose() {
+    if (firstVisit) return;
+    setView("main");
+    closeBanner();
+  }
 
-            <p className="text-sm text-muted-foreground">
-              Read our{" "}
-              <a
-                href="/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
+  if (!bannerOpen) return null;
+
+  return (
+    <>
+      {view === "main" && (
+        <section
+          aria-label="Cookie preferences"
+          data-testid="consent-banner"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-3xl px-3 pb-3 sm:px-4 sm:pb-4"
+        >
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/95 p-4 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              We use strictly necessary storage and, with your consent,
+              anonymous analytics (Vercel).{" "}
+              <Link
+                to="/cookies"
                 className="underline hover:text-foreground"
+                data-testid="consent-cookies-link"
               >
-                Privacy Policy
-              </a>{" "}
-              and{" "}
-              <a
-                href="/cookies"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground"
-              >
-                Cookies Policy
-              </a>
+                Cookies policy
+              </Link>
               .
             </p>
-
-            <DialogFooter className="sm:justify-between">
-              <Button
-                variant="outline"
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+              <button
+                type="button"
                 onClick={openPreferences}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
                 data-testid="consent-preferences"
               >
-                Preferences
-              </Button>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={handleRejectAll}
-                  data-testid="consent-reject"
-                >
-                  Reject all
-                </Button>
-                <Button onClick={handleAcceptAll} data-testid="consent-accept">
-                  Accept all
-                </Button>
-              </div>
-            </DialogFooter>
-          </>
-        ) : (
-          <div data-testid="consent-preferences-dialog">
-            <DialogHeader>
-              <DialogTitle>Cookie preferences</DialogTitle>
-              <DialogDescription>
-                Turn off categories you don&apos;t want. Strictly necessary
-                storage keeps the site working and can&apos;t be disabled.
-              </DialogDescription>
-            </DialogHeader>
-
-            <ul className="mt-4 flex flex-col gap-4">
-              <li className="flex items-start justify-between gap-4 rounded-md border border-border p-4">
-                <div className="flex flex-col gap-1">
-                  <Label className="text-sm font-semibold">Strictly necessary</Label>
-                  <p className="text-xs text-muted-foreground">
-                    OAuth session, auth tokens, cached repo metadata, pending
-                    stats queue, and this consent record. Always on.
-                  </p>
-                </div>
-                <Switch checked disabled aria-label="Strictly necessary (always on)" />
-              </li>
-              <li className="flex items-start justify-between gap-4 rounded-md border border-border p-4">
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="pref-statistics" className="text-sm font-semibold">
-                    Statistics
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Vercel Analytics and Speed Insights. No cross-site tracking.
-                    Data is aggregated to help us improve the site.
-                  </p>
-                </div>
-                <Switch
-                  id="pref-statistics"
-                  checked={prefStatistics}
-                  onCheckedChange={setPrefStatistics}
-                  aria-label="Statistics cookies"
-                  data-testid="consent-switch-statistics"
-                />
-              </li>
-            </ul>
-
-            <DialogFooter className="mt-4">
+                Customize
+              </button>
               <Button
                 variant="outline"
-                onClick={cancelPreferences}
-                data-testid="consent-preferences-cancel"
+                size="sm"
+                onClick={handleRejectAll}
+                data-testid="consent-reject"
               >
-                Cancel
+                Essential only
               </Button>
               <Button
-                onClick={handleSavePreferences}
-                data-testid="consent-preferences-save"
+                size="sm"
+                onClick={handleAcceptAll}
+                data-testid="consent-accept"
               >
-                Save preferences
+                Accept all
               </Button>
-            </DialogFooter>
+              {!firstVisit && (
+                <button
+                  type="button"
+                  aria-label="Close cookie preferences"
+                  onClick={handleClose}
+                  className="ml-1 inline-flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              )}
+            </div>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </section>
+      )}
+
+      <Dialog
+        open={view === "preferences"}
+        onOpenChange={handlePreferencesOpenChange}
+      >
+        <DialogContent
+          showCloseButton={!firstVisit}
+          onPointerDownOutside={firstVisit ? preventClose : undefined}
+          onEscapeKeyDown={firstVisit ? preventClose : undefined}
+          onInteractOutside={firstVisit ? preventClose : undefined}
+          className="sm:max-w-xl"
+          data-testid="consent-preferences-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>Cookie preferences</DialogTitle>
+            <DialogDescription>
+              Turn off categories you don&apos;t want. Strictly necessary
+              storage keeps the site working and can&apos;t be disabled.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ul className="mt-4 flex flex-col gap-4">
+            <li className="flex items-start justify-between gap-4 rounded-md border border-border p-4">
+              <div className="flex flex-col gap-1">
+                <Label className="text-sm font-semibold">Strictly necessary</Label>
+                <p className="text-xs text-muted-foreground">
+                  OAuth session, auth tokens, cached repo metadata, pending
+                  stats queue, and this consent record. Always on.
+                </p>
+              </div>
+              <Switch checked disabled aria-label="Strictly necessary (always on)" />
+            </li>
+            <li className="flex items-start justify-between gap-4 rounded-md border border-border p-4">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="pref-statistics" className="text-sm font-semibold">
+                  Statistics
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Vercel Analytics and Speed Insights. No cross-site tracking.
+                  Data is aggregated to help us improve the site.
+                </p>
+              </div>
+              <Switch
+                id="pref-statistics"
+                checked={prefStatistics}
+                onCheckedChange={setPrefStatistics}
+                aria-label="Statistics cookies"
+                data-testid="consent-switch-statistics"
+              />
+            </li>
+          </ul>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={cancelPreferences}
+              data-testid="consent-preferences-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSavePreferences}
+              data-testid="consent-preferences-save"
+            >
+              Save preferences
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

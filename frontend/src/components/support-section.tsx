@@ -11,13 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, lazy, Suspense, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { Coffee, Github, Heart, ListPlus, Wallet } from "lucide-react";
+import { Check, Coffee, Copy, Github, Heart, ListPlus, Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useConsent } from "@/lib/consent-context";
 import {
+  ETH_ADDRESS_CHECKSUMMED,
   ETH_ADDRESS_DISPLAY,
   GITHUB_REPO_URL,
   GITHUB_SPONSORS_URL,
@@ -45,7 +47,35 @@ class ChunkErrorBoundary extends Component<
 
 export function SupportSection() {
   const [tipOpen, setTipOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { openBanner } = useConsent();
+
+  // Clear any pending "Copied!" reset on unmount so we don't call a stale
+  // state updater after the user navigates away mid-timer. Matches the
+  // pattern used by `tip-dialog.tsx` and `share-button.tsx` for consistent
+  // clipboard-feedback hygiene across the codebase.
+  useEffect(() => () => {
+    if (copiedTimerRef.current !== null) clearTimeout(copiedTimerRef.current);
+  }, []);
+
+  // Copy-to-clipboard with a 1.5s "Copied!" affordance. navigator.clipboard
+  // is feature-gated because older browsers / insecure contexts may not
+  // expose it; we fall back to a toast error and leave the button idle.
+  const handleCopyAddress = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(ETH_ADDRESS_CHECKSUMMED);
+      setCopied(true);
+      toast.success("Wallet address copied to clipboard");
+      if (copiedTimerRef.current !== null) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => {
+        setCopied(false);
+        copiedTimerRef.current = null;
+      }, 1500);
+    } catch {
+      toast.error("Couldn't access clipboard — long-press to copy manually.");
+    }
+  }, []);
 
   return (
     <footer aria-labelledby="support-heading" className="flex flex-col items-center gap-4 border-t border-border px-4 py-12 text-center sm:px-6">
@@ -91,15 +121,32 @@ export function SupportSection() {
             Propose more repos
           </a>
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => setTipOpen(true)}
-          className="rounded-full font-mono text-xs"
-          aria-label="Send ETH tip"
-        >
-          <Wallet aria-hidden="true" />
-          {ETH_ADDRESS_DISPLAY}
-        </Button>
+        <div className="inline-flex items-center rounded-full border border-border">
+          <button
+            type="button"
+            onClick={() => setTipOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-l-full px-3 py-1.5 font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            aria-label="Send ETH tip"
+          >
+            <Wallet className="size-4" aria-hidden="true" />
+            {ETH_ADDRESS_DISPLAY}
+          </button>
+          <span aria-hidden="true" className="h-4 w-px bg-border" />
+          <button
+            type="button"
+            onClick={handleCopyAddress}
+            className="inline-flex items-center gap-1 rounded-r-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            aria-label={copied ? "Wallet address copied" : "Copy wallet address"}
+            data-testid="wallet-copy"
+          >
+            {copied ? (
+              <Check className="size-3.5 text-emerald-400" aria-hidden="true" />
+            ) : (
+              <Copy className="size-3.5" aria-hidden="true" />
+            )}
+            <span aria-hidden="true">{copied ? "Copied" : "Copy"}</span>
+          </button>
+        </div>
       </div>
 
       <ChunkErrorBoundary>
