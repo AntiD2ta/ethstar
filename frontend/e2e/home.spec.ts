@@ -87,6 +87,23 @@ test("hero copy tiers have distinct text", async ({ page }) => {
   }
 });
 
+test("hero grid places H1 in the left column and star in the right column on ≥md", async ({ page }) => {
+  // Desktop viewport so the md+ two-column grid activates.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  const h1Box = await page.getByTestId("hero-h1").boundingBox();
+  const starBox = await page
+    .getByTestId("roaming-star-button")
+    .first()
+    .boundingBox();
+  expect(h1Box, "H1 should render").not.toBeNull();
+  expect(starBox, "roaming star should render").not.toBeNull();
+  // LTR reading order: the framing H1 leads, the star slot sits to its right.
+  // Regression guard against the md:order-* bug that put the star in cols 1–5
+  // and the H1 in cols 6–12.
+  expect(h1Box!.x).toBeLessThan(starBox!.x);
+});
+
 test("home page shows unauthenticated CTAs", async ({ page }) => {
   await page.goto("/");
   // Header CTA is now "Sign in with GitHub" (or "Sign in" on <sm).
@@ -96,6 +113,28 @@ test("home page shows unauthenticated CTAs", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /browse the repositories/i }),
   ).toBeVisible();
+});
+
+test("header CTAs render the full-length label at ≥sm (not accessible-name-only)", async ({
+  page,
+}) => {
+  // Guard against the `hidden sm:inline` bug: accessible name would still pass
+  // `getByRole` matchers even when both spans compute to display:none, leaving
+  // a visually empty pill. Use `innerText` to assert what sighted users see.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+
+  const header = page.locator("header").first();
+
+  const signIn = header.getByRole("button", { name: /sign in/i });
+  await expect(signIn).toBeVisible();
+  const signInText = (await signIn.evaluate((el) => (el as HTMLElement).innerText)).trim();
+  expect(signInText).toBe("Sign in with GitHub");
+
+  const propose = header.getByRole("link", { name: /Propose more repos/i });
+  await expect(propose).toBeVisible();
+  const proposeText = (await propose.evaluate((el) => (el as HTMLElement).innerText)).trim();
+  expect(proposeText).toBe("Propose more repos");
 });
 
 test("home page shows all five repo category sections", async ({ page }) => {

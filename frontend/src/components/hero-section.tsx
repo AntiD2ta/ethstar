@@ -82,10 +82,12 @@ export function HeroSection({
               On <md: order-2 — sits between H1 and subhead so the gold star
               wins first-read on touch devices.
               On ≥md: col-span-5 + row-span-4 — vertical peer to the H1+supporting
-              copy stack, centered in the right column. Rendered exactly once
-              (RoamingStar can't be double-mounted because it owns its own
-              IntersectionObserver + portal). */}
-          <div className="order-2 flex justify-center md:order-none md:col-span-5 md:row-span-4 md:items-center md:justify-center">
+              copy stack, placed in the right column (order 2 > h1's order 1, so
+              grid auto-placement fills H1 into cols 1–7 first, then star into
+              cols 8–12, rows 1–4). Rendered exactly once (RoamingStar can't be
+              double-mounted because it owns its own IntersectionObserver +
+              portal). */}
+          <div className="order-2 flex justify-center md:col-span-5 md:row-span-4 md:items-center md:justify-center">
             {primaryCta}
           </div>
 
@@ -93,11 +95,9 @@ export function HeroSection({
             data-testid="hero-subhead"
             className="order-3 max-w-[60ch] text-body-lg leading-relaxed text-muted-foreground md:col-span-7"
           >
-            A single tap that stars every core Ethereum open-source repo on
-            your GitHub account. Each star is a public recognition that helps
-            the teams and devs behind them get noticed — by funders, new
-            contributors, and the people who depend on them — and tells them
-            that their work matters.
+            One tap stars every core Ethereum open-source repo on your GitHub.
+            Each star is a public recognition that tells the teams and devs
+            behind them their work matters.
           </p>
 
           <button
