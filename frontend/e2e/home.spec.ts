@@ -47,7 +47,7 @@ test.beforeEach(async ({ page }) => {
 test("home page renders reframed hero headline", async ({ page }) => {
   await page.goto("/");
   const heading = page.getByRole("heading", { level: 1 });
-  // Phase E reframe: H1 is the framing statement, not a CTA verb.
+  // H1 is the framing statement, not a CTA verb.
   await expect(heading).toContainText("Support");
   await expect(heading).toContainText("Ethereum");
   await expect(heading).toContainText("builders");
@@ -87,21 +87,38 @@ test("hero copy tiers have distinct text", async ({ page }) => {
   }
 });
 
-test("hero grid places H1 in the left column and star in the right column on ≥md", async ({ page }) => {
-  // Desktop viewport so the md+ two-column grid activates.
+test("hero stacks vertically with the star CTA below the subhead and above the browse link", async ({ page }) => {
+  // Scene-centric hero: single centered column, vertical reading order
+  // H1 → subhead → star CTA → browse link → stats. Guard against a
+  // regression to the 12-col asymmetric grid (star in the right column).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   const h1Box = await page.getByTestId("hero-h1").boundingBox();
+  const subheadBox = await page.getByTestId("hero-subhead").boundingBox();
   const starBox = await page
     .getByTestId("roaming-star-button")
     .first()
     .boundingBox();
+  const browseBox = await page
+    .getByRole("button", { name: /browse the repositories/i })
+    .boundingBox();
+  const metaBox = await page.getByTestId("hero-meta").boundingBox();
   expect(h1Box, "H1 should render").not.toBeNull();
+  expect(subheadBox, "subhead should render").not.toBeNull();
   expect(starBox, "roaming star should render").not.toBeNull();
-  // LTR reading order: the framing H1 leads, the star slot sits to its right.
-  // Regression guard against the md:order-* bug that put the star in cols 1–5
-  // and the H1 in cols 6–12.
-  expect(h1Box!.x).toBeLessThan(starBox!.x);
+  expect(browseBox, "browse-repositories link should render").not.toBeNull();
+  expect(metaBox, "stats meta line should render").not.toBeNull();
+  // Vertical order: each element's top is below the previous one's top.
+  expect(subheadBox!.y).toBeGreaterThan(h1Box!.y);
+  expect(starBox!.y).toBeGreaterThan(subheadBox!.y);
+  expect(browseBox!.y).toBeGreaterThan(starBox!.y);
+  expect(metaBox!.y).toBeGreaterThan(browseBox!.y);
+  // Centered axis: the star's horizontal center sits near the H1's center
+  // (±24px tolerance covers subpixel rounding and the roaming-star button's
+  // internal padding).
+  const h1Center = h1Box!.x + h1Box!.width / 2;
+  const starCenter = starBox!.x + starBox!.width / 2;
+  expect(Math.abs(starCenter - h1Center)).toBeLessThan(24);
 });
 
 test("home page shows unauthenticated CTAs", async ({ page }) => {
@@ -277,12 +294,16 @@ test.describe("mobile hero viewport", () => {
     expect(box!.height).toBeLessThanOrEqual(844);
   });
 
-  test("hero stats row is hidden on mobile (compact inline summary only)", async ({
-    page,
-  }) => {
+  test("hero stats meta line is visible on mobile", async ({ page }) => {
     await page.goto("/");
-    // role="group" on the 3-stat row should be absent from the a11y tree on <md.
-    const statGroup = page.getByRole("group", { name: "Site statistics" });
-    await expect(statGroup).toBeHidden();
+    // Scene-centric hero keeps a single inline stats line always rendered.
+    // toBeHidden() silently passes when a locator matches zero elements, so
+    // assert presence + visibility to guard against a regression that drops
+    // the line on narrow viewports.
+    const meta = page.getByTestId("hero-meta");
+    await expect(meta).toBeVisible();
+    await expect(meta).toHaveText(/repos/i);
+    await expect(meta).toHaveText(/combined stars/i);
+    await expect(meta).toHaveText(/categor/i);
   });
 });

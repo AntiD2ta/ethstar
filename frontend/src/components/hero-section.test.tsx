@@ -29,7 +29,7 @@ const renderHero = (overrides: Partial<ComponentProps<typeof HeroSection>> = {})
     />,
   );
 
-describe("HeroSection — Phase E reframe", () => {
+describe("HeroSection", () => {
   it("renders an H1 framing statement (≤6 words, no CTA verb)", () => {
     renderHero();
     const h1 = screen.getByTestId("hero-h1");
@@ -93,12 +93,16 @@ describe("HeroSection — Phase E reframe", () => {
     expect(html).not.toContain("Star every Ethereum repo");
   });
 
-  it("uses CSS Grid for asymmetric layout, not centered-everything", () => {
+  it("stacks hero content vertically on a centered axis (scene-centric layout)", () => {
     const { container } = renderHero();
-    // Either the hero-h1 or its parent should sit inside a grid container.
-    // We check the grid container has the md:grid-cols-12 class so the
-    // asymmetric ≥md layout is preserved through any future restyle.
-    const grid = container.querySelector(".md\\:grid-cols-12");
-    expect(grid).not.toBeNull();
+    // The scene-centric hero puts the 3D diamond behind a single centered
+    // column: H1 → subhead → star CTA → browse link → stats. Guard against
+    // a regression back to the 12-col asymmetric grid.
+    const stack = container.querySelector('[data-testid="hero-stack"]');
+    expect(stack).not.toBeNull();
+    expect(stack!.className).toMatch(/\bflex-col\b/);
+    expect(stack!.className).toMatch(/\bitems-center\b/);
+    expect(stack!.className).toMatch(/\btext-center\b/);
+    expect(container.querySelector(".md\\:grid-cols-12")).toBeNull();
   });
 });
