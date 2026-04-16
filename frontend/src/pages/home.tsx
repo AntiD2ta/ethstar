@@ -317,12 +317,13 @@ export default function HomePage() {
   // can't sneak past the visual state and open a 0-repo modal.
   const handleStarTrigger = useCallback(() => {
     if (allDone) return;
+    if (isChecking) return;
     if (!isAuthenticated) {
       login();
       return;
     }
     handleStarAll();
-  }, [allDone, isAuthenticated, login, handleStarAll]);
+  }, [allDone, isChecking, isAuthenticated, login, handleStarAll]);
 
   const handleCancelStarring = useCallback(() => {
     starAbortRef.current?.abort();

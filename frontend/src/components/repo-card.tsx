@@ -64,19 +64,10 @@ export const RepoCard = memo(function RepoCard({
             {repo.owner}/{repo.name}
           </h3>
         </a>
-        {typeof starCount === "number" ? (
-          <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <Star
-              size={12}
-              fill="currentColor"
-              strokeWidth={0}
-              aria-hidden="true"
-            />
-            <span>{formatStarCount(starCount)}</span>
-          </div>
-        ) : metaLoading ? (
-          <Skeleton className="h-4 w-10 shrink-0 rounded" />
-        ) : null}
+        <StarIndicator
+          status={status}
+          onRetry={onRetry ? handleRetry : undefined}
+        />
       </div>
 
       {metaLoading && !liveDescription ? (
@@ -93,10 +84,19 @@ export const RepoCard = memo(function RepoCard({
       <div className="flex items-center justify-between">
         <RepoAvatar owner={repo.owner} />
 
-        <StarIndicator
-          status={status}
-          onRetry={onRetry ? handleRetry : undefined}
-        />
+        {typeof starCount === "number" ? (
+          <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+            <Star
+              size={12}
+              fill="currentColor"
+              strokeWidth={0}
+              aria-hidden="true"
+            />
+            <span>{formatStarCount(starCount)}</span>
+          </div>
+        ) : metaLoading ? (
+          <Skeleton className="h-4 w-10 shrink-0 rounded" />
+        ) : null}
       </div>
     </article>
   );

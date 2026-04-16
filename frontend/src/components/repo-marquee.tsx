@@ -165,7 +165,7 @@ export const RepoMarquee = memo(function RepoMarquee({
       role="region"
       aria-label={label}
     >
-      <div className="flex w-max">
+      <div className="flex w-max gap-4 md:gap-8">
         <div className="flex gap-4 md:gap-8">
           {cards}
         </div>

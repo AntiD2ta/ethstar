@@ -455,6 +455,9 @@ test("StarModal warning step names the write scope (Error Prevention)", async ({
   await page.goto("/");
   const star = page.getByTestId("roaming-star-button").first();
   await expect(star).toHaveAttribute("data-status", "ready", { timeout: 5_000 });
+  // "repos to go" sublabel only renders once the initial star-status
+  // check resolves — wait for it so the click below lands on a ready CTA.
+  await expect(page.getByText(/\d+ repos to go/).first()).toBeVisible();
   await star.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -465,4 +468,51 @@ test("StarModal warning step names the write scope (Error Prevention)", async ({
   await expect(
     dialog.getByRole("button", { name: /^Star all \d+/i }),
   ).toBeVisible();
+});
+
+test("clicking the star while the initial star-status check is in-flight does not open StarModal", async ({
+  page,
+}) => {
+  // Right after sign-in, `useStars().isChecking` stays true until GitHub's
+  // starred list resolves. During that window `progress.total === 0`, so
+  // a click on the star CTA must NOT open StarModal — "Star all 0 repos"
+  // is a 0-repo write against the user's intent.
+  await seedAuth(page);
+  await page.route("https://api.github.com/user", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+    }),
+  );
+  // 3s delay — long enough to reliably click mid-check without flaking.
+  await page.route("https://api.github.com/user/starred/**", async (r) => {
+    await new Promise((res) => setTimeout(res, 3_000));
+    await r.fulfill({ status: 404, body: "" });
+  });
+  await page.route("https://api.github.com/graphql", (r) =>
+    r.fulfill({ status: 401, body: "" }),
+  );
+  await page.route("**/api/stats", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  // Skeleton visible ⇒ isChecking === true ⇒ click window is live.
+  const skeleton = page.getByTestId("roaming-star-checking-skeleton");
+  await expect(skeleton).toBeVisible({ timeout: 3_000 });
+
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "ready");
+  await star.click();
+
+  await page.waitForTimeout(200);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // Skeleton still on-screen — we're still in the checking window.
+  await expect(skeleton).toBeVisible();
 });
