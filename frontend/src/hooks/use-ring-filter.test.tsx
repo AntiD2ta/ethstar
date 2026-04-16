@@ -14,8 +14,12 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useRingFilter } from "./use-ring-filter";
-import { RING_FILTER_STORAGE_KEY } from "@/lib/ring-filter";
-import { REPOS_BY_CATEGORY } from "@/lib/repos";
+import {
+  DEFAULT_RING_FILTER,
+  RING_FILTER_STORAGE_KEY,
+  applyFilter,
+} from "@/lib/ring-filter";
+import { REPOS_BY_CATEGORY, REPOSITORIES } from "@/lib/repos";
 
 beforeEach(() => {
   localStorage.clear();
@@ -23,7 +27,7 @@ beforeEach(() => {
 
 describe("useRingFilter", () => {
   it("initialises with the default filter when localStorage is empty", () => {
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     expect(result.current.isDefault).toBe(true);
     expect(result.current.selectedRepos.length).toBe(
       REPOS_BY_CATEGORY["Ethereum Core"].length +
@@ -43,7 +47,7 @@ describe("useRingFilter", () => {
         includedExtras: [],
       }),
     );
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     expect(result.current.isDefault).toBe(false);
     const categories = new Set(
       result.current.selectedRepos.map((r) => r.category),
@@ -53,7 +57,7 @@ describe("useRingFilter", () => {
 
   it("falls back to default when persisted JSON is corrupt", () => {
     localStorage.setItem(RING_FILTER_STORAGE_KEY, "{not json");
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     expect(result.current.isDefault).toBe(true);
   });
 
@@ -67,12 +71,12 @@ describe("useRingFilter", () => {
         includedExtras: [],
       }),
     );
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     expect(result.current.isDefault).toBe(true);
   });
 
   it("toggleSection updates the filter and persists to localStorage", () => {
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     act(() => {
       result.current.toggleSection("Validator Tooling");
     });
@@ -88,7 +92,7 @@ describe("useRingFilter", () => {
   });
 
   it("toggleRepo on an out-of-section repo pulls it into the selection", () => {
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     const defiRepo = REPOS_BY_CATEGORY["DeFi & Smart Contracts"][0];
     act(() => {
       result.current.toggleRepo(defiRepo);
@@ -100,7 +104,7 @@ describe("useRingFilter", () => {
   });
 
   it("reset() restores the default filter and wipes the persisted entry", () => {
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     act(() => {
       result.current.toggleSection("Validator Tooling");
     });
@@ -122,7 +126,7 @@ describe("useRingFilter", () => {
         includedExtras: [],
       }),
     );
-    const { result } = renderHook(() => useRingFilter());
+    const { result } = renderHook(() => useRingFilter(true));
     const coreRepos = REPOS_BY_CATEGORY["Ethereum Core"];
     const starStatuses = {
       [`${coreRepos[0].owner}/${coreRepos[0].name}`]: "starred" as const,
@@ -131,5 +135,83 @@ describe("useRingFilter", () => {
     const counts = result.current.countProgress(starStatuses);
     expect(counts.starred).toBe(2);
     expect(counts.selected).toBe(coreRepos.length);
+  });
+
+  describe("effectiveFilter (signed-out override)", () => {
+    it("returns DEFAULT_RING_FILTER when signed out, ignoring stored non-default", () => {
+      // Seed a non-default filter (sections dropped + extras added).
+      const stored = {
+        version: 1 as const,
+        sections: ["Ethereum Core"],
+        excludedRepos: [],
+        includedExtras: [
+          `${REPOS_BY_CATEGORY["DeFi & Smart Contracts"][0].owner}/${REPOS_BY_CATEGORY["DeFi & Smart Contracts"][0].name}`,
+        ],
+      };
+      localStorage.setItem(
+        RING_FILTER_STORAGE_KEY,
+        JSON.stringify(stored),
+      );
+
+      const { result } = renderHook(() => useRingFilter(false));
+
+      // Rendered/effective filter must be DEFAULT when signed out.
+      expect(result.current.effectiveFilter).toEqual(DEFAULT_RING_FILTER);
+      const expectedRepos = applyFilter(DEFAULT_RING_FILTER, REPOSITORIES);
+      expect(result.current.effectiveRepos).toEqual(expectedRepos);
+      expect(result.current.effectiveN).toBe(expectedRepos.length);
+
+      // Raw `filter` still holds the stored non-default (so `sign in` restores it).
+      expect(result.current.filter.sections).toEqual(["Ethereum Core"]);
+      expect(result.current.filter.includedExtras.length).toBe(1);
+      expect(result.current.isDefault).toBe(false);
+
+      // localStorage is preserved across signed-out renders — we do not clear it.
+      const raw = localStorage.getItem(RING_FILTER_STORAGE_KEY);
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).sections).toEqual(["Ethereum Core"]);
+    });
+
+    it("returns the stored filter as effectiveFilter when signed in", () => {
+      const stored = {
+        version: 1 as const,
+        sections: ["Ethereum Core"],
+        excludedRepos: [],
+        includedExtras: [],
+      };
+      localStorage.setItem(
+        RING_FILTER_STORAGE_KEY,
+        JSON.stringify(stored),
+      );
+
+      const { result } = renderHook(() => useRingFilter(true));
+
+      expect(result.current.effectiveFilter.sections).toEqual([
+        "Ethereum Core",
+      ]);
+      expect(result.current.effectiveFilter).toBe(result.current.filter);
+      expect(result.current.effectiveRepos).toBe(result.current.selectedRepos);
+      expect(result.current.effectiveN).toBe(result.current.N);
+    });
+
+    it("countProgress reflects effectiveRepos (signed-out uses DEFAULT slice)", () => {
+      // Seed a narrow single-section filter.
+      localStorage.setItem(
+        RING_FILTER_STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          sections: ["Ethereum Core"],
+          excludedRepos: [],
+          includedExtras: [],
+        }),
+      );
+
+      const { result } = renderHook(() => useRingFilter(false));
+
+      // While signed-out, `selected` should be the DEFAULT count, not 1 section.
+      const defaultRepos = applyFilter(DEFAULT_RING_FILTER, REPOSITORIES);
+      const counts = result.current.countProgress({});
+      expect(counts.selected).toBe(defaultRepos.length);
+    });
   });
 });

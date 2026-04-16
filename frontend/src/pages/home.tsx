@@ -81,8 +81,11 @@ export default function HomePage() {
   const checkedTokenRef = useRef<string | null>(null);
 
   // Saturn-ring filter — default "core Ethereum spine" for signed-out users;
-  // authed users can widen the selection via the filter sheet.
-  const ringFilter = useRingFilter();
+  // authed users can widen the selection via the filter sheet. Passing
+  // `isAuthenticated` lets the hook expose an `effectiveFilter` that ignores
+  // any stored customisation while signed out (localStorage is preserved, so
+  // signing back in restores the user's choice).
+  const ringFilter = useRingFilter(isAuthenticated);
   // Destructure `countProgress` so the memo dep is a plain local variable.
   // React Compiler's `preserve-manual-memoization` rule rejects a property
   // access (`ringFilter.countProgress`) as a dep when it would infer the
@@ -418,7 +421,7 @@ export default function HomePage() {
           metaLoading={metaLoading}
           isDesktop={isDesktop}
           prefersReducedMotion={prefersReducedMotion}
-          repos={ringFilter.selectedRepos}
+          repos={ringFilter.effectiveRepos}
           onJump={handleRingJump}
           onStarTrigger={handleStarTrigger}
           filterControl={

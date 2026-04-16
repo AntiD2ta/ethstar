@@ -33,15 +33,32 @@ export interface RingFilterProgress {
 }
 
 export interface UseRingFilterResult {
+  /** Raw stored filter (reflects user preference, even when signed out). */
   filter: RingFilter;
+  /** Repos derived from the raw `filter`. Feeds the filter sheet. */
   selectedRepos: Repository[];
-  /** Size of the selection (count of repos on the ring). */
+  /** Size of the raw selection (count of repos the filter would render). */
   N: number;
+  /**
+   * Filter actually rendered on the ring. Equal to `filter` when
+   * authenticated; falls back to `DEFAULT_RING_FILTER` when signed out so
+   * visitors always see the core Ethereum spine regardless of any prior
+   * customisation the user made while signed in.
+   */
+  effectiveFilter: RingFilter;
+  /** Repos derived from `effectiveFilter`. Feeds the Saturn ring render. */
+  effectiveRepos: Repository[];
+  /** Size of the rendered selection. */
+  effectiveN: number;
   isDefault: boolean;
   toggleSection: (section: RepoCategory) => void;
   toggleRepo: (repo: Repository) => void;
   reset: () => void;
-  /** Count `{starred, selected}` derived from live star statuses. */
+  /**
+   * Count `{starred, selected}` derived from live star statuses. Uses
+   * `effectiveRepos`, so the signed-out counter reflects what's actually
+   * rendered on the ring rather than the hidden raw preference.
+   */
   countProgress: (
     statuses: Record<string, StarStatus>,
   ) => RingFilterProgress;
@@ -63,12 +80,20 @@ function loadInitialFilter(): RingFilter {
  * `localStorage[RING_FILTER_STORAGE_KEY]`; corrupt / shape-mismatched entries
  * fall back to `DEFAULT_RING_FILTER` (and the stale entry is NOT cleared so
  * callers can diagnose separately).
+ *
+ * Signed-out visitors always see `DEFAULT_RING_FILTER` rendered on the ring
+ * via `effectiveFilter` / `effectiveRepos`, even if localStorage holds a
+ * customised preference from a prior session. The stored preference is
+ * preserved across sign-out, so signing back in restores the user's choice.
  */
-export function useRingFilter(): UseRingFilterResult {
+export function useRingFilter(isAuthenticated: boolean): UseRingFilterResult {
   const [filter, setFilter] = useState<RingFilter>(() => loadInitialFilter());
 
   // Persist every non-default change. Writing the default clears the key so
-  // the stored state stays in sync with the rendered state.
+  // the stored state stays in sync with the rendered state. Runs regardless
+  // of `isAuthenticated` — the signed-out override is purely a render-time
+  // concern and must not touch storage (otherwise a signed-in customisation
+  // would be wiped on sign-out).
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -102,21 +127,40 @@ export function useRingFilter(): UseRingFilterResult {
     [filter],
   );
 
+  // When signed out, pin the rendered filter to the DEFAULT slice regardless
+  // of the raw stored preference. Returning the same `filter` reference when
+  // authed keeps `effectiveFilter === filter` (and downstream memos stable).
+  const effectiveFilter = useMemo<RingFilter>(
+    () => (isAuthenticated ? filter : DEFAULT_RING_FILTER),
+    [isAuthenticated, filter],
+  );
+
+  const effectiveRepos = useMemo(
+    () =>
+      isAuthenticated
+        ? selectedRepos
+        : applyFilter(DEFAULT_RING_FILTER, REPOSITORIES),
+    [isAuthenticated, selectedRepos],
+  );
+
   const countProgress = useCallback(
     (statuses: Record<string, StarStatus>): RingFilterProgress => {
       let starred = 0;
-      for (const repo of selectedRepos) {
+      for (const repo of effectiveRepos) {
         if (statuses[repoKey(repo)] === "starred") starred++;
       }
-      return { starred, selected: selectedRepos.length };
+      return { starred, selected: effectiveRepos.length };
     },
-    [selectedRepos],
+    [effectiveRepos],
   );
 
   return {
     filter,
     selectedRepos,
     N: selectedRepos.length,
+    effectiveFilter,
+    effectiveRepos,
+    effectiveN: effectiveRepos.length,
     isDefault: isDefaultFilter(filter),
     toggleSection,
     toggleRepo,
