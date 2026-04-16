@@ -128,6 +128,72 @@ test.describe("Saturn ring navigation — interactions", () => {
     await expect(card).toHaveClass(/repo-card-highlight/, { timeout: 1500 });
   });
 
+  test("chip click centres the target card in the marquee viewport", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const ring = page.getByRole("region", {
+      name: /saturn repository navigator/i,
+    });
+    await expect(ring).toBeVisible();
+
+    // Pick a repo that's NOT the first card in its marquee — the centring
+    // math clamps to scrollLeft=0 for left-edge cards (you can't centre what
+    // can't scroll there). EIPs is the third repo in Ethereum Core, deep
+    // enough for the centre target to fall inside the valid scroll range
+    // at typical viewport widths (~1280px).
+    const targetRepoKey = "ethereum/EIPs";
+    await page.evaluate((repoKey) => {
+      const chip = document.querySelector<HTMLAnchorElement>(
+        `a[aria-label="${repoKey}, not starred"]`,
+      );
+      if (!chip) throw new Error(`chip ${repoKey} not found`);
+      chip.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }),
+      );
+    }, targetRepoKey);
+
+    const card = page
+      .locator(`article[data-repo-key="${targetRepoKey}"]`)
+      .first();
+    await expect(card).toHaveClass(/repo-card-highlight/, { timeout: 1500 });
+
+    // After the jump settles, the card's centre must sit within ±20px of
+    // the marquee scroller's centre, and its on-screen left must be within
+    // one container width of the scroller's left (i.e. at least partially
+    // visible).
+    await expect
+      .poll(
+        async () => {
+          const result = await card.evaluate((el) => {
+            const scroller = el.closest<HTMLElement>('div[role="region"]');
+            if (!scroller) return null;
+            const sRect = scroller.getBoundingClientRect();
+            const cRect = el.getBoundingClientRect();
+            return Math.abs(
+              cRect.left + cRect.width / 2 - (sRect.left + sRect.width / 2),
+            );
+          });
+          return result;
+        },
+        { timeout: 2000, intervals: [50, 100, 200] },
+      )
+      .toBeLessThanOrEqual(20);
+
+    const dx = await card.evaluate((el) => {
+      const scroller = el.closest<HTMLElement>('div[role="region"]');
+      if (!scroller) throw new Error("scroller not found");
+      const sRect = scroller.getBoundingClientRect();
+      const cRect = el.getBoundingClientRect();
+      return { dx: Math.abs(cRect.x - sRect.x), scrollerWidth: sRect.width };
+    });
+    expect(dx.dx).toBeLessThanOrEqual(dx.scrollerWidth);
+  });
+
   test("Shift+click opens the per-repo action group", async ({ page }) => {
     await page.goto("/");
     const ring = page.getByRole("region", {

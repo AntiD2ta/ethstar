@@ -17,12 +17,24 @@ import type { RepoMeta } from "@/lib/github";
 import type { Repository, StarStatus } from "@/lib/types";
 import { repoKey } from "@/lib/repo-key";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
+import {
+  animateScrollToCenter,
+  computeCenterScrollLeft,
+  type AnimateScrollController,
+} from "@/lib/animate-scroll";
+import { EASE_OUT_EXPO_JS } from "@/components/roaming-star/constants";
 
 /** Duration of the chip-jump highlight outline in ms. Exported so the
  *  parent page can size its highlightKey-clear timeout off a single source
  *  of truth (must be strictly greater than this value so a repeat jump to
  *  the same repo still re-triggers the effect). */
 export const HIGHLIGHT_DURATION_MS = 600;
+
+/** Duration of the rAF scroll tween that centers the target card. */
+const SCROLL_ANIMATION_MS = 450;
+/** Auto-scroll stays paused for this window after the tween resolves so the
+ *  user can read the highlighted card before the marquee drifts away. */
+const SCROLL_PAUSE_GRACE_MS = 800;
 
 interface RepoMarqueeProps {
   /** Stable module-level constant — reference never changes. */
@@ -94,11 +106,22 @@ export const RepoMarquee = memo(function RepoMarquee({
   highlightToken = 0,
 }: RepoMarqueeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // OR'd with the auto-scroll hook's internal pause flag so the rAF tween
+  // below isn't fighting the auto-scroll for the same scrollLeft.
+  const externalPausedRef = useRef(false);
+  // Cancel handle for the in-flight scroll tween. Replaced on every new
+  // highlightToken so rapid back-to-back ring clicks land on the final
+  // target without stacking tweens.
+  const scrollCancelRef = useRef<AnimateScrollController | null>(null);
+  // Grace-window timeout id; tracked so we can clear it on a repeat click or
+  // on unmount.
+  const graceTimeoutRef = useRef(0);
 
   // On every highlight token change where this marquee owns the key, scroll
-  // the matching card into view and add the transient highlight class. The
-  // class is removed after HIGHLIGHT_DURATION_MS so repeated jumps can
-  // re-trigger the animation reliably.
+  // the matching card to the visual centre with an eased rAF tween and add
+  // the transient highlight class. The class is removed after
+  // HIGHLIGHT_DURATION_MS so repeated jumps can re-trigger the animation
+  // reliably.
   useEffect(() => {
     if (!highlightKey) return;
     const container = scrollRef.current;
@@ -111,7 +134,43 @@ export const RepoMarquee = memo(function RepoMarquee({
       `[data-repo-key="${highlightKey}"]`,
     );
     if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+
+    // Cancel any prior in-flight tween + clear any pending grace timeout so
+    // a rapid second click doesn't race the first.
+    if (scrollCancelRef.current) {
+      scrollCancelRef.current.cancelled = true;
+    }
+    if (graceTimeoutRef.current) {
+      window.clearTimeout(graceTimeoutRef.current);
+      graceTimeoutRef.current = 0;
+    }
+
+    if (prefersReducedMotion) {
+      // Reduced-motion path: jump instantly. Auto-scroll is already disabled
+      // upstream (RepoMarqueeProps.prefersReducedMotion gates useAutoScroll),
+      // so no need to flip externalPausedRef.
+      container.scrollLeft = computeCenterScrollLeft(container, target);
+    } else {
+      externalPausedRef.current = true;
+      const controller: AnimateScrollController = { cancelled: false };
+      scrollCancelRef.current = controller;
+      animateScrollToCenter(
+        container,
+        target,
+        SCROLL_ANIMATION_MS,
+        EASE_OUT_EXPO_JS,
+        controller,
+      ).then(() => {
+        // Only the most-recent controller resumes auto-scroll. A superseded
+        // tween's cleanup is the next click's responsibility.
+        if (scrollCancelRef.current !== controller) return;
+        graceTimeoutRef.current = window.setTimeout(() => {
+          externalPausedRef.current = false;
+          graceTimeoutRef.current = 0;
+        }, SCROLL_PAUSE_GRACE_MS);
+      });
+    }
+
     target.classList.add("repo-card-highlight");
     const t = window.setTimeout(() => {
       target.classList.remove("repo-card-highlight");
@@ -120,7 +179,23 @@ export const RepoMarquee = memo(function RepoMarquee({
       window.clearTimeout(t);
       target.classList.remove("repo-card-highlight");
     };
-  }, [highlightKey, highlightToken, repos]);
+  }, [highlightKey, highlightToken, repos, prefersReducedMotion]);
+
+  // Final cleanup on unmount: cancel any in-flight tween, drop the grace
+  // timeout, and release the external pause so the next mount starts clean.
+  useEffect(() => {
+    return () => {
+      if (scrollCancelRef.current) {
+        scrollCancelRef.current.cancelled = true;
+        scrollCancelRef.current = null;
+      }
+      if (graceTimeoutRef.current) {
+        window.clearTimeout(graceTimeoutRef.current);
+        graceTimeoutRef.current = 0;
+      }
+      externalPausedRef.current = false;
+    };
+  }, []);
 
   // Duplication factor sized to the active card slot so small categories
   // still produce enough content for a seamless loop on both breakpoints.
@@ -137,7 +212,9 @@ export const RepoMarquee = memo(function RepoMarquee({
   );
 
   // Auto-scroll whenever motion is allowed — both mobile and desktop.
-  useAutoScroll(scrollRef, SCROLL_SPEED, !prefersReducedMotion);
+  // externalPausedRef lets the highlight effect suppress the loop while a
+  // chip-jump tween is running + during the grace window after.
+  useAutoScroll(scrollRef, SCROLL_SPEED, !prefersReducedMotion, externalPausedRef);
 
   const cards = expandedRepos.map((repo, i) => {
     const k = repoKey(repo);

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type MutableRefObject, type RefObject } from "react";
 
 /**
  * Auto-scrolls a container horizontally using scrollLeft, producing a seamless
@@ -20,12 +20,18 @@ import { useEffect, useRef, type RefObject } from "react";
  *
  * Uses scrollLeft (not CSS transform) so user scrolling and auto-scrolling
  * share the same coordinate system — no visual jump when pausing.
+ *
+ * `externalPausedRef`, when provided, is read on every rAF tick and OR'd with
+ * the internal hover/focus/touch pause flag. Lets the caller suppress
+ * auto-scroll while running its own scroll animation (e.g. a rAF tween that
+ * centers a target card) without racing against this loop.
  */
 export function useAutoScroll(
   containerRef: RefObject<HTMLDivElement | null>,
   /** Pixels per second */
   speed: number,
   enabled: boolean,
+  externalPausedRef?: MutableRefObject<boolean>,
 ) {
   const pausedRef = useRef(false);
   const rafRef = useRef(0);
@@ -37,7 +43,8 @@ export function useAutoScroll(
     let lastTime = 0;
 
     function tick(time: number) {
-      if (lastTime > 0 && !pausedRef.current) {
+      const externallyPaused = externalPausedRef?.current ?? false;
+      if (lastTime > 0 && !pausedRef.current && !externallyPaused) {
         const delta = (time - lastTime) / 1000; // seconds
         el!.scrollLeft += speed * delta;
 
@@ -74,5 +81,5 @@ export function useAutoScroll(
       el.removeEventListener("touchstart", pause);
       el.removeEventListener("touchend", resume);
     };
-  }, [containerRef, speed, enabled]);
+  }, [containerRef, speed, enabled, externalPausedRef]);
 }
