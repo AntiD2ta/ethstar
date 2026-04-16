@@ -127,7 +127,7 @@ test.describe("Trust & Safety — Phase F", () => {
     // Dismiss consent banner so it doesn't layer over the hero stats.
     await page.getByTestId("consent-reject").click();
 
-    const stars = page.getByTestId("combined-stars-desktop");
+    const stars = page.getByTestId("combined-stars");
     await expect(stars).toBeVisible();
     // While live data has not arrived, the span reports data-live="false",
     // renders a "~" prefix, and carries the opacity-60 class.

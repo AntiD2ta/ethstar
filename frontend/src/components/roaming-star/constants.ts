@@ -131,3 +131,26 @@ export const ROAMING_STAR_SIZE_PX = 40;
 // Session persistence key (matches the ethstar_ prefix convention).
 export const DISMISSED_STORAGE_KEY = "ethstar_star_dismissed";
 export const DISMISSED_VERSION = 1; // bump to invalidate on schema changes
+
+// Same-session replay (Phase E.2). After the supernova burst fades, the
+// dormant slot settles into the all-starred terminal state *in place* rather
+// than auto-dismissing. Tap / Enter / Space on the terminal diamond re-fires
+// the burst at the diamond's `getBoundingClientRect()` centre. Throttled so
+// rapid taps can't queue overlapping bursts.
+export const SUPERNOVA_REPLAY_THROTTLE_MS = 1500;
+
+// Post-settle discovery hint. One gentle `aria-live="polite"` announcement
+// paired with a soft pulse on the diamond, paced so the user has a beat to
+// register the completion before the hint arrives. Suppressed entirely under
+// reduced-motion. Fires at most once per tab (see DISCOVERY_HINT_STORAGE_KEY).
+export const DISCOVERY_HINT_DELAY_MS = 2400;
+export const DISCOVERY_HINT_VISIBLE_MS = 4000;
+export const DISCOVERY_HINT_TEXT = "Tap again to celebrate";
+// Tab-scoped guard — sessionStorage (not local) so a new tab gets a fresh
+// hint but re-renders/remounts within the same tab don't replay it.
+export const DISCOVERY_HINT_STORAGE_KEY = "ethstar_discovery_hint_seen";
+
+// Reduced-motion replay — brief brightness flash on the star wrapper
+// instead of the canvas burst. Kept short and transform-free so it reads
+// as "this star just acknowledged you" without violating reduced-motion.
+export const REDUCED_MOTION_FLASH_MS = 260;

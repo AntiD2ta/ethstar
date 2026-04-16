@@ -58,13 +58,15 @@ test.beforeEach(async ({ page }) => {
   await seedConsent(page);
 });
 
-test("dormant (disconnected): label names the noun and the auth provider", async ({ page }) => {
+test("dormant (disconnected): label names the action with a count and the auth provider", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  // Phase E reframe: primary line is verb + count ("Star all 58 now"), paired
+  // with the H1 "Support Ethereum's builders" — no semantic duplication.
+  await expect(page.getByText(/^Star all \d+ now$/).first()).toBeVisible();
   await expect(page.getByText("Sign in with GitHub ↗").first()).toBeVisible();
-  // The legacy ornamental copy must be gone — "Light it up" hid the action.
+  // The legacy slop strings must be gone.
   await expect(page.getByText("Light it up")).toHaveCount(0);
-  await expect(page.getByText("↗ Continue with GitHub")).toHaveCount(0);
+  await expect(page.getByText("Star every Ethereum repo")).toHaveCount(0);
 });
 
 test("dormant (ready): shows a 'repos to go' sublabel so Jordan knows the scope", async ({ page }) => {
@@ -294,7 +296,7 @@ test("Riley: sign-out restores the dormant CTA and clears the dismissal flag", a
   const star = page.getByTestId("roaming-star-button");
   await expect(star).toBeVisible({ timeout: 5_000 });
   await expect(star).toHaveAttribute("data-status", "disconnected");
-  await expect(page.getByText("Star every Ethereum repo").first()).toBeVisible();
+  await expect(page.getByText(/^Star all \d+ now$/).first()).toBeVisible();
 
   // And the stale dismissal record must be gone so a subsequent re-connect
   // can run its supernova fresh without the flag short-circuiting mode
@@ -303,6 +305,147 @@ test("Riley: sign-out restores the dormant CTA and clears the dismissal flag", a
     localStorage.getItem("ethstar_star_dismissed"),
   );
   expect(dismissedRaw).toBeNull();
+});
+
+// Phase E.2 — same-session settle & explicit dismissal regression suite.
+// The full completion-to-supernova path goes through the OAuth popup which
+// isn't driven in E2E (same reason the existing tests skip it — see file
+// header). These specs use the "all-repos-already-starred" entry point that
+// produces the same terminal-diamond state the in-session flow now settles
+// into, and exercise the POST-settle behaviour that Phase E.2 changed:
+//
+//   1. Tapping the terminal diamond replays the burst and leaves the slot
+//      mounted — Phase E removed the old auto-dismissal after the burst.
+//   2. Only the explicit × affordance writes the session-dismissal flag.
+//
+// The settle-into-terminal transition itself (mode: supernova → dormant with
+// `state.status === "success"` once the particles fade) is covered by the
+// Vitest `CycleHarness` suite in `roaming-star.test.tsx`.
+
+async function mockAllRepoStarredAuthed(page: import("@playwright/test").Page) {
+  await page.route("https://api.github.com/user", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ login: "e2e", avatar_url: "", name: "E2E" }),
+    }),
+  );
+  await page.route("https://api.github.com/user/starred/**", (r) =>
+    r.fulfill({ status: 204, body: "" }),
+  );
+  await page.route("https://api.github.com/graphql", (r) =>
+    r.fulfill({ status: 401, body: "" }),
+  );
+  await page.route("**/api/stats", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ totalStars: 0, totalRepos: 0 }),
+    }),
+  );
+}
+
+test("terminal diamond stays mounted after a celebratory replay — no auto-dismiss", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  await mockAllRepoStarredAuthed(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  const slot = page.getByTestId("roaming-star-dormant-slot");
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
+
+  // Tap the terminal diamond — fires the canvas replay supernova. We let the
+  // burst play out and then wait a generous window (≥3s covers the 1.1s
+  // SUPERNOVA_FADE_MS envelope plus ample slack) to catch any residual
+  // auto-dismissal logic. The slot must still be mounted with status=success.
+  await star.click();
+  await page.waitForTimeout(3_500);
+  await expect(slot).toBeVisible();
+  await expect(page.getByTestId("roaming-star-button").first()).toHaveAttribute(
+    "data-status",
+    "success",
+  );
+  // And the dismissal flag must NOT have been written — only the explicit
+  // × affordance writes it, per Phase E.2.
+  const dismissedRaw = await page.evaluate(() =>
+    localStorage.getItem("ethstar_star_dismissed"),
+  );
+  expect(dismissedRaw).toBeNull();
+});
+
+test("reduced-motion replay: tap fires the brightness-only flash — no canvas burst, slot stays mounted", async ({
+  page,
+}) => {
+  // Spec (plan/phase-hero-reframe.md:92) requires the same-session replay to
+  // run under BOTH default and prefers-reduced-motion contexts. Under
+  // reduced motion the canvas burst is suppressed; tap instead applies the
+  // transform-free `roaming-star-celebrate-rm` brightness flash to the
+  // wrapper. The slot must still remain mounted after the tap — no auto-
+  // dismiss in either motion setting.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await seedAuth(page);
+  await mockAllRepoStarredAuthed(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  const slot = page.getByTestId("roaming-star-dormant-slot");
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
+
+  await star.click();
+
+  // The brightness-only wrapper class is applied (transform-free under
+  // reduced motion). Scoped to the slot so we don't pick up celebrate
+  // classes from other parts of the page.
+  await expect(slot.locator(".roaming-star-celebrate-rm")).toHaveCount(1);
+  // And the full-motion class must NOT be applied.
+  await expect(slot.locator(".roaming-star-celebrate")).toHaveCount(0);
+
+  // Slot persists across the ≥3s "generous window" — locks out any residual
+  // auto-dismiss logic under reduced motion as well.
+  await page.waitForTimeout(3_500);
+  await expect(slot).toBeVisible();
+  await expect(page.getByTestId("roaming-star-button").first()).toHaveAttribute(
+    "data-status",
+    "success",
+  );
+  // Dismissal flag must not be written by the replay.
+  const dismissedRaw = await page.evaluate(() =>
+    localStorage.getItem("ethstar_star_dismissed"),
+  );
+  expect(dismissedRaw).toBeNull();
+});
+
+test("explicit × dismissal unmounts the terminal diamond and writes the session-dismissal flag", async ({
+  page,
+}) => {
+  await seedAuth(page);
+  await mockAllRepoStarredAuthed(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  const slot = page.getByTestId("roaming-star-dormant-slot");
+  const star = page.getByTestId("roaming-star-button").first();
+  await expect(star).toHaveAttribute("data-status", "success", { timeout: 5_000 });
+
+  // Reveal the × affordance — it's hidden via `opacity-0` until the slot is
+  // hovered or focused. Hovering the slot triggers `group-hover:opacity-100`.
+  await slot.hover();
+  const dismiss = page.getByTestId("roaming-star-dismiss");
+  await expect(dismiss).toBeVisible();
+  await expect(dismiss).toHaveAttribute("aria-label", "Dismiss completion");
+
+  await dismiss.click();
+
+  // The terminal diamond unmounts and the dismissal flag is written.
+  await expect(page.getByTestId("roaming-star-button")).toHaveCount(0);
+  const dismissedRaw = await page.evaluate(() =>
+    localStorage.getItem("ethstar_star_dismissed"),
+  );
+  expect(dismissedRaw).not.toBeNull();
 });
 
 test("StarModal warning step names the write scope (Error Prevention)", async ({ page }) => {
@@ -318,8 +461,8 @@ test("StarModal warning step names the write scope (Error Prevention)", async ({
   // Scope + surface must be named: "N public repositories" + "on your GitHub account".
   await expect(dialog.getByText(/public repositories/i)).toBeVisible();
   await expect(dialog.getByText(/on your GitHub account/i)).toBeVisible();
-  // The Proceed button still names the count for belt-and-suspenders clarity.
+  // The CTA button still names the count for belt-and-suspenders clarity.
   await expect(
-    dialog.getByRole("button", { name: /Proceed — star all \d+ repos/i }),
+    dialog.getByRole("button", { name: /^Star all \d+/i }),
   ).toBeVisible();
 });

@@ -12,17 +12,21 @@
 // limitations under the License.
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { DISMISSED_STORAGE_KEY } from "./constants";
+import { DISCOVERY_HINT_STORAGE_KEY, DISMISSED_STORAGE_KEY } from "./constants";
 import {
   __testing__,
+  clearDiscoveryHintSeen,
   clearDismissed,
+  hasSeenDiscoveryHint,
   isDismissed,
+  markDiscoveryHintSeen,
   markDismissed,
 } from "./session-persistence";
 
 describe("session-persistence", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it("returns false when no record exists", () => {
@@ -66,5 +70,28 @@ describe("session-persistence", () => {
 
   it("parseRecord returns null when dismissedAt is not a number", () => {
     expect(__testing__.parseRecord(JSON.stringify({ v: 1, dismissedAt: "today" }))).toBeNull();
+  });
+
+  describe("discovery-hint one-shot guard (tab-scoped)", () => {
+    it("returns false when no record exists", () => {
+      expect(hasSeenDiscoveryHint()).toBe(false);
+    });
+
+    it("persists and reads back a sighting", () => {
+      markDiscoveryHintSeen();
+      expect(hasSeenDiscoveryHint()).toBe(true);
+    });
+
+    it("writes to sessionStorage (not localStorage) so new tabs get a fresh hint", () => {
+      markDiscoveryHintSeen();
+      expect(window.sessionStorage.getItem(DISCOVERY_HINT_STORAGE_KEY)).toBe("1");
+      expect(window.localStorage.getItem(DISCOVERY_HINT_STORAGE_KEY)).toBeNull();
+    });
+
+    it("clearDiscoveryHintSeen removes the record", () => {
+      markDiscoveryHintSeen();
+      clearDiscoveryHintSeen();
+      expect(hasSeenDiscoveryHint()).toBe(false);
+    });
   });
 });

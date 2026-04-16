@@ -97,7 +97,7 @@ Visit **http://localhost:5173**.
 
 ## 6. Verify the OAuth Flow
 
-1. Click **"Connect via GitHub"** on the homepage
+1. Click **"Sign in with GitHub"** on the homepage
 2. GitHub shows the authorization page — you should see **only** the "Starring" permission
 3. Click **Authorize**
 4. You're redirected back to `localhost:5173` with your GitHub profile loaded

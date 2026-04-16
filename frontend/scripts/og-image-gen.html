@@ -104,11 +104,10 @@
   }
 
   .title .highlight {
+    /* Phase E quieter pass — single soft aura, ETH-blue at ~25% alpha. The
+       triple-shadow stack was the loudest AI-slop tell on the OG image. */
     color: #627EEA;
-    text-shadow:
-      0 0 10px rgba(98, 126, 234, 0.6),
-      0 0 30px rgba(98, 126, 234, 0.4),
-      0 0 60px rgba(98, 126, 234, 0.25);
+    text-shadow: 0 0 24px rgba(98, 126, 234, 0.25);
   }
 
   .subtitle {
@@ -201,9 +200,9 @@
     <div class="logo-container">
       <img src="/logo-512.png" alt="Ethstar">
     </div>
-    <div class="title">Star Every <span class="highlight">Ethereum</span> Repo</div>
+    <div class="title">Support <span class="highlight">Ethereum&rsquo;s</span> builders</div>
     <!-- UPDATE when repos are added — keep in sync with REPOSITORIES in src/lib/repos.ts -->
-    <div class="subtitle">Support 50+ core protocol repositories in a single click</div>
+    <div class="subtitle">One tap stars every core Ethereum open-source repo on your GitHub</div>
     <div class="url">ethstar.dev</div>
   </div>
 </div>

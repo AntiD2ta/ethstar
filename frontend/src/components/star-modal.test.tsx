@@ -57,8 +57,8 @@ describe("StarModal", () => {
     render(<StarModal {...defaultProps} requestToken={requestToken} />);
     const user = userEvent.setup();
 
-    // Click "Proceed" to trigger authorization
-    await user.click(screen.getByRole("button", { name: /proceed/i }));
+    // Click "Star all N" to trigger authorization
+    await user.click(screen.getByRole("button", { name: /^star all/i }));
 
     // Error should appear with role="alert"
     const alert = screen.getByRole("alert");
@@ -88,7 +88,7 @@ describe("StarModal", () => {
       />,
     );
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /proceed/i }));
+    await user.click(screen.getByRole("button", { name: /^star all/i }));
 
     // onStartStarring resolved aborted=true → step should be "stopped".
     // Rerender with starResult populated (as the parent would).
@@ -122,7 +122,7 @@ describe("StarModal", () => {
       />,
     );
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /proceed/i }));
+    await user.click(screen.getByRole("button", { name: /^star all/i }));
 
     const stopBtn = await screen.findByTestId("takeover-cancel");
     expect(stopBtn).toHaveTextContent(/stop after current/i);

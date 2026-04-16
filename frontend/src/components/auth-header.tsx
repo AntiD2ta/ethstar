@@ -49,7 +49,7 @@ export function AuthHeader({
             className="h-10 w-10 rounded-full object-cover"
             aria-hidden="true"
           />
-          <span className="hidden sm:inline">ethstar</span>
+          <span className="max-sm:hidden">ethstar</span>
         </a>
       </nav>
 
@@ -60,14 +60,14 @@ export function AuthHeader({
         className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
       >
         <ListPlus className="size-3.5" aria-hidden="true" />
-        <span className="hidden sm:inline">Propose more repos</span>
+        <span className="max-sm:hidden">Propose more repos</span>
         <span className="sm:hidden">Propose</span>
       </a>
 
       {isLoading ? (
         <div className="flex items-center gap-2 sm:gap-3" role="status" aria-label="Loading account">
           <Skeleton className="size-6 rounded-full" />
-          <Skeleton className="hidden h-4 w-20 rounded sm:block" />
+          <Skeleton className="h-4 w-20 rounded max-sm:hidden" />
         </div>
       ) : isAuthenticated && user ? (
         <div className="flex items-center gap-2 sm:gap-3">
@@ -77,7 +77,7 @@ export function AuthHeader({
               {user.login.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden text-sm text-foreground/90 sm:inline">
+          <span className="text-sm text-foreground/90 max-sm:hidden">
             {user.name ?? user.login}
           </span>
           <Button
@@ -95,8 +95,8 @@ export function AuthHeader({
           onClick={onLogin}
           className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
-          <span className="hidden sm:inline">Connect via GitHub</span>
-          <span className="sm:hidden">Connect</span>
+          <span className="max-sm:hidden">Sign in with GitHub</span>
+          <span className="sm:hidden">Sign in</span>
         </Button>
       )}
     </header>

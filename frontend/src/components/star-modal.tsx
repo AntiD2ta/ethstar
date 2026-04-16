@@ -95,7 +95,7 @@ export function StarModal({
         setAuthError(POPUP_BLOCKED_MSG);
         setStep("warning");
       } else if (msg === STAR_OAUTH_ERROR.POPUP_CLOSED) {
-        setAuthError("Authorization window was closed. Click \"Proceed\" to try again.");
+        setAuthError("Authorization window was closed. Click \"Star all\" to try again.");
         setStep("warning");
       } else if (msg === STAR_OAUTH_ERROR.CANCELLED) {
         setStep("warning");
@@ -161,11 +161,13 @@ export function StarModal({
               <DialogDescription>
                 This will add a star to <strong>{unstarredCount} public repositories</strong>{" "}
                 on your GitHub account. The starred list is visible on your public profile.
-                <br /> <br />
-
-                Starring requires the <code className="rounded bg-muted px-1 text-xs">public_repo</code> scope —
-                broader than we&apos;d like, but it&apos;s a GitHub limitation. Clicking Proceed opens a popup where you can authorize our OAuth app.
               </DialogDescription>
+              {/* Sibling <p> rather than nested inside DialogDescription —
+                  Radix Description is a <p>, can't nest paragraphs. */}
+              <p className="text-sm text-muted-foreground">
+                Starring requires the <code className="rounded bg-muted px-1 text-xs">public_repo</code> scope —
+                broader than we&apos;d like, but it&apos;s a GitHub limitation. Continuing opens a popup where you can authorize our OAuth app.
+              </p>
             </DialogHeader>
 
             <div className="space-y-3 text-sm text-muted-foreground">
@@ -229,7 +231,7 @@ export function StarModal({
                 Star manually instead
               </Button>
               <Button onClick={handleProceed}>
-                Proceed — star all {unstarredCount} repos
+                Star all {unstarredCount}
               </Button>
             </DialogFooter>
           </>

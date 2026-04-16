@@ -75,6 +75,11 @@ Graduation criterion: once a rule here has automated enforcement in CI (failing 
 - **Invariant**: `npx playwright test` only works from `frontend/`.
 - **Enforcement**: Already de facto enforced by `make test-e2e`. Add a `frontend/scripts/preflight.sh` that `cd`s and exec's, and discourage direct `npx playwright` in README. Low priority.
 
+### 16. Tailwind v4: `hidden` + `sm:inline` (or `:block`/`:flex`/`:grid`) breaks at ≥sm
+- **Invariant**: Never combine base `hidden` with a responsive shown-variant (`sm:inline`, `md:block`, etc.) in the same `className`. Tailwind v4 emits `.hidden { display:none }` after the media-query rule in source order, so `.hidden` wins and the element stays invisible at every breakpoint the shown-variant was supposed to target. Use the inverse `max-sm:hidden` / `max-md:hidden` pattern instead.
+- **Violation symptom**: Visually empty elements with correct accessible name (so `getByRole` matchers pass while `innerText === ""`). Exact bug: auth-header's "Sign in with GitHub", "ethstar" logo text, "Propose more repos", user name, and auth skeleton all rendered invisible at ≥sm.
+- **Enforcement**: ESLint custom rule or `semgrep` pattern on JSX/TSX `className` string literals matching `\bhidden\b[^"`]*\b(sm|md|lg|xl|2xl):(inline|block|flex|grid|inline-block|inline-flex)\b`. Trivial to prototype; zero false positives for the pairing being a bug in v4. Tests in `e2e/home.spec.ts`'s `"header CTAs render the full-length label at ≥sm"` assert the rendered innerText (not the accessible name) to catch this at runtime.
+
 ---
 
 ## Cross-cutting
