@@ -29,9 +29,6 @@ export function computeCenterScrollLeft(
 ): number {
   const cRect = container.getBoundingClientRect();
   const tRect = target.getBoundingClientRect();
-  // tRect.left - cRect.left is the target's left edge relative to the
-  // container's left edge in the current scroll position. Adding the current
-  // scrollLeft yields the absolute left within the scroll content.
   const targetLeftWithinContent = tRect.left - cRect.left + container.scrollLeft;
   const raw = targetLeftWithinContent - (container.clientWidth - tRect.width) / 2;
   const max = Math.max(0, container.scrollWidth - container.clientWidth);

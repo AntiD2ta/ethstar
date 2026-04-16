@@ -32,6 +32,11 @@ export interface RingFilterProgress {
   selected: number;
 }
 
+// Signed-out users always render the default Core+EL+CL spine. Hoisted to
+// module level so `effectiveRepos` stays referentially stable across renders
+// regardless of what customisation lives in `selectedRepos`.
+const DEFAULT_EFFECTIVE_REPOS = applyFilter(DEFAULT_RING_FILTER, REPOSITORIES);
+
 export interface UseRingFilterResult {
   /** Raw stored filter (reflects user preference, even when signed out). */
   filter: RingFilter;
@@ -136,10 +141,7 @@ export function useRingFilter(isAuthenticated: boolean): UseRingFilterResult {
   );
 
   const effectiveRepos = useMemo(
-    () =>
-      isAuthenticated
-        ? selectedRepos
-        : applyFilter(DEFAULT_RING_FILTER, REPOSITORIES),
+    () => (isAuthenticated ? selectedRepos : DEFAULT_EFFECTIVE_REPOS),
     [isAuthenticated, selectedRepos],
   );
 

@@ -106,15 +106,8 @@ export const RepoMarquee = memo(function RepoMarquee({
   highlightToken = 0,
 }: RepoMarqueeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // OR'd with the auto-scroll hook's internal pause flag so the rAF tween
-  // below isn't fighting the auto-scroll for the same scrollLeft.
   const externalPausedRef = useRef(false);
-  // Cancel handle for the in-flight scroll tween. Replaced on every new
-  // highlightToken so rapid back-to-back ring clicks land on the final
-  // target without stacking tweens.
   const scrollCancelRef = useRef<AnimateScrollController | null>(null);
-  // Grace-window timeout id; tracked so we can clear it on a repeat click or
-  // on unmount.
   const graceTimeoutRef = useRef(0);
 
   // On every highlight token change where this marquee owns the key, scroll
@@ -181,8 +174,8 @@ export const RepoMarquee = memo(function RepoMarquee({
     };
   }, [highlightKey, highlightToken, repos, prefersReducedMotion]);
 
-  // Final cleanup on unmount: cancel any in-flight tween, drop the grace
-  // timeout, and release the external pause so the next mount starts clean.
+  // Final cleanup on unmount: cancel any in-flight tween and drop the grace
+  // timeout so a stale rAF / setTimeout can't fire after we're gone.
   useEffect(() => {
     return () => {
       if (scrollCancelRef.current) {
@@ -193,7 +186,6 @@ export const RepoMarquee = memo(function RepoMarquee({
         window.clearTimeout(graceTimeoutRef.current);
         graceTimeoutRef.current = 0;
       }
-      externalPausedRef.current = false;
     };
   }, []);
 

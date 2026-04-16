@@ -362,6 +362,38 @@ export default function HomePage() {
     };
   }, []);
 
+  // Memoize the floating filter-control fragment so it stays referentially
+  // stable across `starStatuses` ticks. A fresh inline fragment on every
+  // HomePage render would otherwise force SaturnCarousel to rebuild its
+  // subtree unnecessarily.
+  const filterControlNode = useMemo(
+    () => (
+      <>
+        <span aria-live="polite" data-testid="ring-progress">
+          {ringProgress.starred}/{ringProgress.selected} starred
+        </span>
+        <RingFilterSheet
+          filter={ringFilter.filter}
+          selectedCount={ringFilter.N}
+          totalCount={REPOSITORIES.length}
+          isAuthenticated={isAuthenticated}
+          onToggleSection={ringFilter.toggleSection}
+          onToggleRepo={ringFilter.toggleRepo}
+          onReset={ringFilter.reset}
+        />
+      </>
+    ),
+    [
+      ringProgress,
+      ringFilter.filter,
+      ringFilter.N,
+      isAuthenticated,
+      ringFilter.toggleSection,
+      ringFilter.toggleRepo,
+      ringFilter.reset,
+    ],
+  );
+
   return (
     <main className="flex flex-col overflow-x-hidden">
       {/* Skip link — visually hidden until focused so keyboard users can
@@ -424,22 +456,7 @@ export default function HomePage() {
           repos={ringFilter.effectiveRepos}
           onJump={handleRingJump}
           onStarTrigger={handleStarTrigger}
-          filterControl={
-            <>
-              <span aria-live="polite" data-testid="ring-progress">
-                {ringProgress.starred}/{ringProgress.selected} starred
-              </span>
-              <RingFilterSheet
-                filter={ringFilter.filter}
-                selectedCount={ringFilter.N}
-                totalCount={REPOSITORIES.length}
-                isAuthenticated={isAuthenticated}
-                onToggleSection={ringFilter.toggleSection}
-                onToggleRepo={ringFilter.toggleRepo}
-                onReset={ringFilter.reset}
-              />
-            </>
-          }
+          filterControl={filterControlNode}
         />
       </Suspense>
 

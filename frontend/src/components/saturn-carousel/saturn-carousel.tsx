@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { SaturnRing } from "./saturn-ring";
 import { useSaturnAnimation } from "./use-saturn-animation";
@@ -96,19 +96,29 @@ export function SaturnCarousel({
   useEffect(() => {
     const el = ringContainerRef.current;
     if (!el) return;
+    // Commit viewport state only when dimensions actually change. A naive
+    // `setViewportSize({ width, height })` always yields a new object
+    // reference, which re-renders and restarts the rAF loop on every
+    // ResizeObserver callback — catastrophic during smooth window drags.
+    const commit = (w: number, h: number) => {
+      setViewportSize((prev) =>
+        prev && prev.width === w && prev.height === h
+          ? prev
+          : { width: w, height: h },
+      );
+    };
     if (typeof ResizeObserver === "undefined") {
-      // Older test envs without ResizeObserver — seed once from the element
-      // and leave it alone. The band filter remains functional for static
-      // layouts even though it won't re-measure on resize.
-      setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+      // ResizeObserver unavailable (legacy environments) — seed once and skip
+      // live tracking.
+      commit(el.clientWidth, el.clientHeight);
       return;
     }
     const ro = new ResizeObserver(() => {
-      setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+      commit(el.clientWidth, el.clientHeight);
     });
     ro.observe(el);
     // Prime the initial value so the first paint already has a band.
-    setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+    commit(el.clientWidth, el.clientHeight);
     return () => {
       ro.disconnect();
     };
@@ -284,7 +294,7 @@ function MobileSaturnViewport({
   containerRef,
 }: {
   children: ReactNode;
-  containerRef?: React.RefObject<HTMLDivElement | null>;
+  containerRef?: RefObject<HTMLDivElement | null>;
 }) {
   // Hint fades out after ZOOM_HINT_TIMEOUT_MS. We intentionally do NOT wire
   // `onZoom`/`onPanning` dismissers onto TransformWrapper — `centerOnInit`

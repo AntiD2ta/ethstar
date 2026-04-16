@@ -61,8 +61,7 @@ export interface SaturnChipSizes {
 const TWO_PI = Math.PI * 2;
 const DEG2RAD = Math.PI / 180;
 
-/** Default half-sizes — source of truth for band math + stored for lookup
- *  at the positioning call site when the caller doesn't override. */
+/** Default chip half-sizes. Overridable per call site via the `chipSizes` parameter. */
 export const DEFAULT_CHIP_SIZES: SaturnChipSizes = {
   cardHalfW: 110,
   cardHalfH: 50,
@@ -130,6 +129,10 @@ function positionChip(
   tiltAxis: "x" | "y",
   depthFactor: number,
   band: BandContext | null,
+  // Precomputed `cos(tilt * DEG2RAD)` — hoisted out of the per-chip band
+  // check in `isInBand` so 58 chips × 60fps don't recompute the same
+  // constant per ring. Computed once per ring in `positionAllChips`.
+  cosTilt: number,
 ) {
   const t = (depthFactor + 1) / 2; // normalize -1..1 to 0..1
   const scale = 0.85 + 0.15 * t;
@@ -143,11 +146,19 @@ function positionChip(
 
   let inBand = true;
   if (band) {
-    inBand = isInBand(
-      { theta, radius, tiltDeg: tilt, tiltAxis },
-      { halfW: band.halfW, halfH: band.halfH },
-      { w: band.chipHalfW, h: band.chipHalfH },
-    );
+    // Inline the band check with the precomputed `cosTilt` to avoid the
+    // per-chip Math.cos call that `isInBand` would otherwise perform.
+    const px =
+      tiltAxis === "y"
+        ? Math.cos(theta) * radius * cosTilt
+        : Math.cos(theta) * radius;
+    const py =
+      tiltAxis === "y"
+        ? Math.sin(theta) * radius
+        : Math.sin(theta) * radius * cosTilt;
+    inBand =
+      Math.abs(px) + band.chipHalfW <= band.halfW &&
+      Math.abs(py) + band.chipHalfH <= band.halfH;
     if (!inBand) {
       // Visually hint that this chip is out of the interactive band so a
       // user hovering the "ghost" area isn't surprised that it doesn't
@@ -198,6 +209,10 @@ function positionAllChips(
     if (!chips) continue;
 
     const tiltAxis = cfg.tiltAxis ?? "x";
+    // `cfg.tiltX` is a constant per ring; hoist the cos computation out of
+    // the per-chip band check (58 chips × 60fps would otherwise recompute
+    // the same value every frame).
+    const cosTilt = Math.cos(cfg.tiltX * DEG2RAD);
 
     for (let c = 0; c < cfg.chipCount; c++) {
       const el = chips[c];
@@ -216,6 +231,7 @@ function positionAllChips(
         tiltAxis,
         depthFactor,
         band,
+        cosTilt,
       );
     }
   }
@@ -232,8 +248,6 @@ export function useSaturnAnimation(
 ): void {
   const anglesRef = useRef<Float64Array | null>(null);
 
-  // Static positioning for reduced-motion preference. Re-runs on viewport
-  // resize so the band filter adapts — cheap because no rAF is involved.
   useEffect(() => {
     if (!prefersReducedMotion) return;
 

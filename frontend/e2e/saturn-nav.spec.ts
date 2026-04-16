@@ -137,6 +137,9 @@ test.describe("Saturn ring navigation — interactions", () => {
     });
     await expect(ring).toBeVisible();
 
+    // Runs in the unauthenticated default state — the hardcoded
+    // `", not starred"` aria-label suffix below only matches when the ring
+    // is rendering the signed-out DEFAULT filter slice (Core+EL+CL).
     // Pick a repo that's NOT the first card in its marquee — the centring
     // math clamps to scrollLeft=0 for left-edge cards (you can't centre what
     // can't scroll there). EIPs is the third repo in Ethereum Core, deep
