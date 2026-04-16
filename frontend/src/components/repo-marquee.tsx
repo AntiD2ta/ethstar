@@ -65,6 +65,11 @@ const CARD_SLOT_DESKTOP_PX = 352;
 const CARD_SLOT_MOBILE_PX = 256;
 // Auto-scroll speed in pixels per second.
 const SCROLL_SPEED = 50;
+// Number of identical content-group copies the marquee renders. Three copies
+// power the seamless bidirectional loop: the middle copy is the "live" region
+// useAutoScroll keeps the user centred in. Both the dupFactor math and the
+// JSX read this constant so they stay in lockstep.
+const MARQUEE_COPY_COUNT = 3;
 
 /** Custom comparator: only re-render when data for THIS marquee's repos changes. */
 function arePropsEqual(prev: RepoMarqueeProps, next: RepoMarqueeProps): boolean {
@@ -108,7 +113,7 @@ export const RepoMarquee = memo(function RepoMarquee({
   const scrollRef = useRef<HTMLDivElement>(null);
   const externalPausedRef = useRef(false);
   const scrollCancelRef = useRef<AnimateScrollController | null>(null);
-  const graceTimeoutRef = useRef(0);
+  const graceTimeoutRef = useRef<number | null>(null);
 
   // On every highlight token change where this marquee owns the key, scroll
   // the matching card to the visual centre with an eased rAF tween and add
@@ -121,22 +126,45 @@ export const RepoMarquee = memo(function RepoMarquee({
     if (!container) return;
     const ownsKey = repos.some((r) => repoKey(r) === highlightKey);
     if (!ownsKey) return;
-    // Query within this marquee only — duplicates share the data-repo-key so
-    // we target the first (primary) instance to keep the highlight stable.
-    const target = container.querySelector<HTMLElement>(
+    // Each repo renders once per content copy (three copies drive the
+    // bidirectional infinite loop). Pick the instance closest to the current
+    // scroll position so the tween moves the shortest distance and stays
+    // inside the middle copy — wrapping won't teleport the user mid-tween.
+    const candidates = container.querySelectorAll<HTMLElement>(
       `[data-repo-key="${highlightKey}"]`,
     );
-    if (!target) return;
+    if (candidates.length === 0) return;
+    const viewportCenter = container.scrollLeft + container.clientWidth / 2;
+    let target = candidates[0];
+    let bestDist = Infinity;
+    for (const el of candidates) {
+      const cardCenter = el.offsetLeft + el.offsetWidth / 2;
+      const dist = Math.abs(cardCenter - viewportCenter);
+      if (dist < bestDist) {
+        bestDist = dist;
+        target = el;
+      }
+    }
 
     // Cancel any prior in-flight tween + clear any pending grace timeout so
     // a rapid second click doesn't race the first.
     if (scrollCancelRef.current) {
       scrollCancelRef.current.cancelled = true;
     }
-    if (graceTimeoutRef.current) {
+    if (graceTimeoutRef.current != null) {
       window.clearTimeout(graceTimeoutRef.current);
-      graceTimeoutRef.current = 0;
+      graceTimeoutRef.current = null;
     }
+
+    // The marquee often sits below the fold when the user clicks a ring chip
+    // — scroll the marquee vertically into view so the horizontal tween and
+    // highlight are actually visible. `inline: "nearest"` avoids fighting the
+    // marquee's own horizontal tween.
+    container.scrollIntoView({
+      block: "center",
+      inline: "nearest",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
 
     if (prefersReducedMotion) {
       // Reduced-motion path: jump instantly. Auto-scroll is already disabled
@@ -159,18 +187,27 @@ export const RepoMarquee = memo(function RepoMarquee({
         if (scrollCancelRef.current !== controller) return;
         graceTimeoutRef.current = window.setTimeout(() => {
           externalPausedRef.current = false;
-          graceTimeoutRef.current = 0;
+          graceTimeoutRef.current = null;
         }, SCROLL_PAUSE_GRACE_MS);
       });
     }
 
-    target.classList.add("repo-card-highlight");
+    // Highlight every duplicate of the target — the user might be looking at
+    // any of the three copies after a manual scroll, and whichever copy ends
+    // up in the viewport should light up.
+    for (const el of candidates) {
+      el.classList.add("repo-card-highlight");
+    }
     const t = window.setTimeout(() => {
-      target.classList.remove("repo-card-highlight");
+      for (const el of candidates) {
+        el.classList.remove("repo-card-highlight");
+      }
     }, HIGHLIGHT_DURATION_MS);
     return () => {
       window.clearTimeout(t);
-      target.classList.remove("repo-card-highlight");
+      for (const el of candidates) {
+        el.classList.remove("repo-card-highlight");
+      }
     };
   }, [highlightKey, highlightToken, repos, prefersReducedMotion]);
 
@@ -182,18 +219,24 @@ export const RepoMarquee = memo(function RepoMarquee({
         scrollCancelRef.current.cancelled = true;
         scrollCancelRef.current = null;
       }
-      if (graceTimeoutRef.current) {
+      if (graceTimeoutRef.current != null) {
         window.clearTimeout(graceTimeoutRef.current);
-        graceTimeoutRef.current = 0;
+        graceTimeoutRef.current = null;
       }
     };
   }, []);
 
   // Duplication factor sized to the active card slot so small categories
   // still produce enough content for a seamless loop on both breakpoints.
+  // Divide minLoopPx by MARQUEE_COPY_COUNT because the JSX already renders
+  // that many copies of `cards` — the loop length the marquee actually sees
+  // is repos.length * cardSlotPx * MARQUEE_COPY_COUNT * dupFactor.
   const cardSlotPx = isDesktop ? CARD_SLOT_DESKTOP_PX : CARD_SLOT_MOBILE_PX;
   const minLoopPx = isDesktop ? MIN_LOOP_DESKTOP_PX : MIN_LOOP_MOBILE_PX;
-  const dupFactor = Math.max(1, Math.ceil(minLoopPx / (repos.length * cardSlotPx)));
+  const dupFactor = Math.max(
+    1,
+    Math.ceil(minLoopPx / (repos.length * cardSlotPx * MARQUEE_COPY_COUNT)),
+  );
 
   const expandedRepos = useMemo<Repository[]>(
     () =>
@@ -223,8 +266,10 @@ export const RepoMarquee = memo(function RepoMarquee({
     );
   });
 
-  // Duplicate content is needed on both breakpoints for the seamless loop
-  // (JS scroll resets scrollLeft to 0 when past the midpoint).
+  // Three identical copies power the seamless loop: useAutoScroll keeps the
+  // user centered in the middle copy so manual scroll can wrap in either
+  // direction. Reduced motion skips the duplicates entirely (no looping, no
+  // wasted DOM).
   const showDuplicate = !prefersReducedMotion;
 
   return (
@@ -238,11 +283,17 @@ export const RepoMarquee = memo(function RepoMarquee({
         <div className="flex gap-4 md:gap-8">
           {cards}
         </div>
-        {showDuplicate && (
-          <div aria-hidden="true" inert={true} className="flex gap-4 md:gap-8">
-            {cards}
-          </div>
-        )}
+        {showDuplicate &&
+          Array.from({ length: MARQUEE_COPY_COUNT - 1 }, (_, i) => (
+            <div
+              key={`dup-${i}`}
+              aria-hidden="true"
+              inert={true}
+              className="flex gap-4 md:gap-8"
+            >
+              {cards}
+            </div>
+          ))}
       </div>
     </div>
   );

@@ -244,7 +244,7 @@ describe("SaturnCarousel band filter", () => {
     });
   }
 
-  it("marks bottom-arc outer-ring chips as pointer-events:none when the viewport is shorter than the ring diameter", () => {
+  it("dims bottom-arc outer-ring chips when the viewport is shorter than the ring diameter, but keeps them clickable", () => {
     render(
       <SaturnCarousel
         starStatuses={{}}
@@ -263,14 +263,19 @@ describe("SaturnCarousel band filter", () => {
     const links = screen.getAllByRole("link");
     expect(links.length).toBeGreaterThan(0);
 
-    // At least one chip's wrapper (parent of the anchor) should have
-    // pointer-events:none — the ones projected outside the vertical band.
-    const wrappers = links.map((a) => a.closest("div[style*='will-change']"));
-    const muted = wrappers.filter(
-      (w) =>
-        (w as HTMLElement | null)?.style?.pointerEvents === "none",
+    // Out-of-band chips get a dim pass (opacity × 0.4) so users can see
+    // they're leaning into empty space, but they stay clickable — disabling
+    // pointer events on entire outer-ring arcs hurt more than it helped.
+    const wrappers = links
+      .map((a) => a.closest("div[style*='will-change']") as HTMLElement | null)
+      .filter((w): w is HTMLElement => w !== null);
+    const dimmed = wrappers.filter(
+      (w) => parseFloat(w.style.opacity || "1") < 0.5,
     );
-    expect(muted.length).toBeGreaterThan(0);
+    expect(dimmed.length).toBeGreaterThan(0);
+    for (const w of wrappers) {
+      expect(w.style.pointerEvents).toBe("");
+    }
   });
 
   it("leaves chips interactive when the viewport comfortably contains the ring", () => {

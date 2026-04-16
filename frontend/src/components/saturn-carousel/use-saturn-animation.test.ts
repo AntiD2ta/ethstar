@@ -218,10 +218,10 @@ describe("useSaturnAnimation band filter", () => {
     cafSpy2.mockRestore();
   });
 
-  it("marks out-of-band chips as pointer-events:none under reduced motion", () => {
+  it("dims out-of-band chips under reduced motion while keeping them clickable", () => {
     // Construct a ring whose vertical extent exceeds the viewport height
     // (radius 570 × cos45° ≈ 403), with viewport half-height 300. At
-    // theta=π/2 (chip at bottom), the chip must fall out of band.
+    // theta=π/2 (chip at bottom), the chip falls out of band.
     const configs: RingConfig[] = [
       {
         radius: 570,
@@ -245,14 +245,21 @@ describe("useSaturnAnimation band filter", () => {
       ),
     );
     // Chip index 1 sits at θ = 0 + (1/4)*2π = π/2 — the bottom of the ring.
-    // It must be marked pointer-events:none (out of band).
-    expect(chipRefs.current[0][1].style.pointerEvents).toBe("none");
-    // Chip index 0 sits at θ = 0 (side of the ring). At viewport half-width
-    // 700, projected X = 570, + chip half 110 = 680 ≤ 700 → in band.
-    expect(chipRefs.current[0][0].style.pointerEvents).not.toBe("none");
+    // Out-of-band chips are dimmed (opacity multiplied by 0.4) but stay
+    // interactive — outer ring chips commonly project beyond the viewport
+    // band at typical heights, and making them unclickable hurts more than
+    // the hover-ghost issue the dimming signals.
+    const outOfBand = parseFloat(chipRefs.current[0][1].style.opacity);
+    const inBand = parseFloat(chipRefs.current[0][0].style.opacity);
+    expect(outOfBand).toBeLessThan(inBand);
+    expect(outOfBand).toBeLessThanOrEqual(0.4);
+    // Never written inline — pointer events stay default so the chip is
+    // clickable wherever it renders.
+    expect(chipRefs.current[0][1].style.pointerEvents).toBe("");
+    expect(chipRefs.current[0][0].style.pointerEvents).toBe("");
   });
 
-  it("keeps all chips interactive when the viewport is large enough", () => {
+  it("keeps chips at full opacity when the viewport is large enough", () => {
     const configs: RingConfig[] = [
       {
         radius: 240,
@@ -276,7 +283,9 @@ describe("useSaturnAnimation band filter", () => {
       ),
     );
     for (const el of chipRefs.current[0]) {
-      expect(el.style.pointerEvents).not.toBe("none");
+      // No chip should be dimmed below the minimum in-band opacity of 0.5.
+      expect(parseFloat(el.style.opacity)).toBeGreaterThanOrEqual(0.5);
+      expect(el.style.pointerEvents).toBe("");
     }
   });
 
@@ -303,8 +312,10 @@ describe("useSaturnAnimation band filter", () => {
         { cardHalfW: 110, cardHalfH: 50, chipHalfW: 90, chipHalfH: 18 },
       ),
     );
-    // Without a viewport measurement yet, do not write pointer-events.
+    // Without a viewport measurement yet, band dimming is skipped — every
+    // chip keeps the base opacity (>= 0.5) instead of the 0.4× penalty.
     for (const el of chipRefs.current[0]) {
+      expect(parseFloat(el.style.opacity)).toBeGreaterThanOrEqual(0.5);
       expect(el.style.pointerEvents).toBe("");
     }
   });

@@ -134,6 +134,59 @@ test.describe("desktop marquee behavior", () => {
     );
     expect(overflowX).toBe("auto");
   });
+
+  test("marquee wraps in both directions — forward past 2× period and backward past 0", async ({ page }) => {
+    await page.goto("/");
+    const marquee = page.locator('[role="region"]').first();
+    await expect(marquee).toBeVisible();
+
+    // Once layout settles, the auto-scroll effect centers scrollLeft on the
+    // middle copy (period ≤ scrollLeft < 2 × period). This verifies the
+    // 3-copy structure + center-on-mount behaviour.
+    await page.waitForFunction(() => {
+      const el = document.querySelector('[role="region"]') as HTMLElement | null;
+      if (!el) return false;
+      const track = el.firstElementChild;
+      if (!track || track.children.length < 3) return false;
+      const g1 = track.children[1] as HTMLElement;
+      return el.scrollLeft >= g1.offsetLeft * 0.9;
+    });
+
+    // Manually push past the forward wrap and confirm it lands back in the
+    // middle copy window on the next frame.
+    const wrappedForward = await marquee.evaluate((el: HTMLElement) => {
+      const track = el.firstElementChild!;
+      const g0 = track.children[0] as HTMLElement;
+      const g1 = track.children[1] as HTMLElement;
+      const period = g1.offsetLeft - g0.offsetLeft;
+      el.scrollLeft = 2 * period + 50; // past the forward wrap threshold
+      return new Promise<number>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(el.scrollLeft)));
+      });
+    });
+    const period = await marquee.evaluate((el: HTMLElement) => {
+      const track = el.firstElementChild!;
+      const g0 = track.children[0] as HTMLElement;
+      const g1 = track.children[1] as HTMLElement;
+      return g1.offsetLeft - g0.offsetLeft;
+    });
+    expect(wrappedForward).toBeGreaterThanOrEqual(period - 10);
+    expect(wrappedForward).toBeLessThan(2 * period);
+
+    // And the backward case — the fix under test.
+    const wrappedBackward = await marquee.evaluate((el: HTMLElement) => {
+      const track = el.firstElementChild!;
+      const g0 = track.children[0] as HTMLElement;
+      const g1 = track.children[1] as HTMLElement;
+      const period = g1.offsetLeft - g0.offsetLeft;
+      el.scrollLeft = period - 50; // just past the backward wrap threshold
+      return new Promise<number>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(el.scrollLeft)));
+      });
+    });
+    expect(wrappedBackward).toBeGreaterThanOrEqual(period - 10);
+    expect(wrappedBackward).toBeLessThan(2 * period);
+  });
 });
 
 // AC5: RoamingStar dormant CTA fits at mobile width (authenticated)

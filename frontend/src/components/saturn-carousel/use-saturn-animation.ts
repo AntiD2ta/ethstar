@@ -72,10 +72,6 @@ export const DEFAULT_CHIP_SIZES: SaturnChipSizes = {
 // Cache previous zIndex per element to avoid per-frame stacking context
 // invalidation — only write when the rounded value actually changes.
 const prevZIndex = new WeakMap<HTMLDivElement, number>();
-// Mirror for pointer-events so we only touch style when the in-band decision
-// flips. Writing pointer-events every frame forces a fresh stacking/layer
-// pass on some browsers — expensive for ~58 chips at 60fps.
-const prevPointerEvents = new WeakMap<HTMLDivElement, "auto" | "none">();
 
 /**
  * Pure predicate — is a chip at angle `theta` on a ring of `radius`, tilted
@@ -144,7 +140,6 @@ function positionChip(
   const counter =
     tiltAxis === "y" ? `rotateY(${-tilt}deg)` : `rotateX(${-tilt}deg)`;
 
-  let inBand = true;
   if (band) {
     // Inline the band check with the precomputed `cosTilt` to avoid the
     // per-chip Math.cos call that `isInBand` would otherwise perform.
@@ -156,13 +151,17 @@ function positionChip(
       tiltAxis === "y"
         ? Math.sin(theta) * radius
         : Math.sin(theta) * radius * cosTilt;
-    inBand =
+    const inBand =
       Math.abs(px) + band.chipHalfW <= band.halfW &&
       Math.abs(py) + band.chipHalfH <= band.halfH;
     if (!inBand) {
       // Visually hint that this chip is out of the interactive band so a
-      // user hovering the "ghost" area isn't surprised that it doesn't
-      // respond. 0.4 keeps the silhouette readable while clearly muting it.
+      // user hovering the "ghost" area isn't surprised that it's leaning
+      // into empty space. 0.4 keeps the silhouette readable while clearly
+      // muting it. We deliberately do NOT disable pointer events — the
+      // outer ring's natural orbit pushes chips out of the container's
+      // vertical band at typical viewport sizes, and making them
+      // unclickable was worse than the hover-ghost issue it aimed to fix.
       opacity *= 0.4;
     }
   }
@@ -173,14 +172,6 @@ function positionChip(
   if (prevZIndex.get(el) !== zIndex) {
     el.style.zIndex = String(zIndex);
     prevZIndex.set(el, zIndex);
-  }
-
-  if (band) {
-    const next: "auto" | "none" = inBand ? "auto" : "none";
-    if (prevPointerEvents.get(el) !== next) {
-      el.style.pointerEvents = next;
-      prevPointerEvents.set(el, next);
-    }
   }
 }
 

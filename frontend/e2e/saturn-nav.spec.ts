@@ -165,36 +165,37 @@ test.describe("Saturn ring navigation — interactions", () => {
       .first();
     await expect(card).toHaveClass(/repo-card-highlight/, { timeout: 1500 });
 
-    // After the jump settles, the card's centre must sit within ±20px of
-    // the marquee scroller's centre, and its on-screen left must be within
-    // one container width of the scroller's left (i.e. at least partially
-    // visible).
+    // After the jump settles, one of the three duplicate cards must sit
+    // within ±20px of the marquee scroller's centre — the marquee picks the
+    // instance closest to current scroll and tweens to it, so we measure the
+    // best candidate (not just `first()`).
     await expect
       .poll(
         async () => {
-          const result = await card.evaluate((el) => {
-            const scroller = el.closest<HTMLElement>('div[role="region"]');
-            if (!scroller) return null;
-            const sRect = scroller.getBoundingClientRect();
-            const cRect = el.getBoundingClientRect();
-            return Math.abs(
-              cRect.left + cRect.width / 2 - (sRect.left + sRect.width / 2),
-            );
-          });
-          return result;
+          return await page
+            .locator(`article[data-repo-key="${targetRepoKey}"]`)
+            .evaluateAll((els) => {
+              if (els.length === 0) return null;
+              const scroller = (els[0] as HTMLElement).closest<HTMLElement>(
+                'div[role="region"]',
+              );
+              if (!scroller) return null;
+              const sRect = scroller.getBoundingClientRect();
+              const sCenter = sRect.left + sRect.width / 2;
+              let best = Infinity;
+              for (const el of els) {
+                const cRect = (el as HTMLElement).getBoundingClientRect();
+                best = Math.min(
+                  best,
+                  Math.abs(cRect.left + cRect.width / 2 - sCenter),
+                );
+              }
+              return best;
+            });
         },
         { timeout: 2000, intervals: [50, 100, 200] },
       )
       .toBeLessThanOrEqual(20);
-
-    const dx = await card.evaluate((el) => {
-      const scroller = el.closest<HTMLElement>('div[role="region"]');
-      if (!scroller) throw new Error("scroller not found");
-      const sRect = scroller.getBoundingClientRect();
-      const cRect = el.getBoundingClientRect();
-      return { dx: Math.abs(cRect.x - sRect.x), scrollerWidth: sRect.width };
-    });
-    expect(dx.dx).toBeLessThanOrEqual(dx.scrollerWidth);
   });
 
   test("Shift+click opens the per-repo action group", async ({ page }) => {
