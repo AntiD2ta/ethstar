@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import { memo, useCallback } from "react";
-import type { MutableRefObject } from "react";
+import type { KeyboardEvent, MutableRefObject } from "react";
 import { SaturnCard } from "./saturn-card";
 import { SaturnChip } from "./saturn-chip";
 import type { RepoMeta } from "@/lib/github";
@@ -46,6 +46,21 @@ interface SaturnRingProps {
   /** Axis of tilt — `"x"` (default) produces a wide ellipse, `"y"` produces
    *  a tall (portrait) ellipse. Must match the hook's `tiltAxis`. */
   tiltAxis?: "x" | "y";
+  /** Primary action on the card/chip — jump to matching marquee card. */
+  onJump?: (repo: Repository) => void;
+  /** Secondary action (shift+click menu) — trigger star flow for this repo. */
+  onStarTrigger?: (repo: Repository) => void;
+  /** Base index of the first repo on this ring in the global roving-tabindex
+   *  sequence. The ring consumes `globalBase` + `chipIndex` per chip so the
+   *  ring-system behaves as a single flat focus chain. */
+  globalBase?: number;
+  /** Currently tabbable global index (one across the ring system). */
+  globalCurrent?: number;
+  onRovingKeyDown?: (
+    event: KeyboardEvent<HTMLElement>,
+    index: number,
+  ) => void;
+  onRovingFocus?: (index: number) => void;
 }
 
 export const SaturnRing = memo(function SaturnRing({
@@ -62,6 +77,12 @@ export const SaturnRing = memo(function SaturnRing({
   onChipLeave,
   variant = "card",
   tiltAxis = "x",
+  onJump,
+  onStarTrigger,
+  globalBase = 0,
+  globalCurrent = 0,
+  onRovingKeyDown,
+  onRovingFocus,
 }: SaturnRingProps) {
   const setChipRef = useCallback(
     (chipIndex: number) => (el: HTMLDivElement | null) => {
@@ -102,6 +123,8 @@ export const SaturnRing = memo(function SaturnRing({
       {repos.map((repo, chipIndex) => {
         const k = repoKey(repo);
         const status = starStatuses[k] ?? "unknown";
+        const globalIndex = globalBase + chipIndex;
+        const tabIndex = globalIndex === globalCurrent ? 0 : -1;
         return (
           <div
             key={k}
@@ -118,7 +141,16 @@ export const SaturnRing = memo(function SaturnRing({
             onBlur={onChipLeave}
           >
             {variant === "chip" ? (
-              <SaturnChip repo={repo} status={status} />
+              <SaturnChip
+                repo={repo}
+                status={status}
+                onJump={onJump}
+                onStarTrigger={onStarTrigger}
+                tabIndex={tabIndex}
+                rovingIndex={globalIndex}
+                onRovingKeyDown={onRovingKeyDown}
+                onRovingFocus={onRovingFocus}
+              />
             ) : (
               <SaturnCard
                 repo={repo}
@@ -126,6 +158,12 @@ export const SaturnRing = memo(function SaturnRing({
                 starCount={repoMeta[k]?.stargazers_count}
                 liveDescription={repoMeta[k]?.description}
                 metaLoading={metaLoading}
+                onJump={onJump}
+                onStarTrigger={onStarTrigger}
+                tabIndex={tabIndex}
+                rovingIndex={globalIndex}
+                onRovingKeyDown={onRovingKeyDown}
+                onRovingFocus={onRovingFocus}
               />
             )}
           </div>

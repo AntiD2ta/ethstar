@@ -21,6 +21,15 @@ export const CATEGORIES: CategoryMeta[] = [
   { name: "DeFi & Smart Contracts", icon: "coins" },
 ];
 
+// Default Saturn-ring filter: the core Ethereum spine. Signed-out visitors
+// see exactly this slice (immutable); authed users can widen it via the
+// filter sheet. Order matches `CATEGORIES`.
+export const DEFAULT_RING_FILTER_SECTIONS: RepoCategory[] = [
+  "Ethereum Core",
+  "Execution Clients",
+  "Consensus Clients",
+];
+
 export const REPOSITORIES: Repository[] = [
   // Ethereum Core
   {

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { SaturnRing } from "./saturn-ring";
@@ -20,8 +20,9 @@ import type { RingConfig } from "./use-saturn-animation";
 import { distributeRepos, sortReposForDistribution } from "./distribute-repos";
 import { CATEGORIES, REPOSITORIES } from "@/lib/repos";
 import type { RepoMeta } from "@/lib/github";
-import type { StarStatus } from "@/lib/types";
+import type { Repository, StarStatus } from "@/lib/types";
 import { CssDiamond } from "@/components/css-diamond";
+import { useRovingTabindex } from "@/hooks/use-roving-tabindex";
 
 interface SaturnCarouselProps {
   starStatuses: Record<string, StarStatus>;
@@ -29,6 +30,12 @@ interface SaturnCarouselProps {
   metaLoading: boolean;
   isDesktop: boolean;
   prefersReducedMotion: boolean;
+  /** Subset of repos to render on the ring. Defaults to the full list. */
+  repos?: Repository[];
+  /** Primary action on a chip/card: jump to the matching marquee card. */
+  onJump?: (repo: Repository) => void;
+  /** Secondary action (shift+click menu): trigger the star flow. */
+  onStarTrigger?: (repo: Repository) => void;
 }
 
 // Radii ordered inner → outer. Outer rings have larger circumference so
@@ -38,32 +45,23 @@ interface SaturnCarouselProps {
 export const DESKTOP_RADII = [240, 350, 460, 570] as const;
 export const MOBILE_RADII = [100, 145, 190, 235] as const;
 
-// Sort once at module scope so ring membership is deterministic across
-// refreshes, then slice by radius-weight. Both viewports share the same
-// slice ordering so repos don't hop between rings on viewport toggles.
-const SORTED_REPOS = sortReposForDistribution(
-  REPOSITORIES,
-  CATEGORIES.map((c) => c.name),
-);
-const RING_SLICES = distributeRepos(SORTED_REPOS, DESKTOP_RADII);
+const CATEGORY_ORDER = CATEGORIES.map((c) => c.name);
 
-// Desktop ring configs — 4 rings, radius-weighted chip distribution.
-const RING_CONFIGS: RingConfig[] = [
-  { radius: DESKTOP_RADII[0], speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0, chipCount: RING_SLICES[0].length },
-  { radius: DESKTOP_RADII[1], speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4, chipCount: RING_SLICES[1].length },
-  { radius: DESKTOP_RADII[2], speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3, chipCount: RING_SLICES[2].length },
-  { radius: DESKTOP_RADII[3], speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2, chipCount: RING_SLICES[3].length },
+// Desktop ring base configs (radii fixed; chipCount per ring is computed
+// per-render from the filtered repo list).
+const DESKTOP_BASE: Omit<RingConfig, "chipCount">[] = [
+  { radius: DESKTOP_RADII[0], speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0 },
+  { radius: DESKTOP_RADII[1], speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4 },
+  { radius: DESKTOP_RADII[2], speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3 },
+  { radius: DESKTOP_RADII[3], speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2 },
 ];
 
-// Mobile ring configs — same slice counts, tilted around Y for a portrait
-// ellipse matching mobile's narrow aspect ratio. Mobile reuses the
-// desktop-derived `RING_SLICES`; keep `MOBILE_RADII` proportional to
-// `DESKTOP_RADII` or mobile chip density will diverge from desktop.
-const MOBILE_RING_CONFIGS: RingConfig[] = [
-  { radius: MOBILE_RADII[0], speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, chipCount: RING_SLICES[0].length, tiltAxis: "y" },
-  { radius: MOBILE_RADII[1], speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, chipCount: RING_SLICES[1].length, tiltAxis: "y" },
-  { radius: MOBILE_RADII[2], speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, chipCount: RING_SLICES[2].length, tiltAxis: "y" },
-  { radius: MOBILE_RADII[3], speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, chipCount: RING_SLICES[3].length, tiltAxis: "y" },
+// Mobile ring base configs (Y-axis tilt for portrait ellipse).
+const MOBILE_BASE: Omit<RingConfig, "chipCount">[] = [
+  { radius: MOBILE_RADII[0], speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, tiltAxis: "y" },
+  { radius: MOBILE_RADII[1], speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, tiltAxis: "y" },
+  { radius: MOBILE_RADII[2], speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, tiltAxis: "y" },
+  { radius: MOBILE_RADII[3], speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, tiltAxis: "y" },
 ];
 
 const ZOOM_HINT_TIMEOUT_MS = 4000;
@@ -75,11 +73,24 @@ export function SaturnCarousel({
   metaLoading,
   isDesktop,
   prefersReducedMotion,
+  repos = REPOSITORIES,
+  onJump,
+  onStarTrigger,
 }: SaturnCarouselProps) {
   const chipRefs = useRef<HTMLDivElement[][]>([]);
   const pausedRef = useRef(false);
 
-  const activeConfigs = isDesktop ? RING_CONFIGS : MOBILE_RING_CONFIGS;
+  // Recompute slices whenever the filtered repo set changes. Sorting stays
+  // category-first so ring membership is deterministic across filter tweaks.
+  const ringSlices = useMemo(() => {
+    const sorted = sortReposForDistribution(repos, CATEGORY_ORDER);
+    return distributeRepos(sorted, DESKTOP_RADII);
+  }, [repos]);
+
+  const activeConfigs: RingConfig[] = useMemo(() => {
+    const base = isDesktop ? DESKTOP_BASE : MOBILE_BASE;
+    return base.map((b, i) => ({ ...b, chipCount: ringSlices[i].length }));
+  }, [isDesktop, ringSlices]);
 
   useSaturnAnimation(activeConfigs, chipRefs, pausedRef, prefersReducedMotion);
 
@@ -90,6 +101,27 @@ export function SaturnCarousel({
   const resume = useCallback(() => {
     pausedRef.current = false;
   }, []);
+
+  const totalCount = repos.length;
+  const { tabIndexFor, onKeyDown, setCurrent, current } =
+    useRovingTabindex(totalCount);
+
+  // Keep tabIndexFor from being unused — the ring uses `current` + per-chip
+  // globalIndex to drive tabIndex computation directly for perf, but we
+  // compute it once to keep the hook stable.
+  void tabIndexFor;
+
+  // Precompute the cumulative base index per ring so every chip's global
+  // roving index is O(1) at render time.
+  const globalBases = useMemo(() => {
+    const bases: number[] = [];
+    let total = 0;
+    for (const slice of ringSlices) {
+      bases.push(total);
+      total += slice.length;
+    }
+    return bases;
+  }, [ringSlices]);
 
   const rings = (
     <>
@@ -102,10 +134,10 @@ export function SaturnCarousel({
       </div>
 
       {/* Orbiting rings */}
-      {RING_SLICES.map((repos, ringIndex) => (
+      {ringSlices.map((slice, ringIndex) => (
         <SaturnRing
           key={`ring-${ringIndex}`}
-          repos={repos}
+          repos={slice}
           starStatuses={starStatuses}
           repoMeta={repoMeta}
           metaLoading={metaLoading}
@@ -118,33 +150,56 @@ export function SaturnCarousel({
           onChipLeave={resume}
           variant={isDesktop ? "card" : "chip"}
           tiltAxis={activeConfigs[ringIndex].tiltAxis}
+          onJump={onJump}
+          onStarTrigger={onStarTrigger}
+          globalBase={globalBases[ringIndex]}
+          globalCurrent={current}
+          onRovingKeyDown={onKeyDown}
+          onRovingFocus={setCurrent}
         />
       ))}
     </>
   );
 
+  const emptySelection = totalCount === 0;
+
   if (!isDesktop) {
     return (
       <section
-        aria-label="Ethereum ecosystem repositories"
+        aria-label={`Saturn repository navigator, ${totalCount} of ${REPOSITORIES.length} repositories`}
+        data-roving-scope="saturn"
         className="relative mx-auto flex w-full flex-col items-center justify-center overflow-hidden py-6"
         style={{ perspective: "800px" }}
       >
         <h2 className="sr-only">Ethereum Ecosystem</h2>
         <MobileSaturnViewport>{rings}</MobileSaturnViewport>
+        {emptySelection && <EmptySelectionHint />}
       </section>
     );
   }
 
   return (
     <section
-      aria-label="Ethereum ecosystem repositories"
+      aria-label={`Saturn repository navigator, ${totalCount} of ${REPOSITORIES.length} repositories`}
+      data-roving-scope="saturn"
       className="relative mx-auto flex w-full flex-col items-center justify-center py-12"
       style={{ perspective: "1200px" }}
     >
       <h2 className="sr-only">Ethereum Ecosystem</h2>
       <div className="relative h-[80vh] w-full">{rings}</div>
+      {emptySelection && <EmptySelectionHint />}
     </section>
+  );
+}
+
+function EmptySelectionHint() {
+  return (
+    <p
+      role="status"
+      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground"
+    >
+      Choose what to track →
+    </p>
   );
 }
 

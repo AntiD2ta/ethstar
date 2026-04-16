@@ -299,6 +299,15 @@
     50% { opacity: 0.4; }
 }
 
+/* Repo-card jump highlight — fires for 600ms when a Saturn ring chip
+   jumps to a matching marquee card. Outline + eth-blue glow call the
+   eye to the destination without displacing layout. */
+@keyframes repo-card-highlight {
+    0%   { outline-color: oklch(0.620 0.140 270 / 0%);   box-shadow: 0 0 0 0 oklch(0.620 0.140 270 / 0%);   }
+    20%  { outline-color: oklch(0.620 0.140 270 / 100%); box-shadow: 0 0 32px 4px oklch(0.620 0.140 270 / 50%); }
+    100% { outline-color: oklch(0.620 0.140 270 / 0%);   box-shadow: 0 0 0 0 oklch(0.620 0.140 270 / 0%);   }
+}
+
 /* Subtle glow pulse for the logo */
 @keyframes glow-pulse {
     0%, 100% { filter: drop-shadow(0 0 30px oklch(0.620 0.140 270 / 20%)); }
@@ -456,6 +465,20 @@
     .saturn-chip:focus-visible {
         outline: 2px solid var(--ring);
         outline-offset: 2px;
+    }
+
+    /* Jump highlight — added for 600ms by repo-marquee when a Saturn chip
+       jumps to this card. Uses outline so it never shifts the layout. */
+    .repo-card-highlight {
+        outline: 2px solid oklch(0.620 0.140 270);
+        outline-offset: 3px;
+        animation: repo-card-highlight 600ms ease-out;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .repo-card-highlight {
+            animation: none;
+        }
     }
 
     /* SVG Ethereum diamond — replaces second WebGL Canvas.

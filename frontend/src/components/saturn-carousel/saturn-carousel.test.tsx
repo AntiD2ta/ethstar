@@ -41,7 +41,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     expect(
-      screen.getByRole("region", { name: /ethereum ecosystem/i }),
+      screen.getByRole("region", { name: /saturn repository navigator/i }),
     ).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("SaturnCarousel", () => {
       />,
     );
     // In test env (no WebGL), falls back to logo image
-    const region = screen.getByRole("region", { name: /ethereum ecosystem/i });
+    const region = screen.getByRole("region", { name: /saturn repository navigator/i });
     const images = region.querySelectorAll("img");
     expect(images.length).toBeGreaterThan(0);
   });

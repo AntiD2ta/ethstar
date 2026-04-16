@@ -11,12 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { memo, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { RepoCard } from "@/components/repo-card";
 import type { RepoMeta } from "@/lib/github";
 import type { Repository, StarStatus } from "@/lib/types";
 import { repoKey } from "@/lib/repo-key";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
+
+/** Duration of the chip-jump highlight outline in ms. */
+const HIGHLIGHT_DURATION_MS = 600;
 
 interface RepoMarqueeProps {
   /** Stable module-level constant — reference never changes. */
@@ -31,6 +34,11 @@ interface RepoMarqueeProps {
   /** Whether reduced motion is preferred. */
   prefersReducedMotion?: boolean;
   label?: string;
+  /** Repo key ("owner/name") to jump to and highlight on change. */
+  highlightKey?: string | null;
+  /** Monotonic token changed by the caller on every jump so repeated jumps
+   *  to the same key still trigger scroll + highlight. */
+  highlightToken?: number;
 }
 
 // Minimum content width (px) for a seamless marquee loop — sized per breakpoint
@@ -52,7 +60,9 @@ function arePropsEqual(prev: RepoMarqueeProps, next: RepoMarqueeProps): boolean 
     prev.metaLoading !== next.metaLoading ||
     prev.isAuthenticated !== next.isAuthenticated ||
     prev.onRetry !== next.onRetry ||
-    prev.prefersReducedMotion !== next.prefersReducedMotion
+    prev.prefersReducedMotion !== next.prefersReducedMotion ||
+    prev.highlightKey !== next.highlightKey ||
+    prev.highlightToken !== next.highlightToken
   ) {
     return false;
   }
@@ -77,8 +87,37 @@ export const RepoMarquee = memo(function RepoMarquee({
   isDesktop,
   prefersReducedMotion = false,
   label = "Scrolling repository list",
+  highlightKey = null,
+  highlightToken = 0,
 }: RepoMarqueeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // On every highlight token change where this marquee owns the key, scroll
+  // the matching card into view and add the transient highlight class. The
+  // class is removed after HIGHLIGHT_DURATION_MS so repeated jumps can
+  // re-trigger the animation reliably.
+  useEffect(() => {
+    if (!highlightKey) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const ownsKey = repos.some((r) => repoKey(r) === highlightKey);
+    if (!ownsKey) return;
+    // Query within this marquee only — duplicates share the data-repo-key so
+    // we target the first (primary) instance to keep the highlight stable.
+    const target = container.querySelector<HTMLElement>(
+      `[data-repo-key="${highlightKey}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    target.classList.add("repo-card-highlight");
+    const t = window.setTimeout(() => {
+      target.classList.remove("repo-card-highlight");
+    }, HIGHLIGHT_DURATION_MS);
+    return () => {
+      window.clearTimeout(t);
+      target.classList.remove("repo-card-highlight");
+    };
+  }, [highlightKey, highlightToken, repos]);
 
   // Duplication factor sized to the active card slot so small categories
   // still produce enough content for a seamless loop on both breakpoints.
