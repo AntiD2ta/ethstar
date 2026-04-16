@@ -11,10 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { memo } from "react";
+import { memo, useState } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { Loader2, Star } from "lucide-react";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatStarCount } from "@/lib/utils";
+import { repoKey } from "@/lib/repo-key";
 import type { Repository, StarStatus } from "@/lib/types";
 
 interface SaturnCardProps {
@@ -23,6 +30,17 @@ interface SaturnCardProps {
   starCount?: number;
   liveDescription?: string | null;
   metaLoading?: boolean;
+  /** Primary action: jump to the matching marquee card. */
+  onJump?: (repo: Repository) => void;
+  /** Secondary action (shift+click menu item): trigger the star flow. */
+  onStarTrigger?: (repo: Repository) => void;
+  tabIndex?: number;
+  rovingIndex?: number;
+  onRovingKeyDown?: (
+    event: KeyboardEvent<HTMLElement>,
+    index: number,
+  ) => void;
+  onRovingFocus?: (index: number) => void;
 }
 
 export const SaturnCard = memo(function SaturnCard({
@@ -31,52 +49,131 @@ export const SaturnCard = memo(function SaturnCard({
   starCount,
   liveDescription,
   metaLoading,
+  onJump,
+  onStarTrigger,
+  tabIndex,
+  rovingIndex,
+  onRovingKeyDown,
+  onRovingFocus,
 }: SaturnCardProps) {
   const description = liveDescription ?? repo.description;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const key = repoKey(repo);
+  const statusWord = status === "starred" ? "starred" : "not starred";
+
+  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (e.shiftKey) {
+      setMenuOpen(true);
+      return;
+    }
+    onJump?.(repo);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLAnchorElement>) => {
+    if (rovingIndex != null) {
+      onRovingKeyDown?.(e, rovingIndex);
+      if (e.defaultPrevented) return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        setMenuOpen(true);
+        return;
+      }
+      onJump?.(repo);
+    }
+  };
+
+  const handleFocus = () => {
+    if (rovingIndex != null) onRovingFocus?.(rovingIndex);
+  };
 
   return (
-    <a
-      href={repo.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="saturn-card group"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="truncate font-heading text-xs font-semibold leading-tight text-primary group-hover:underline">
-          {repo.owner}/{repo.name}
-        </h3>
-        <CompactStarIndicator status={status} />
-      </div>
-
-      {metaLoading && !liveDescription ? (
-        <Skeleton className="h-3 w-full rounded" />
-      ) : (
-        <p className="line-clamp-1 text-[11px] leading-snug text-muted-foreground">
-          {description}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <img
-            src={`https://github.com/${repo.owner}.png?size=32`}
-            alt={repo.owner}
-            className="size-4 rounded-full"
-          />
-          <span className="text-[10px] text-muted-foreground">
-            {repo.owner}
-          </span>
-        </div>
-        {typeof starCount === "number" ? (
-          <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-            <Star size={9} fill="currentColor" strokeWidth={0} aria-hidden="true" />
-            <span>{formatStarCount(starCount)}</span>
+    <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+      <PopoverAnchor asChild>
+        <a
+          href={repo.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="saturn-card group"
+          title={`${key} — ${statusWord}`}
+          aria-label={`${key}, ${statusWord}`}
+          data-roving-index={rovingIndex}
+          tabIndex={tabIndex}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate font-heading text-xs font-semibold leading-tight text-primary group-hover:underline">
+              {repo.owner}/{repo.name}
+            </h3>
+            <CompactStarIndicator status={status} />
           </div>
-        ) : metaLoading ? (
-          <Skeleton className="h-3 w-8 rounded" />
-        ) : null}
-      </div>
-    </a>
+
+          {metaLoading && !liveDescription ? (
+            <Skeleton className="h-3 w-full rounded" />
+          ) : (
+            <p className="line-clamp-1 text-[11px] leading-snug text-muted-foreground">
+              {description}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <img
+                src={`https://github.com/${repo.owner}.png?size=32`}
+                alt={repo.owner}
+                className="size-4 rounded-full"
+              />
+              <span className="text-[10px] text-muted-foreground">
+                {repo.owner}
+              </span>
+            </div>
+            {typeof starCount === "number" ? (
+              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                <Star size={9} fill="currentColor" strokeWidth={0} aria-hidden="true" />
+                <span>{formatStarCount(starCount)}</span>
+              </div>
+            ) : metaLoading ? (
+              <Skeleton className="h-3 w-8 rounded" />
+            ) : null}
+          </div>
+        </a>
+      </PopoverAnchor>
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={6}
+        className="w-48 p-1"
+      >
+        {/* role="group" keeps the two actions semantically paired without
+            promising arrow-key menu navigation. A full DropdownMenu swap is
+            tracked in TASKS.md as a follow-up. */}
+        <div role="group" aria-label={`${key} actions`} className="flex flex-col">
+          <button
+            type="button"
+            className="rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+            onClick={() => {
+              setMenuOpen(false);
+              onStarTrigger?.(repo);
+            }}
+          >
+            Star
+          </button>
+          <a
+            href={repo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+            onClick={() => setMenuOpen(false)}
+          >
+            Open on GitHub
+          </a>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 });
 

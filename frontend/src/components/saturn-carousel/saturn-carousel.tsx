@@ -11,17 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { SaturnRing } from "./saturn-ring";
 import { useSaturnAnimation } from "./use-saturn-animation";
-import type { RingConfig } from "./use-saturn-animation";
+import type { RingConfig, SaturnViewportSize } from "./use-saturn-animation";
 import { distributeRepos, sortReposForDistribution } from "./distribute-repos";
 import { CATEGORIES, REPOSITORIES } from "@/lib/repos";
 import type { RepoMeta } from "@/lib/github";
-import type { StarStatus } from "@/lib/types";
+import type { Repository, StarStatus } from "@/lib/types";
 import { CssDiamond } from "@/components/css-diamond";
+import { useRovingTabindex } from "@/hooks/use-roving-tabindex";
 
 interface SaturnCarouselProps {
   starStatuses: Record<string, StarStatus>;
@@ -29,6 +30,18 @@ interface SaturnCarouselProps {
   metaLoading: boolean;
   isDesktop: boolean;
   prefersReducedMotion: boolean;
+  /** Subset of repos to render on the ring. Defaults to the full list. */
+  repos?: Repository[];
+  /** Primary action on a chip/card: jump to the matching marquee card. */
+  onJump?: (repo: Repository) => void;
+  /** Secondary action (shift+click menu): trigger the star flow. */
+  onStarTrigger?: (repo: Repository) => void;
+  /**
+   * Optional floating control (ring progress + filter sheet trigger) rendered
+   * in the bottom-right of the ring section, above the orbiting chips. The
+   * parent wires composition; this component only positions the slot.
+   */
+  filterControl?: ReactNode;
 }
 
 // Radii ordered inner → outer. Outer rings have larger circumference so
@@ -38,32 +51,23 @@ interface SaturnCarouselProps {
 export const DESKTOP_RADII = [240, 350, 460, 570] as const;
 export const MOBILE_RADII = [100, 145, 190, 235] as const;
 
-// Sort once at module scope so ring membership is deterministic across
-// refreshes, then slice by radius-weight. Both viewports share the same
-// slice ordering so repos don't hop between rings on viewport toggles.
-const SORTED_REPOS = sortReposForDistribution(
-  REPOSITORIES,
-  CATEGORIES.map((c) => c.name),
-);
-const RING_SLICES = distributeRepos(SORTED_REPOS, DESKTOP_RADII);
+const CATEGORY_ORDER = CATEGORIES.map((c) => c.name);
 
-// Desktop ring configs — 4 rings, radius-weighted chip distribution.
-const RING_CONFIGS: RingConfig[] = [
-  { radius: DESKTOP_RADII[0], speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0, chipCount: RING_SLICES[0].length },
-  { radius: DESKTOP_RADII[1], speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4, chipCount: RING_SLICES[1].length },
-  { radius: DESKTOP_RADII[2], speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3, chipCount: RING_SLICES[2].length },
-  { radius: DESKTOP_RADII[3], speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2, chipCount: RING_SLICES[3].length },
+// Desktop ring base configs (radii fixed; chipCount per ring is computed
+// per-render from the filtered repo list).
+const DESKTOP_BASE: Omit<RingConfig, "chipCount">[] = [
+  { radius: DESKTOP_RADII[0], speed: 0.18, direction: 1, tiltX: 45, tiltZ: 0 },
+  { radius: DESKTOP_RADII[1], speed: 0.13, direction: -1, tiltX: 45, tiltZ: 4 },
+  { radius: DESKTOP_RADII[2], speed: 0.10, direction: 1, tiltX: 45, tiltZ: -3 },
+  { radius: DESKTOP_RADII[3], speed: 0.07, direction: -1, tiltX: 45, tiltZ: 2 },
 ];
 
-// Mobile ring configs — same slice counts, tilted around Y for a portrait
-// ellipse matching mobile's narrow aspect ratio. Mobile reuses the
-// desktop-derived `RING_SLICES`; keep `MOBILE_RADII` proportional to
-// `DESKTOP_RADII` or mobile chip density will diverge from desktop.
-const MOBILE_RING_CONFIGS: RingConfig[] = [
-  { radius: MOBILE_RADII[0], speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, chipCount: RING_SLICES[0].length, tiltAxis: "y" },
-  { radius: MOBILE_RADII[1], speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, chipCount: RING_SLICES[1].length, tiltAxis: "y" },
-  { radius: MOBILE_RADII[2], speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, chipCount: RING_SLICES[2].length, tiltAxis: "y" },
-  { radius: MOBILE_RADII[3], speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, chipCount: RING_SLICES[3].length, tiltAxis: "y" },
+// Mobile ring base configs (Y-axis tilt for portrait ellipse).
+const MOBILE_BASE: Omit<RingConfig, "chipCount">[] = [
+  { radius: MOBILE_RADII[0], speed: 0.15, direction: 1, tiltX: 55, tiltZ: 0, tiltAxis: "y" },
+  { radius: MOBILE_RADII[1], speed: 0.11, direction: -1, tiltX: 55, tiltZ: 4, tiltAxis: "y" },
+  { radius: MOBILE_RADII[2], speed: 0.08, direction: 1, tiltX: 55, tiltZ: -3, tiltAxis: "y" },
+  { radius: MOBILE_RADII[3], speed: 0.05, direction: -1, tiltX: 55, tiltZ: 2, tiltAxis: "y" },
 ];
 
 const ZOOM_HINT_TIMEOUT_MS = 4000;
@@ -75,13 +79,74 @@ export function SaturnCarousel({
   metaLoading,
   isDesktop,
   prefersReducedMotion,
+  repos = REPOSITORIES,
+  onJump,
+  onStarTrigger,
+  filterControl,
 }: SaturnCarouselProps) {
   const chipRefs = useRef<HTMLDivElement[][]>([]);
   const pausedRef = useRef(false);
+  const ringContainerRef = useRef<HTMLDivElement | null>(null);
+  // Viewport size of the ring container — drives the band filter that stops
+  // off-band outer-ring chips from stealing hover state in empty space. Null
+  // until the first ResizeObserver callback resolves.
+  const [viewportSize, setViewportSize] =
+    useState<SaturnViewportSize | null>(null);
 
-  const activeConfigs = isDesktop ? RING_CONFIGS : MOBILE_RING_CONFIGS;
+  useEffect(() => {
+    const el = ringContainerRef.current;
+    if (!el) return;
+    // Commit viewport state only when dimensions actually change. A naive
+    // `setViewportSize({ width, height })` always yields a new object
+    // reference, which re-renders and restarts the rAF loop on every
+    // ResizeObserver callback — catastrophic during smooth window drags.
+    const commit = (w: number, h: number) => {
+      setViewportSize((prev) =>
+        prev && prev.width === w && prev.height === h
+          ? prev
+          : { width: w, height: h },
+      );
+    };
+    if (typeof ResizeObserver === "undefined") {
+      // ResizeObserver unavailable (legacy environments) — seed once and skip
+      // live tracking.
+      commit(el.clientWidth, el.clientHeight);
+      return;
+    }
+    const ro = new ResizeObserver(() => {
+      commit(el.clientWidth, el.clientHeight);
+    });
+    ro.observe(el);
+    // Prime the initial value so the first paint already has a band.
+    commit(el.clientWidth, el.clientHeight);
+    return () => {
+      ro.disconnect();
+    };
+    // `isDesktop` flips the mounted container — the ref points at a fresh
+    // element after the toggle, so re-run to re-observe.
+  }, [isDesktop]);
 
-  useSaturnAnimation(activeConfigs, chipRefs, pausedRef, prefersReducedMotion);
+  // Recompute slices whenever the filtered repo set changes. Sorting stays
+  // category-first so ring membership is deterministic across filter tweaks.
+  const ringSlices = useMemo(() => {
+    const sorted = sortReposForDistribution(repos, CATEGORY_ORDER);
+    return distributeRepos(sorted, DESKTOP_RADII);
+  }, [repos]);
+
+  const activeConfigs: RingConfig[] = useMemo(() => {
+    const base = isDesktop ? DESKTOP_BASE : MOBILE_BASE;
+    return base.map((b, i) => ({ ...b, chipCount: ringSlices[i].length }));
+  }, [isDesktop, ringSlices]);
+
+  useSaturnAnimation(
+    activeConfigs,
+    chipRefs,
+    pausedRef,
+    prefersReducedMotion,
+    viewportSize,
+    undefined,
+    isDesktop ? "card" : "chip",
+  );
 
   const pause = useCallback(() => {
     pausedRef.current = true;
@@ -90,6 +155,21 @@ export function SaturnCarousel({
   const resume = useCallback(() => {
     pausedRef.current = false;
   }, []);
+
+  const totalCount = repos.length;
+  const { tabIndexFor, onKeyDown, setCurrent } = useRovingTabindex(totalCount);
+
+  // Precompute the cumulative base index per ring so every chip's global
+  // roving index is O(1) at render time.
+  const globalBases = useMemo(() => {
+    const bases: number[] = [];
+    let total = 0;
+    for (const slice of ringSlices) {
+      bases.push(total);
+      total += slice.length;
+    }
+    return bases;
+  }, [ringSlices]);
 
   const rings = (
     <>
@@ -102,10 +182,10 @@ export function SaturnCarousel({
       </div>
 
       {/* Orbiting rings */}
-      {RING_SLICES.map((repos, ringIndex) => (
+      {ringSlices.map((slice, ringIndex) => (
         <SaturnRing
           key={`ring-${ringIndex}`}
-          repos={repos}
+          repos={slice}
           starStatuses={starStatuses}
           repoMeta={repoMeta}
           metaLoading={metaLoading}
@@ -118,33 +198,89 @@ export function SaturnCarousel({
           onChipLeave={resume}
           variant={isDesktop ? "card" : "chip"}
           tiltAxis={activeConfigs[ringIndex].tiltAxis}
+          onJump={onJump}
+          onStarTrigger={onStarTrigger}
+          globalBase={globalBases[ringIndex]}
+          tabIndexFor={tabIndexFor}
+          onRovingKeyDown={onKeyDown}
+          onRovingFocus={setCurrent}
         />
       ))}
     </>
   );
 
+  const emptySelection = totalCount === 0;
+
   if (!isDesktop) {
     return (
       <section
-        aria-label="Ethereum ecosystem repositories"
+        aria-label={`Saturn repository navigator, ${totalCount} of ${REPOSITORIES.length} repositories`}
+        data-roving-scope="saturn"
         className="relative mx-auto flex w-full flex-col items-center justify-center overflow-hidden py-6"
         style={{ perspective: "800px" }}
       >
         <h2 className="sr-only">Ethereum Ecosystem</h2>
-        <MobileSaturnViewport>{rings}</MobileSaturnViewport>
+        <MobileSaturnViewport containerRef={ringContainerRef}>
+          {rings}
+        </MobileSaturnViewport>
+        {emptySelection && <EmptySelectionHint />}
+        {filterControl && (
+          <FloatingFilterControl>{filterControl}</FloatingFilterControl>
+        )}
       </section>
     );
   }
 
   return (
     <section
-      aria-label="Ethereum ecosystem repositories"
+      aria-label={`Saturn repository navigator, ${totalCount} of ${REPOSITORIES.length} repositories`}
+      data-roving-scope="saturn"
       className="relative mx-auto flex w-full flex-col items-center justify-center py-12"
       style={{ perspective: "1200px" }}
     >
       <h2 className="sr-only">Ethereum Ecosystem</h2>
-      <div className="relative h-[80vh] w-full">{rings}</div>
+      <div ref={ringContainerRef} className="relative h-[80vh] w-full">
+        {rings}
+      </div>
+      {emptySelection && <EmptySelectionHint />}
+      {filterControl && (
+        <FloatingFilterControl>{filterControl}</FloatingFilterControl>
+      )}
     </section>
+  );
+}
+
+/**
+ * Glass pill wrapper that floats the ring progress + filter-sheet trigger in
+ * the bottom-right of the ring section. The oklch tokens match `.saturn-card`
+ * (index.css) — they are bespoke, not in the Tailwind theme, so they stay
+ * inline. `z-10` keeps the pill above the orbiting chip tree, which lives in
+ * the rings container (a separate stacking context).
+ */
+function FloatingFilterControl({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="absolute bottom-3 right-3 z-10 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground md:bottom-4 md:right-4"
+      style={{
+        background: "oklch(0.230 0.022 280 / 60%)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        border: "1px solid oklch(0.380 0.028 280 / 25%)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function EmptySelectionHint() {
+  return (
+    <p
+      role="status"
+      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground"
+    >
+      Choose what to track →
+    </p>
   );
 }
 
@@ -153,7 +289,13 @@ export function SaturnCarousel({
  * container so users can explore the outer chips that fall off a 375px
  * viewport. Initial scale is below 1 to fit the widest ring.
  */
-function MobileSaturnViewport({ children }: { children: ReactNode }) {
+function MobileSaturnViewport({
+  children,
+  containerRef,
+}: {
+  children: ReactNode;
+  containerRef?: RefObject<HTMLDivElement | null>;
+}) {
   // Hint fades out after ZOOM_HINT_TIMEOUT_MS. We intentionally do NOT wire
   // `onZoom`/`onPanning` dismissers onto TransformWrapper — `centerOnInit`
   // fires those events during the initial center calculation and would
@@ -172,7 +314,7 @@ function MobileSaturnViewport({ children }: { children: ReactNode }) {
     // Fixed height sized to the outer ring at mobile scale:
     // 2 × 235 (radius) × 0.85 (initialScale) ≈ 400px visible ring +
     // ~140px of pinch/pan headroom = 540px.
-    <div className="relative h-[540px] w-full">
+    <div ref={containerRef} className="relative h-[540px] w-full">
       <TransformWrapper
         initialScale={0.85}
         minScale={0.5}

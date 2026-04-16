@@ -17,11 +17,12 @@ import { AuthHeader } from "@/components/auth-header";
 import { CommunityStarsBanner } from "@/components/community-stars-banner";
 import { HeroSection } from "@/components/hero-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
-import { RepoMarquee } from "@/components/repo-marquee";
+import { HIGHLIGHT_DURATION_MS, RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
 import { READY_FILL_LEVEL } from "@/components/roaming-star/constants";
 import { RoamingStar } from "@/components/roaming-star/roaming-star";
 import type { RoamingStarState } from "@/components/roaming-star/types";
+import { RingFilterSheet } from "@/components/saturn-carousel/ring-filter-sheet";
 import { SlideTransition } from "@/components/slide-transition";
 import { StarModal } from "@/components/star-modal";
 import { SupportSection } from "@/components/support-section";
@@ -29,6 +30,7 @@ import { TrustStripSection } from "@/components/trust-strip-section";
 import { useAuth } from "@/hooks/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRepoMeta } from "@/hooks/use-repo-meta";
+import { useRingFilter } from "@/hooks/use-ring-filter";
 import { useStarOAuth } from "@/hooks/use-star-oauth";
 import { useStars } from "@/hooks/use-stars";
 import { useStats } from "@/hooks/use-stats";
@@ -77,6 +79,31 @@ export default function HomePage() {
   const reposRef = useRef<HTMLDivElement | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const checkedTokenRef = useRef<string | null>(null);
+
+  // Saturn-ring filter — default "core Ethereum spine" for signed-out users;
+  // authed users can widen the selection via the filter sheet. Passing
+  // `isAuthenticated` lets the hook expose an `effectiveFilter` that ignores
+  // any stored customisation while signed out (localStorage is preserved, so
+  // signing back in restores the user's choice).
+  const ringFilter = useRingFilter(isAuthenticated);
+  // Destructure `countProgress` so the memo dep is a plain local variable.
+  // React Compiler's `preserve-manual-memoization` rule rejects a property
+  // access (`ringFilter.countProgress`) as a dep when it would infer the
+  // parent object — destructuring sidesteps that while preserving stability
+  // (the hook memoizes `countProgress` against `selectedRepos`, so it only
+  // changes when the filter does).
+  const { countProgress } = ringFilter;
+  const ringProgress = useMemo(
+    () => countProgress(starStatuses),
+    [countProgress, starStatuses],
+  );
+
+  // Ring → marquee jump state. `highlightKey` pins the current target repo
+  // and `highlightToken` bumps monotonically so repeated jumps to the same
+  // card still re-trigger the 600ms highlight.
+  const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  const [highlightToken, setHighlightToken] = useState(0);
+  const highlightResetRef = useRef<number | null>(null);
 
   const handleSessionExpired = useCallback(() => {
     toast.error("Session expired. Sign in again.");
@@ -293,16 +320,79 @@ export default function HomePage() {
   // can't sneak past the visual state and open a 0-repo modal.
   const handleStarTrigger = useCallback(() => {
     if (allDone) return;
+    if (isChecking) return;
     if (!isAuthenticated) {
       login();
       return;
     }
     handleStarAll();
-  }, [allDone, isAuthenticated, login, handleStarAll]);
+  }, [allDone, isChecking, isAuthenticated, login, handleStarAll]);
 
   const handleCancelStarring = useCallback(() => {
     starAbortRef.current?.abort();
   }, []);
+
+  // Ring chip → marquee jump. Setting highlightKey + bumping highlightToken
+  // triggers the matching marquee's useEffect, which scrolls the card into
+  // view and adds the outline class. The reset delay is sized just past the
+  // visual highlight so a subsequent jump to the same repo still re-triggers
+  // the effect (same-key re-trigger needs the parent to hold the key beyond
+  // the class removal).
+  const HIGHLIGHT_RESET_PADDING_MS = 300;
+  const handleRingJump = useCallback((repo: Repository) => {
+    setHighlightKey(repoKey(repo));
+    setHighlightToken((t) => t + 1);
+    if (highlightResetRef.current != null) {
+      window.clearTimeout(highlightResetRef.current);
+    }
+    highlightResetRef.current = window.setTimeout(
+      () => {
+        setHighlightKey(null);
+        highlightResetRef.current = null;
+      },
+      HIGHLIGHT_DURATION_MS + HIGHLIGHT_RESET_PADDING_MS,
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightResetRef.current != null) {
+        window.clearTimeout(highlightResetRef.current);
+      }
+    };
+  }, []);
+
+  // Memoize the floating filter-control fragment so it stays referentially
+  // stable across `starStatuses` ticks. A fresh inline fragment on every
+  // HomePage render would otherwise force SaturnCarousel to rebuild its
+  // subtree unnecessarily.
+  const filterControlNode = useMemo(
+    () => (
+      <>
+        <span aria-live="polite" data-testid="ring-progress">
+          {ringProgress.starred}/{ringProgress.selected} starred
+        </span>
+        <RingFilterSheet
+          filter={ringFilter.filter}
+          selectedCount={ringFilter.N}
+          totalCount={REPOSITORIES.length}
+          isAuthenticated={isAuthenticated}
+          onToggleSection={ringFilter.toggleSection}
+          onToggleRepo={ringFilter.toggleRepo}
+          onReset={ringFilter.reset}
+        />
+      </>
+    ),
+    [
+      ringProgress,
+      ringFilter.filter,
+      ringFilter.N,
+      isAuthenticated,
+      ringFilter.toggleSection,
+      ringFilter.toggleRepo,
+      ringFilter.reset,
+    ],
+  );
 
   return (
     <main className="flex flex-col overflow-x-hidden">
@@ -349,7 +439,13 @@ export default function HomePage() {
 
       <SlideTransition />
 
-      {/* Slide 2 — Saturn Ring */}
+      {/* Slide 2 — Saturn Ring. Now a filter view + jump navigator: the
+          chips render the user's filtered selection (default: core Ethereum
+          spine), clicking a chip scrolls to the matching marquee card, and
+          chip fill state mirrors live starStatuses.
+          The `filterControl` slot floats the ring-progress + Customize pill
+          into the bottom-right of the ring section so it stays visible even
+          when bottom-arc chips from outer rings sweep below the center. */}
       <Suspense fallback={null}>
         <SaturnCarousel
           starStatuses={starStatuses}
@@ -357,6 +453,10 @@ export default function HomePage() {
           metaLoading={metaLoading}
           isDesktop={isDesktop}
           prefersReducedMotion={prefersReducedMotion}
+          repos={ringFilter.effectiveRepos}
+          onJump={handleRingJump}
+          onStarTrigger={handleStarTrigger}
+          filterControl={filterControlNode}
         />
       </Suspense>
 
@@ -420,6 +520,8 @@ export default function HomePage() {
               isDesktop={isDesktop}
               prefersReducedMotion={prefersReducedMotion}
               label={`Scrolling list of ${category.name} repositories`}
+              highlightKey={highlightKey}
+              highlightToken={highlightToken}
             />
           </RepoSection>
         ))}

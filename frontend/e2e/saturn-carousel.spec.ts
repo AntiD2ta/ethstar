@@ -12,8 +12,16 @@
 // limitations under the License.
 
 import { test, expect } from "@playwright/test";
-import { REPOSITORIES } from "../src/lib/repos";
+import { REPOS_BY_CATEGORY } from "../src/lib/repos";
 import { seedConsent } from "./helpers";
+
+// Default ring filter renders Core + Execution + Consensus. Derive the
+// expected size from the data so the spec doesn't drift when repos are
+// added or re-categorised.
+const DEFAULT_FILTER_COUNT =
+  REPOS_BY_CATEGORY["Ethereum Core"].length +
+  REPOS_BY_CATEGORY["Execution Clients"].length +
+  REPOS_BY_CATEGORY["Consensus Clients"].length;
 
 test.beforeEach(async ({ page }) => {
   await seedConsent(page);
@@ -23,7 +31,7 @@ test.describe("Saturn Carousel", () => {
   test("renders the carousel section on desktop", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     await expect(carousel).toBeVisible();
   });
@@ -31,16 +39,16 @@ test.describe("Saturn Carousel", () => {
   test("renders one link per repository", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     const links = carousel.getByRole("link");
-    await expect(links).toHaveCount(REPOSITORIES.length);
+    await expect(links).toHaveCount(DEFAULT_FILTER_COUNT);
   });
 
   test("cards link to GitHub repos", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     const firstLink = carousel.getByRole("link").first();
     const href = await firstLink.getAttribute("href");
@@ -64,11 +72,11 @@ test.describe("Saturn Carousel", () => {
   test("cards show star status indicators", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     // All cards should have an "Unknown" star indicator (not authenticated)
     const unknownStars = carousel.getByLabel("Unknown");
-    await expect(unknownStars).toHaveCount(REPOSITORIES.length);
+    await expect(unknownStars).toHaveCount(DEFAULT_FILTER_COUNT);
   });
 });
 
@@ -78,7 +86,7 @@ test.describe("Saturn Carousel — Mobile", () => {
   test("mobile renders the 3D ring (no flat category labels)", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     // Category headings from the old flat grid should not appear on mobile.
     await expect(
@@ -91,10 +99,10 @@ test.describe("Saturn Carousel — Mobile", () => {
   test("renders one link per repository on mobile", async ({ page }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     const links = carousel.getByRole("link");
-    await expect(links).toHaveCount(REPOSITORIES.length);
+    await expect(links).toHaveCount(DEFAULT_FILTER_COUNT);
   });
 
   test("mobile shows the pinch-to-zoom hint initially", async ({ page }) => {
@@ -108,7 +116,7 @@ test.describe("Saturn Carousel — Mobile", () => {
   }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     // Wait for chips to be positioned by the rAF loop.
     await page.waitForTimeout(500);
@@ -134,7 +142,7 @@ test.describe("Saturn Carousel — Mobile", () => {
   }) => {
     await page.goto("/");
     const section = page
-      .getByRole("region", { name: /ethereum ecosystem/i })
+      .getByRole("region", { name: /saturn repository navigator/i })
       .first();
     const box = await section.boundingBox();
     expect(box).not.toBeNull();
@@ -149,11 +157,11 @@ test.describe("Saturn Carousel — Mobile", () => {
   }) => {
     await page.goto("/");
     const carousel = page.getByRole("region", {
-      name: /ethereum ecosystem/i,
+      name: /saturn repository navigator/i,
     });
     // Each chip's status glyph is now a lucide Star SVG, not a colored dot.
     const stars = carousel.locator("a.saturn-chip svg.lucide-star");
-    await expect(stars).toHaveCount(REPOSITORIES.length);
+    await expect(stars).toHaveCount(DEFAULT_FILTER_COUNT);
     // aria-label is preserved for accessibility.
     await expect(
       carousel.locator("a.saturn-chip svg[aria-label='Unknown']").first(),

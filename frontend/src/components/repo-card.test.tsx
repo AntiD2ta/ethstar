@@ -63,11 +63,26 @@ describe("RepoCard", () => {
     expect(screen.getByText("47k")).toBeInTheDocument();
   });
 
+  it("places the StarIndicator in the top row and the star count in the bottom row", () => {
+    const { container } = render(
+      <RepoCard repo={repo} status="starred" starCount={47000} />,
+    );
+    const article = container.querySelector("article") as HTMLElement;
+    const rows = article.querySelectorAll(":scope > div");
+    // Top row contains the StarIndicator (aria-label "Starred").
+    const starredIcon = screen.getByLabelText("Starred");
+    expect(rows[0].contains(starredIcon)).toBe(true);
+    // Bottom row contains the formatted star count.
+    const countNode = screen.getByText("47k");
+    const bottomRow = rows[rows.length - 1];
+    expect(bottomRow.contains(countNode)).toBe(true);
+  });
+
   it("shows skeleton for star count when loading and no count yet", () => {
     const { container } = render(
       <RepoCard repo={repo} status="unstarred" metaLoading />,
     );
-    // Star count skeleton: h-4 w-10 in top-right
+    // Star count skeleton: h-4 w-10 in bottom-right
     const skeletons = container.querySelectorAll("[data-slot='skeleton']");
     expect(skeletons.length).toBeGreaterThanOrEqual(1);
   });

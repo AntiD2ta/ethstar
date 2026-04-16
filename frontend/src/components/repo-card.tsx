@@ -16,6 +16,7 @@ import { Loader2, Star } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatStarCount } from "@/lib/utils";
+import { repoKey } from "@/lib/repo-key";
 import type { Repository, StarStatus } from "@/lib/types";
 
 interface RepoCardProps {
@@ -41,11 +42,15 @@ export const RepoCard = memo(function RepoCard({
 
   const description = liveDescription ?? repo.description;
 
+  // Highlight on Saturn-chip jump is applied imperatively from repo-marquee
+  // via classList.add("repo-card-highlight") on this article's DOM node,
+  // keyed by data-repo-key. Keep it class-driven (external), not prop-driven.
   return (
     <article
+      data-repo-key={repoKey(repo)}
       className={cn(
         "glass glass-hover group flex h-36 w-[240px] shrink-0 flex-col justify-between rounded-xl p-4 transition-all md:h-44 md:w-[320px] md:p-5",
-        "hover:eth-glow"
+        "hover:eth-glow",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -59,19 +64,10 @@ export const RepoCard = memo(function RepoCard({
             {repo.owner}/{repo.name}
           </h3>
         </a>
-        {typeof starCount === "number" ? (
-          <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <Star
-              size={12}
-              fill="currentColor"
-              strokeWidth={0}
-              aria-hidden="true"
-            />
-            <span>{formatStarCount(starCount)}</span>
-          </div>
-        ) : metaLoading ? (
-          <Skeleton className="h-4 w-10 shrink-0 rounded" />
-        ) : null}
+        <StarIndicator
+          status={status}
+          onRetry={onRetry ? handleRetry : undefined}
+        />
       </div>
 
       {metaLoading && !liveDescription ? (
@@ -88,10 +84,19 @@ export const RepoCard = memo(function RepoCard({
       <div className="flex items-center justify-between">
         <RepoAvatar owner={repo.owner} />
 
-        <StarIndicator
-          status={status}
-          onRetry={onRetry ? handleRetry : undefined}
-        />
+        {typeof starCount === "number" ? (
+          <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+            <Star
+              size={12}
+              fill="currentColor"
+              strokeWidth={0}
+              aria-hidden="true"
+            />
+            <span>{formatStarCount(starCount)}</span>
+          </div>
+        ) : metaLoading ? (
+          <Skeleton className="h-4 w-10 shrink-0 rounded" />
+        ) : null}
       </div>
     </article>
   );

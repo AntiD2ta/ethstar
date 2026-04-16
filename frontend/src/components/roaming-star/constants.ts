@@ -26,6 +26,10 @@ export const DURATION_SUPERNOVA = 640;
 export const EASE_OUT_QUART = "cubic-bezier(0.25, 1, 0.5, 1)";
 export const EASE_OUT_QUINT = "cubic-bezier(0.22, 1, 0.36, 1)";
 export const EASE_OUT_EXPO = "cubic-bezier(0.16, 1, 0.3, 1)";
+// JS tween form of EASE_OUT_EXPO — quintic ease-out, functionally equivalent
+// in feel to the cubic-bezier above. Used by rAF scroll animations that
+// need an easing function rather than a CSS string.
+export const EASE_OUT_EXPO_JS = (t: number): number => 1 - Math.pow(1 - t, 5);
 
 // Breathing (dormant state). 3s cycle, scale 1.0 → 1.03.
 export const BREATHE_PERIOD_MS = 3000;
