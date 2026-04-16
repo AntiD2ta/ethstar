@@ -36,6 +36,12 @@ interface SaturnCarouselProps {
   onJump?: (repo: Repository) => void;
   /** Secondary action (shift+click menu): trigger the star flow. */
   onStarTrigger?: (repo: Repository) => void;
+  /**
+   * Optional floating control (ring progress + filter sheet trigger) rendered
+   * in the bottom-right of the ring section, above the orbiting chips. The
+   * parent wires composition; this component only positions the slot.
+   */
+  filterControl?: ReactNode;
 }
 
 // Radii ordered inner → outer. Outer rings have larger circumference so
@@ -76,6 +82,7 @@ export function SaturnCarousel({
   repos = REPOSITORIES,
   onJump,
   onStarTrigger,
+  filterControl,
 }: SaturnCarouselProps) {
   const chipRefs = useRef<HTMLDivElement[][]>([]);
   const pausedRef = useRef(false);
@@ -168,6 +175,9 @@ export function SaturnCarousel({
         <h2 className="sr-only">Ethereum Ecosystem</h2>
         <MobileSaturnViewport>{rings}</MobileSaturnViewport>
         {emptySelection && <EmptySelectionHint />}
+        {filterControl && (
+          <FloatingFilterControl>{filterControl}</FloatingFilterControl>
+        )}
       </section>
     );
   }
@@ -182,7 +192,33 @@ export function SaturnCarousel({
       <h2 className="sr-only">Ethereum Ecosystem</h2>
       <div className="relative h-[80vh] w-full">{rings}</div>
       {emptySelection && <EmptySelectionHint />}
+      {filterControl && (
+        <FloatingFilterControl>{filterControl}</FloatingFilterControl>
+      )}
     </section>
+  );
+}
+
+/**
+ * Glass pill wrapper that floats the ring progress + filter-sheet trigger in
+ * the bottom-right of the ring section. The oklch tokens match `.saturn-card`
+ * (index.css) — they are bespoke, not in the Tailwind theme, so they stay
+ * inline. `z-10` keeps the pill above the orbiting chip tree, which lives in
+ * the rings container (a separate stacking context).
+ */
+function FloatingFilterControl({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="absolute bottom-3 right-3 z-10 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground md:bottom-4 md:right-4"
+      style={{
+        background: "oklch(0.230 0.022 280 / 60%)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        border: "1px solid oklch(0.380 0.028 280 / 25%)",
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

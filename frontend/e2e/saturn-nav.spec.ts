@@ -268,6 +268,51 @@ test.describe("Saturn ring filter — authenticated", () => {
     });
     await expect(ring.getByRole("link")).toHaveCount(DEFAULT_FILTER_COUNT);
   });
+
+  test("floating filter control stays visible with all 58 repos in the filter", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const ring = page.getByRole("region", {
+      name: /saturn repository navigator/i,
+    });
+
+    // Enable every non-default section so the ring renders all 58 repos —
+    // the configuration most likely to occlude the control with bottom-arc
+    // chips from the outermost rings.
+    await page.getByRole("button", { name: /customize/i }).click();
+    await page
+      .getByRole("checkbox", { name: /^validator tooling$/i })
+      .click();
+    await page
+      .getByRole("checkbox", { name: /^defi & smart contracts$/i })
+      .click();
+    await page.keyboard.press("Escape");
+
+    await expect(ring.getByRole("link")).toHaveCount(REPOSITORIES.length);
+
+    // The floating pill holds both the progress counter and the Customize
+    // trigger — both must remain visible and the trigger must be clickable.
+    const progress = page.getByTestId("ring-progress");
+    await expect(progress).toBeVisible();
+    const customize = page.getByRole("button", { name: /customize/i });
+    await expect(customize).toBeVisible();
+
+    // Assert the control sits inside the ring section (same stacking
+    // context as the rings) and in the bottom-right half of it — this is
+    // what makes it robust against bottom-arc chip overlap.
+    const controlBox = await customize.boundingBox();
+    const ringBox = await ring.boundingBox();
+    if (!controlBox || !ringBox) {
+      throw new Error("expected bounding boxes for control and ring section");
+    }
+    expect(controlBox.x).toBeGreaterThan(ringBox.x + ringBox.width / 2);
+    expect(controlBox.y).toBeGreaterThan(ringBox.y + ringBox.height / 2);
+
+    // Keyboard focus still reaches the trigger.
+    await customize.focus();
+    await expect(customize).toBeFocused();
+  });
 });
 
 test.describe("Saturn ring — axe-core audit", () => {

@@ -144,6 +144,42 @@ describe("SaturnCarousel", () => {
     );
     expect(screen.getByLabelText("Starred")).toBeInTheDocument();
   });
+
+  it("renders a filterControl slot inside the ring section on desktop", () => {
+    render(
+      <SaturnCarousel
+        starStatuses={{}}
+        repoMeta={{}}
+        metaLoading={false}
+        isDesktop={true}
+        prefersReducedMotion={true}
+        filterControl={<div data-testid="ring-filter-control">control</div>}
+      />,
+    );
+    const region = screen.getByRole("region", {
+      name: /saturn repository navigator/i,
+    });
+    const control = screen.getByTestId("ring-filter-control");
+    expect(region).toContainElement(control);
+  });
+
+  it("renders a filterControl slot inside the ring section on mobile", () => {
+    render(
+      <SaturnCarousel
+        starStatuses={{}}
+        repoMeta={{}}
+        metaLoading={false}
+        isDesktop={false}
+        prefersReducedMotion={true}
+        filterControl={<div data-testid="ring-filter-control">control</div>}
+      />,
+    );
+    const region = screen.getByRole("region", {
+      name: /saturn repository navigator/i,
+    });
+    const control = screen.getByTestId("ring-filter-control");
+    expect(region).toContainElement(control);
+  });
 });
 
 describe("Saturn ring radii invariants", () => {

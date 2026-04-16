@@ -407,7 +407,10 @@ export default function HomePage() {
       {/* Slide 2 — Saturn Ring. Now a filter view + jump navigator: the
           chips render the user's filtered selection (default: core Ethereum
           spine), clicking a chip scrolls to the matching marquee card, and
-          chip fill state mirrors live starStatuses. */}
+          chip fill state mirrors live starStatuses.
+          The `filterControl` slot floats the ring-progress + Customize pill
+          into the bottom-right of the ring section so it stays visible even
+          when bottom-arc chips from outer rings sweep below the center. */}
       <Suspense fallback={null}>
         <SaturnCarousel
           starStatuses={starStatuses}
@@ -418,22 +421,24 @@ export default function HomePage() {
           repos={ringFilter.selectedRepos}
           onJump={handleRingJump}
           onStarTrigger={handleStarTrigger}
+          filterControl={
+            <>
+              <span aria-live="polite" data-testid="ring-progress">
+                {ringProgress.starred}/{ringProgress.selected} starred
+              </span>
+              <RingFilterSheet
+                filter={ringFilter.filter}
+                selectedCount={ringFilter.N}
+                totalCount={REPOSITORIES.length}
+                isAuthenticated={isAuthenticated}
+                onToggleSection={ringFilter.toggleSection}
+                onToggleRepo={ringFilter.toggleRepo}
+                onReset={ringFilter.reset}
+              />
+            </>
+          }
         />
       </Suspense>
-      <div className="mx-auto -mt-2 mb-6 flex flex-col items-center gap-1 px-4 text-center text-xs text-muted-foreground">
-        <span aria-live="polite" data-testid="ring-progress">
-          {ringProgress.starred}/{ringProgress.selected} starred
-        </span>
-        <RingFilterSheet
-          filter={ringFilter.filter}
-          selectedCount={ringFilter.N}
-          totalCount={REPOSITORIES.length}
-          isAuthenticated={isAuthenticated}
-          onToggleSection={ringFilter.toggleSection}
-          onToggleRepo={ringFilter.toggleRepo}
-          onReset={ringFilter.reset}
-        />
-      </div>
 
       <SlideTransition />
 
