@@ -29,11 +29,98 @@ export interface RingConfig {
   tiltAxis?: "x" | "y";
 }
 
+/**
+ * Viewport dimensions in CSS pixels of the ring container (the element
+ * whose centre is the ring origin). `null` means "not measured yet" —
+ * typical on first render before the ResizeObserver resolves. While null
+ * the band filter is skipped so we don't spuriously disable every chip.
+ */
+export interface SaturnViewportSize {
+  width: number;
+  height: number;
+}
+
+/**
+ * Half-size constants for the two chip variants. Used to decide whether a
+ * chip's projected position keeps it inside the visible ring band — a chip
+ * at the edge of the band is considered clipped when
+ * `|projected| + half >= viewportHalf`. The rectangles match the `*_OFFSET`
+ * values in `saturn-ring.tsx`.
+ */
+export interface SaturnChipSizes {
+  /** Desktop SaturnCard half-width (220/2). */
+  cardHalfW: number;
+  /** Desktop SaturnCard half-height (100/2). */
+  cardHalfH: number;
+  /** Mobile SaturnChip half-width (180/2). */
+  chipHalfW: number;
+  /** Mobile SaturnChip half-height (36/2). */
+  chipHalfH: number;
+}
+
 const TWO_PI = Math.PI * 2;
+const DEG2RAD = Math.PI / 180;
+
+/** Default half-sizes — source of truth for band math + stored for lookup
+ *  at the positioning call site when the caller doesn't override. */
+export const DEFAULT_CHIP_SIZES: SaturnChipSizes = {
+  cardHalfW: 110,
+  cardHalfH: 50,
+  chipHalfW: 90,
+  chipHalfH: 18,
+};
 
 // Cache previous zIndex per element to avoid per-frame stacking context
 // invalidation — only write when the rounded value actually changes.
 const prevZIndex = new WeakMap<HTMLDivElement, number>();
+// Mirror for pointer-events so we only touch style when the in-band decision
+// flips. Writing pointer-events every frame forces a fresh stacking/layer
+// pass on some browsers — expensive for ~58 chips at 60fps.
+const prevPointerEvents = new WeakMap<HTMLDivElement, "auto" | "none">();
+
+/**
+ * Pure predicate — is a chip at angle `theta` on a ring of `radius`, tilted
+ * by `tiltDeg` on `tiltAxis`, inside the rectangular viewport band?
+ *
+ * - X-axis tilt (landscape ellipse): horizontal radius is preserved,
+ *   vertical radius is compressed by `cos(tiltDeg)` (top/bottom recedes).
+ * - Y-axis tilt (portrait ellipse): vertical radius is preserved,
+ *   horizontal radius is compressed by `cos(tiltDeg)` (left/right recedes).
+ *
+ * A chip is in band iff the rect it paints (projected centre ± chip half)
+ * fits the viewport half-size on both axes.
+ */
+export function isInBand(
+  params: {
+    theta: number;
+    radius: number;
+    tiltDeg: number;
+    tiltAxis: "x" | "y";
+  },
+  viewport: { halfW: number; halfH: number },
+  chipHalf: { w: number; h: number },
+): boolean {
+  const cosTilt = Math.cos(params.tiltDeg * DEG2RAD);
+  const px =
+    params.tiltAxis === "y"
+      ? Math.cos(params.theta) * params.radius * cosTilt
+      : Math.cos(params.theta) * params.radius;
+  const py =
+    params.tiltAxis === "y"
+      ? Math.sin(params.theta) * params.radius
+      : Math.sin(params.theta) * params.radius * cosTilt;
+  return (
+    Math.abs(px) + chipHalf.w <= viewport.halfW &&
+    Math.abs(py) + chipHalf.h <= viewport.halfH
+  );
+}
+
+interface BandContext {
+  halfW: number;
+  halfH: number;
+  chipHalfW: number;
+  chipHalfH: number;
+}
 
 function positionChip(
   el: HTMLDivElement,
@@ -42,16 +129,32 @@ function positionChip(
   tilt: number,
   tiltAxis: "x" | "y",
   depthFactor: number,
+  band: BandContext | null,
 ) {
   const t = (depthFactor + 1) / 2; // normalize -1..1 to 0..1
   const scale = 0.85 + 0.15 * t;
-  const opacity = 0.5 + 0.5 * t;
+  let opacity = 0.5 + 0.5 * t;
   const zIndex = Math.round(t * 100);
 
   // Counter-rotate around the same axis the ring is tilted on so the chip
   // faces the camera regardless of orientation.
   const counter =
     tiltAxis === "y" ? `rotateY(${-tilt}deg)` : `rotateX(${-tilt}deg)`;
+
+  let inBand = true;
+  if (band) {
+    inBand = isInBand(
+      { theta, radius, tiltDeg: tilt, tiltAxis },
+      { halfW: band.halfW, halfH: band.halfH },
+      { w: band.chipHalfW, h: band.chipHalfH },
+    );
+    if (!inBand) {
+      // Visually hint that this chip is out of the interactive band so a
+      // user hovering the "ghost" area isn't surprised that it doesn't
+      // respond. 0.4 keeps the silhouette readable while clearly muting it.
+      opacity *= 0.4;
+    }
+  }
 
   el.style.transform = `rotateZ(${theta}rad) translateX(${radius}px) rotateZ(${-theta}rad) ${counter} scale(${scale})`;
   el.style.opacity = String(opacity);
@@ -60,13 +163,35 @@ function positionChip(
     el.style.zIndex = String(zIndex);
     prevZIndex.set(el, zIndex);
   }
+
+  if (band) {
+    const next: "auto" | "none" = inBand ? "auto" : "none";
+    if (prevPointerEvents.get(el) !== next) {
+      el.style.pointerEvents = next;
+      prevPointerEvents.set(el, next);
+    }
+  }
 }
 
 function positionAllChips(
   configs: RingConfig[],
   chipRefs: HTMLDivElement[][],
   angles: Float64Array,
+  viewportSize: SaturnViewportSize | null,
+  chipSizes: SaturnChipSizes,
+  chipVariant: "card" | "chip",
 ) {
+  const band: BandContext | null = viewportSize
+    ? {
+        halfW: viewportSize.width / 2,
+        halfH: viewportSize.height / 2,
+        chipHalfW:
+          chipVariant === "chip" ? chipSizes.chipHalfW : chipSizes.cardHalfW,
+        chipHalfH:
+          chipVariant === "chip" ? chipSizes.chipHalfH : chipSizes.cardHalfH,
+      }
+    : null;
+
   for (let r = 0; r < configs.length; r++) {
     const cfg = configs[r];
     const chips = chipRefs[r];
@@ -83,7 +208,15 @@ function positionAllChips(
       // For Y-axis tilt: left of ring (θ=π) comes forward → −cos(θ).
       const depthFactor =
         tiltAxis === "y" ? -Math.cos(theta) : Math.sin(theta);
-      positionChip(el, theta, cfg.radius, cfg.tiltX, tiltAxis, depthFactor);
+      positionChip(
+        el,
+        theta,
+        cfg.radius,
+        cfg.tiltX,
+        tiltAxis,
+        depthFactor,
+        band,
+      );
     }
   }
 }
@@ -93,18 +226,37 @@ export function useSaturnAnimation(
   chipRefs: MutableRefObject<HTMLDivElement[][]>,
   pausedRef: MutableRefObject<boolean>,
   prefersReducedMotion: boolean,
+  viewportSize: SaturnViewportSize | null = null,
+  chipSizes: SaturnChipSizes = DEFAULT_CHIP_SIZES,
+  chipVariant: "card" | "chip" = "card",
 ): void {
   const anglesRef = useRef<Float64Array | null>(null);
 
-  // Static positioning for reduced-motion preference
+  // Static positioning for reduced-motion preference. Re-runs on viewport
+  // resize so the band filter adapts — cheap because no rAF is involved.
   useEffect(() => {
     if (!prefersReducedMotion) return;
 
     const angles = new Float64Array(configs.length);
-    positionAllChips(configs, chipRefs.current, angles);
-  }, [prefersReducedMotion, configs, chipRefs]);
+    positionAllChips(
+      configs,
+      chipRefs.current,
+      angles,
+      viewportSize,
+      chipSizes,
+      chipVariant,
+    );
+  }, [
+    prefersReducedMotion,
+    configs,
+    chipRefs,
+    viewportSize,
+    chipSizes,
+    chipVariant,
+  ]);
 
-  // Animation loop for normal motion
+  // Animation loop for normal motion. `viewportSize` is captured in the
+  // effect's closure so a resize re-subscribes the rAF with the fresh band.
   useEffect(() => {
     if (prefersReducedMotion) return;
 
@@ -127,7 +279,14 @@ export function useSaturnAnimation(
         }
       }
 
-      positionAllChips(configs, chipRefs.current, angles);
+      positionAllChips(
+        configs,
+        chipRefs.current,
+        angles,
+        viewportSize,
+        chipSizes,
+        chipVariant,
+      );
       rafId = requestAnimationFrame(animate);
     }
 
@@ -136,5 +295,13 @@ export function useSaturnAnimation(
     return () => {
       cancelAnimationFrame(rafId);
     };
-  }, [prefersReducedMotion, configs, chipRefs, pausedRef]);
+  }, [
+    prefersReducedMotion,
+    configs,
+    chipRefs,
+    pausedRef,
+    viewportSize,
+    chipSizes,
+    chipVariant,
+  ]);
 }

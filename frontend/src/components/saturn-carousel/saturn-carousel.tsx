@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { SaturnRing } from "./saturn-ring";
 import { useSaturnAnimation } from "./use-saturn-animation";
-import type { RingConfig } from "./use-saturn-animation";
+import type { RingConfig, SaturnViewportSize } from "./use-saturn-animation";
 import { distributeRepos, sortReposForDistribution } from "./distribute-repos";
 import { CATEGORIES, REPOSITORIES } from "@/lib/repos";
 import type { RepoMeta } from "@/lib/github";
@@ -86,6 +86,35 @@ export function SaturnCarousel({
 }: SaturnCarouselProps) {
   const chipRefs = useRef<HTMLDivElement[][]>([]);
   const pausedRef = useRef(false);
+  const ringContainerRef = useRef<HTMLDivElement | null>(null);
+  // Viewport size of the ring container — drives the band filter that stops
+  // off-band outer-ring chips from stealing hover state in empty space. Null
+  // until the first ResizeObserver callback resolves.
+  const [viewportSize, setViewportSize] =
+    useState<SaturnViewportSize | null>(null);
+
+  useEffect(() => {
+    const el = ringContainerRef.current;
+    if (!el) return;
+    if (typeof ResizeObserver === "undefined") {
+      // Older test envs without ResizeObserver — seed once from the element
+      // and leave it alone. The band filter remains functional for static
+      // layouts even though it won't re-measure on resize.
+      setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+      return;
+    }
+    const ro = new ResizeObserver(() => {
+      setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+    });
+    ro.observe(el);
+    // Prime the initial value so the first paint already has a band.
+    setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+    return () => {
+      ro.disconnect();
+    };
+    // `isDesktop` flips the mounted container — the ref points at a fresh
+    // element after the toggle, so re-run to re-observe.
+  }, [isDesktop]);
 
   // Recompute slices whenever the filtered repo set changes. Sorting stays
   // category-first so ring membership is deterministic across filter tweaks.
@@ -99,7 +128,15 @@ export function SaturnCarousel({
     return base.map((b, i) => ({ ...b, chipCount: ringSlices[i].length }));
   }, [isDesktop, ringSlices]);
 
-  useSaturnAnimation(activeConfigs, chipRefs, pausedRef, prefersReducedMotion);
+  useSaturnAnimation(
+    activeConfigs,
+    chipRefs,
+    pausedRef,
+    prefersReducedMotion,
+    viewportSize,
+    undefined,
+    isDesktop ? "card" : "chip",
+  );
 
   const pause = useCallback(() => {
     pausedRef.current = true;
@@ -173,7 +210,9 @@ export function SaturnCarousel({
         style={{ perspective: "800px" }}
       >
         <h2 className="sr-only">Ethereum Ecosystem</h2>
-        <MobileSaturnViewport>{rings}</MobileSaturnViewport>
+        <MobileSaturnViewport containerRef={ringContainerRef}>
+          {rings}
+        </MobileSaturnViewport>
         {emptySelection && <EmptySelectionHint />}
         {filterControl && (
           <FloatingFilterControl>{filterControl}</FloatingFilterControl>
@@ -190,7 +229,9 @@ export function SaturnCarousel({
       style={{ perspective: "1200px" }}
     >
       <h2 className="sr-only">Ethereum Ecosystem</h2>
-      <div className="relative h-[80vh] w-full">{rings}</div>
+      <div ref={ringContainerRef} className="relative h-[80vh] w-full">
+        {rings}
+      </div>
       {emptySelection && <EmptySelectionHint />}
       {filterControl && (
         <FloatingFilterControl>{filterControl}</FloatingFilterControl>
@@ -238,7 +279,13 @@ function EmptySelectionHint() {
  * container so users can explore the outer chips that fall off a 375px
  * viewport. Initial scale is below 1 to fit the widest ring.
  */
-function MobileSaturnViewport({ children }: { children: ReactNode }) {
+function MobileSaturnViewport({
+  children,
+  containerRef,
+}: {
+  children: ReactNode;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+}) {
   // Hint fades out after ZOOM_HINT_TIMEOUT_MS. We intentionally do NOT wire
   // `onZoom`/`onPanning` dismissers onto TransformWrapper — `centerOnInit`
   // fires those events during the initial center calculation and would
@@ -257,7 +304,7 @@ function MobileSaturnViewport({ children }: { children: ReactNode }) {
     // Fixed height sized to the outer ring at mobile scale:
     // 2 × 235 (radius) × 0.85 (initialScale) ≈ 400px visible ring +
     // ~140px of pinch/pan headroom = 540px.
-    <div className="relative h-[540px] w-full">
+    <div ref={containerRef} className="relative h-[540px] w-full">
       <TransformWrapper
         initialScale={0.85}
         minScale={0.5}
