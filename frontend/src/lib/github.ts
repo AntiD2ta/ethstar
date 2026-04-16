@@ -246,17 +246,17 @@ export async function starAllUnstarred(
     const repo = repos[i];
     onProgress(repo, "starring");
 
+    // Stop-after-current semantics: once `starRepo` is invoked, the PUT is
+    // allowed to finish regardless of an intervening abort. The signal is
+    // observed only at loop-boundary + inter-repo sleep. This gives the user
+    // an honest record of what was starred when they hit "Stop after
+    // current", rather than reverting a repo that actually landed on
+    // GitHub's side.
     try {
-      await starRepo(token, repo.owner, repo.name, signal);
+      await starRepo(token, repo.owner, repo.name);
       starred++;
       onProgress(repo, "starred");
     } catch (err) {
-      // AbortError from the in-flight fetch — surface the "starring" state
-      // back to "unstarred" so the card stops flashing, then bail out.
-      if (err instanceof DOMException && err.name === "AbortError") {
-        onProgress(repo, "unstarred");
-        break;
-      }
       if (err instanceof TokenExpiredError) throw err;
       if (err instanceof NetworkError) throw err;
       if (err instanceof ForbiddenError) throw err;
@@ -270,14 +270,10 @@ export async function starAllUnstarred(
           break;
         }
         try {
-          await starRepo(token, repo.owner, repo.name, signal);
+          await starRepo(token, repo.owner, repo.name);
           starred++;
           onProgress(repo, "starred");
-        } catch (retryErr) {
-          if (retryErr instanceof DOMException && retryErr.name === "AbortError") {
-            onProgress(repo, "unstarred");
-            break;
-          }
+        } catch {
           failed++;
           onProgress(repo, "failed");
         }

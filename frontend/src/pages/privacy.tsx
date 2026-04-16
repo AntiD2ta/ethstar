@@ -12,6 +12,7 @@
 // limitations under the License.
 
 import { Link } from "react-router";
+import { BackBreadcrumb } from "@/components/back-breadcrumb";
 import { Button } from "@/components/ui/button";
 import { useConsent } from "@/lib/consent-context";
 import { LEGAL_CONTACT_EMAIL, LEGAL_EFFECTIVE_DATE } from "@/lib/constants";
@@ -19,12 +20,8 @@ import { LEGAL_CONTACT_EMAIL, LEGAL_EFFECTIVE_DATE } from "@/lib/constants";
 export default function PrivacyPage() {
   const { openBanner } = useConsent();
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <nav className="mb-6 text-sm">
-        <Link to="/" className="text-muted-foreground hover:text-foreground">
-          ← Back to Ethstar
-        </Link>
-      </nav>
+    <main className="mx-auto max-w-[65ch] px-4 py-12 sm:px-6">
+      <BackBreadcrumb />
 
       <header className="mb-8">
         <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
@@ -35,7 +32,7 @@ export default function PrivacyPage() {
         </p>
       </header>
 
-      <article className="prose prose-invert max-w-none prose-headings:font-heading prose-a:text-primary">
+      <article className="prose prose-invert max-w-[65ch] prose-headings:font-heading prose-a:text-primary">
         <h2>1. Who we are</h2>
         <p>
           Ethstar (&quot;the Service&quot;) is a community project that helps

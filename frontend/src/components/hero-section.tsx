@@ -15,9 +15,21 @@ import type { Ref, ReactNode } from "react";
 import { Star } from "lucide-react";
 import { HeroLogo } from "./hero-logo";
 
+// Module-level class constants. The fallback-vs-live transition fires at
+// most once per page load, but lifting these out of the render body avoids
+// per-render string allocation and keeps both branches in sync (same
+// transition timing on both sides — a mistake if they drift).
+const STARS_LIVE_CLASS = "opacity-100 transition-opacity duration-500";
+const STARS_DIM_CLASS = "opacity-60 transition-opacity duration-500";
+
 interface HeroSectionProps {
   repoCount: number;
   formattedStars: string;
+  /** True once live stargazer data has loaded. Drives the fallback-vs-live
+   *  visual treatment on the combined-stars figure: dim + `~` prefix while
+   *  false, full-opacity once true. See `FALLBACK_COMBINED_STARS` in
+   *  `home.tsx` for the honest-floor rationale. */
+  starsAreLive: boolean;
   categoryCount: number;
   onViewRepositories: () => void;
   /** The primary CTA slot — owned by the RoamingStar component, which lives
@@ -39,6 +51,7 @@ interface HeroSectionProps {
 export function HeroSection({
   repoCount,
   formattedStars,
+  starsAreLive,
   categoryCount,
   onViewRepositories,
   primaryCta,
@@ -46,6 +59,9 @@ export function HeroSection({
   children,
   ref,
 }: HeroSectionProps) {
+  // Honest-placeholder class: dim the figure by 40% until live data arrives,
+  // then cross-fade to full opacity. See STARS_*_CLASS constants above.
+  const starsDimClass = starsAreLive ? STARS_LIVE_CLASS : STARS_DIM_CLASS;
   return (
     <section
       ref={ref}
@@ -83,6 +99,19 @@ export function HeroSection({
               It replaces the legacy "Connect via GitHub" button and the
               inline "Star All" row; the star is the single entry point. */}
           <div className="flex flex-col items-center">{primaryCta}</div>
+          {/* "What is starring?" explainer. First-time visitors arriving from
+              social media often don't know what a GitHub star is; without this
+              they're asked to OAuth-consent with zero context. Kept to ≤16
+              words so it reads as a caption, not a second paragraph. */}
+          {primaryCtaPresent && (
+            <p
+              data-testid="starring-explainer"
+              className="max-w-md text-xs text-muted-foreground/90 min-[375px]:text-sm"
+            >
+              A GitHub star is a free public signal — it helps maintainers get
+              noticed and funded.
+            </p>
+          )}
           {/* Secondary CTA — editorial text link so the two actions share a
               visual register. The old shadcn outline pill read like a
               different design system next to the star + editorial labels. */}
@@ -106,7 +135,14 @@ export function HeroSection({
             inline summary lives below for cognitive clarity on small screens. */}
         <p className="text-xs text-muted-foreground md:hidden" aria-label="Site statistics">
           <span className="font-semibold text-primary">{repoCount}+</span> repos ·{" "}
-          <span className="font-semibold text-primary">{formattedStars}</span> combined stars
+          <span
+            data-testid="combined-stars-mobile"
+            data-live={starsAreLive ? "true" : "false"}
+            className={`font-semibold text-primary ${starsDimClass}`}
+          >
+            {formattedStars}
+          </span>{" "}
+          combined stars
         </p>
 
         <div className="hidden items-center gap-3 text-center md:flex md:gap-10" aria-label="Site statistics" role="group">
@@ -118,7 +154,13 @@ export function HeroSection({
           </div>
           <span className="text-border" aria-hidden="true">·</span>
           <div aria-label={`${formattedStars} combined stars`}>
-            <span className="text-2xl font-bold text-primary">{formattedStars}</span>
+            <span
+              data-testid="combined-stars-desktop"
+              data-live={starsAreLive ? "true" : "false"}
+              className={`text-2xl font-bold text-primary ${starsDimClass}`}
+            >
+              {formattedStars}
+            </span>
             <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
               Combined Stars
             </span>

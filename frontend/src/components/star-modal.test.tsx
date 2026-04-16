@@ -17,12 +17,14 @@ import userEvent from "@testing-library/user-event";
 import { StarModal } from "./star-modal";
 import { STAR_OAUTH_ERROR } from "@/hooks/use-star-oauth";
 
+type StarResult = { starred: number; failed: number; aborted: boolean };
+
 const defaultProps = {
   open: true,
   onOpenChange: vi.fn(),
   unstarredCount: 5,
   progress: { total: 0, starred: 0, remaining: 0, current: null },
-  onStartStarring: vi.fn<(token: string) => Promise<{ starred: number; failed: number }>>(),
+  onStartStarring: vi.fn<(token: string) => Promise<StarResult>>(),
   requestToken: vi.fn<() => Promise<string>>(),
   cancelOAuth: vi.fn(),
   starResult: null,
@@ -61,5 +63,68 @@ describe("StarModal", () => {
     // Error should appear with role="alert"
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(/closed/i);
+  });
+
+  it("renders popup-blocked help with accessible link when popupBlocked prop is true", () => {
+    render(<StarModal {...defaultProps} popupBlocked={true} />);
+    const help = screen.getByTestId("popup-blocked-help");
+    expect(help).toHaveTextContent(/popup blocked/i);
+    const link = within(help).getByRole("link", { name: /enable popups/i });
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("transitions to stopped state with 'Stopped at X of Y' when onStartStarring returns aborted=true", async () => {
+    const requestToken = vi.fn<() => Promise<string>>().mockResolvedValue("tok");
+    const onStartStarring = vi
+      .fn<(token: string) => Promise<StarResult>>()
+      .mockResolvedValue({ starred: 3, failed: 0, aborted: true });
+
+    const { rerender } = render(
+      <StarModal
+        {...defaultProps}
+        progress={{ total: 5, starred: 3, remaining: 2, current: null }}
+        requestToken={requestToken}
+        onStartStarring={onStartStarring}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /proceed/i }));
+
+    // onStartStarring resolved aborted=true → step should be "stopped".
+    // Rerender with starResult populated (as the parent would).
+    rerender(
+      <StarModal
+        {...defaultProps}
+        progress={{ total: 5, starred: 3, remaining: 2, current: null }}
+        requestToken={requestToken}
+        onStartStarring={onStartStarring}
+        starResult={{ starred: 3, failed: 0, aborted: true }}
+      />,
+    );
+
+    expect(await screen.findByTestId("star-modal-stopped")).toBeInTheDocument();
+    expect(screen.getByText(/stopped at 3 of 5/i)).toBeInTheDocument();
+  });
+
+  it("renames the progress-step abort button to 'Stop after current'", async () => {
+    const requestToken = vi.fn<() => Promise<string>>().mockResolvedValue("tok");
+    // Promise that never resolves so the modal stays in "progress" step.
+    const onStartStarring = vi
+      .fn<(token: string) => Promise<StarResult>>()
+      .mockImplementation(() => new Promise(() => {}));
+
+    render(
+      <StarModal
+        {...defaultProps}
+        progress={{ total: 3, starred: 1, remaining: 2, current: null }}
+        requestToken={requestToken}
+        onStartStarring={onStartStarring}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /proceed/i }));
+
+    const stopBtn = await screen.findByTestId("takeover-cancel");
+    expect(stopBtn).toHaveTextContent(/stop after current/i);
   });
 });
