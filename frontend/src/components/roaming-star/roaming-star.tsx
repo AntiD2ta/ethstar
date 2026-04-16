@@ -28,19 +28,30 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   BREATHE_PERIOD_MS,
   BREATHE_SCALE_MAX,
+  DISCOVERY_HINT_DELAY_MS,
+  DISCOVERY_HINT_TEXT,
+  DISCOVERY_HINT_VISIBLE_MS,
   DORMANT_STAR_SIZE_PX,
   DURATION_FLIP_DORMANT_TO_ROAMING,
   DURATION_FLIP_TO_TAKEOVER,
   EASE_OUT_EXPO,
   EASE_OUT_QUART,
   LABEL_INTRO_MS,
+  REDUCED_MOTION_FLASH_MS,
   ROAMING_STAR_SIZE_PX,
+  SUPERNOVA_REPLAY_THROTTLE_MS,
   TAKEOVER_SCALE,
   TAKEOVER_SPIN_PERIOD_MS,
   TAKEOVER_X_RATIO,
   TAKEOVER_Y_RATIO,
 } from "./constants";
-import { clearDismissed, isDismissed, markDismissed } from "./session-persistence";
+import {
+  clearDismissed,
+  hasSeenDiscoveryHint,
+  isDismissed,
+  markDiscoveryHintSeen,
+  markDismissed,
+} from "./session-persistence";
 import { StarShape } from "./star-shape";
 import { useFlipTransition } from "./use-flip-transition";
 import { useHeroVisibility } from "./use-hero-visibility";
@@ -113,13 +124,33 @@ export const RoamingStar = memo(function RoamingStar({
     }
   }, [state.status, dismissedBySession]);
 
+  // Phase E.2 — supernova settles into the all-starred terminal state in
+  // place rather than auto-dismissing. Once the burst's particles fade, we
+  // flip this flag so mode resolution falls back through to dormant/roaming
+  // (where `state.status === "success"` drives the "All starred" gold
+  // diamond the user can tap to replay). Reset when `completed` goes false
+  // so a second session can re-play a fresh supernova.
+  const [supernovaSettled, setSupernovaSettled] = useState(false);
+
+  // One-time discovery hint — fires ~DISCOVERY_HINT_DELAY_MS after the slot
+  // settles, telling keyboard + mobile users the diamond is replayable. The
+  // hint is paired with a soft pulse on the diamond so sighted users see the
+  // affordance too. Suppressed entirely under reduced-motion (motion-sensitive
+  // users get no surprise pulse) and gated by sessionStorage so it fires at
+  // most once per tab.
+  const [discoveryHintVisible, setDiscoveryHintVisible] = useState(false);
+
   // Derive the *visual* mode from inputs.
   const mode: RoamingStarMode = useMemo(() => {
     if (dismissedBySession) return "dismissed";
-    if (completed) return "supernova";
+    // `completed` is sticky once the parent sets it (the starResult ref
+    // lives for the rest of the session). Gating on `!supernovaSettled`
+    // here lets the burst play once, then hand the dormant slot back to
+    // the success-terminal path — no reload required.
+    if (completed && !supernovaSettled) return "supernova";
     if (inProgress) return "takeover";
     return heroVisible ? "dormant" : "roaming";
-  }, [dismissedBySession, completed, inProgress, heroVisible]);
+  }, [dismissedBySession, completed, supernovaSettled, inProgress, heroVisible]);
 
   // Refs for DOM elements and live position used by the rAF trail.
   const dormantSlotRef = useRef<HTMLDivElement | null>(null);
@@ -260,26 +291,41 @@ export const RoamingStar = memo(function RoamingStar({
     }
   }, [mode, reducedMotion, flipTo, cancelFlip, halfRoaming, dormantSize, computeTakeoverTarget]);
 
-  // Supernova trigger on completion. Restores focus to the element that held
-  // it before takeover so keyboard users don't land on <body>.
+  // Supernova trigger on completion. Phase E.2: the burst plays *once* per
+  // completion, then the slot settles into the all-starred terminal state in
+  // place — `setSupernovaSettled(true)` flips the mode off supernova so the
+  // dormant/success branch re-renders the diamond. The dismissal flag is no
+  // longer written here; only explicit × / "Done" writes it (see
+  // `handleExplicitDismiss` below). Focus still returns to the element that
+  // held it before takeover so keyboard users don't land on <body>.
+  //
+  // Keyed on `completed` (not `mode`) so a second session (starResult
+  // cleared → set again) can re-play. `supernovaPlayedRef` guards against
+  // StrictMode double-mounts firing the burst twice within one completion.
   const supernovaPlayedRef = useRef(false);
   useEffect(() => {
-    if (mode !== "supernova" || supernovaPlayedRef.current) return;
+    if (!completed) {
+      // Completion unwound (e.g. parent cleared starResult) — reset the
+      // one-shot guards so the next completion cycle fires its own burst.
+      supernovaPlayedRef.current = false;
+      setSupernovaSettled(false);
+      return;
+    }
+    if (supernovaPlayedRef.current) return;
     supernovaPlayedRef.current = true;
 
     const run = async () => {
       try {
         await trail.triggerSupernova();
       } finally {
-        markDismissed();
-        setDismissedBySession(true);
+        setSupernovaSettled(true);
         // A11y: return focus to the prior focused element (brief §Accessibility).
         const prior = preTriggerFocusRef.current;
         preTriggerFocusRef.current = null;
         if (prior && typeof prior.focus === "function" && prior.isConnected) {
-          // Defer so React has a chance to unmount the star button first —
-          // otherwise a focus() call while the button is still in the tree
-          // would fight our own blur as we unmount.
+          // Defer so React has a chance to render the dormant-success slot
+          // first — otherwise a focus() call would land while the star
+          // button is mid-remount.
           queueMicrotask(() => {
             try {
               prior.focus();
@@ -291,12 +337,35 @@ export const RoamingStar = memo(function RoamingStar({
       }
     };
     void run();
-  }, [mode, trail]);
+  }, [completed, trail]);
 
   // Pause trail spawning during takeover (brief says orbiting ring instead of tail).
   useEffect(() => {
     trail.setSpawning(mode === "roaming");
   }, [mode, trail]);
+
+  // Discovery hint — fires once per tab, ~DISCOVERY_HINT_DELAY_MS after the
+  // slot settles. Suppressed under reduced-motion (we'd otherwise pulse the
+  // diamond, and "don't animate" is a bright-line rule for this user).
+  useEffect(() => {
+    if (!supernovaSettled) return;
+    if (reducedMotion) return;
+    if (hasSeenDiscoveryHint()) return;
+
+    let hideId: number | undefined;
+    const showId = window.setTimeout(() => {
+      setDiscoveryHintVisible(true);
+      markDiscoveryHintSeen();
+      hideId = window.setTimeout(() => {
+        setDiscoveryHintVisible(false);
+      }, DISCOVERY_HINT_VISIBLE_MS);
+    }, DISCOVERY_HINT_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(showId);
+      if (hideId !== undefined) window.clearTimeout(hideId);
+    };
+  }, [supernovaSettled, reducedMotion]);
 
   // ARIA label per brief. Primary label copy is verb + count, paired with
   // the H1 "Support Ethereum's builders" so the screen-reader experience
@@ -369,17 +438,42 @@ export const RoamingStar = memo(function RoamingStar({
   // at the button's current screen position, without changing mode or
   // dismissing. `celebratePulseKey` bumps on each click so the CSS pulse
   // animation restarts (using the key to remount the wrapper).
+  //
+  // Phase E.2: reduced-motion users still get an acknowledgement — a
+  // brightness-only flash on the wrapper instead of the canvas burst — so the
+  // "tap to celebrate" affordance works identically across motion settings,
+  // just with different visual intensity.
   const [celebratePulseKey, setCelebratePulseKey] = useState(0);
+  // Throttle replays to one per SUPERNOVA_REPLAY_THROTTLE_MS so a rapid
+  // click-storm can't queue overlapping bursts. Sentinel is `-Infinity` so
+  // the first tap always passes — early in the page lifecycle (or in test
+  // harnesses where `performance.now()` is still small) a zero sentinel
+  // would misfire the throttle on the first real call.
+  const lastReplayAtRef = useRef<number>(Number.NEGATIVE_INFINITY);
 
   const fireCelebrationBurst = useCallback((origin: HTMLElement | null) => {
-    if (reducedMotion) return;
+    const now = performance.now();
+    if (now - lastReplayAtRef.current < SUPERNOVA_REPLAY_THROTTLE_MS) return;
+    lastReplayAtRef.current = now;
+
+    // Pulse the wrapper — under full motion this is the scale-bounce
+    // `roaming-star-celebrate`; under reduced motion it swaps to a
+    // brightness-only flash (see JSX class picker + keyframes below).
+    setCelebratePulseKey((k) => k + 1);
+
+    // Tapping replay counts as hint discovery — suppress the discovery
+    // announcement if it hasn't already fired (and hide it if it's visible).
+    if (!hasSeenDiscoveryHint()) markDiscoveryHintSeen();
+    setDiscoveryHintVisible(false);
+
+    if (reducedMotion) return; // No canvas burst under reduced motion.
+
     const el = origin ?? dormantSlotRef.current ?? floatingElRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     starLivePosRef.current.x = rect.left + rect.width / 2;
     starLivePosRef.current.y = rect.top + rect.height / 2;
     void trail.triggerSupernova();
-    setCelebratePulseKey((k) => k + 1);
   }, [reducedMotion, trail]);
 
   const handleStarClick = useCallback((origin?: HTMLElement | null) => {
@@ -398,6 +492,27 @@ export const RoamingStar = memo(function RoamingStar({
     }
     triggerWithFocusCapture();
   }, [mode, state.status, fireCelebrationBurst, triggerWithFocusCapture]);
+
+  // Phase E.2 — explicit dismissal. The terminal diamond now persists after
+  // the supernova settles; only clicking this × / "Done" affordance writes
+  // the session-dismissal flag. Keyboard- and SR-reachable with an explicit
+  // `aria-label` so it doesn't read as a decorative glyph.
+  const handleExplicitDismiss = useCallback(() => {
+    markDismissed();
+    setDismissedBySession(true);
+  }, []);
+
+  // Click variant that also stops propagation so the click doesn't bubble
+  // back to the parent star (which would throttle out the next real replay
+  // attempt). Stable via `useCallback` for consistency with the other
+  // handlers in this component.
+  const handleDismissClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      handleExplicitDismiss();
+    },
+    [handleExplicitDismiss],
+  );
 
   const handleKey = useCallback(
     (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -432,6 +547,24 @@ export const RoamingStar = memo(function RoamingStar({
   if (hidden || mode === "dismissed") return null;
 
   // ===== Dormant slot (in-hero) =====
+  // Phase E.2 — pulse-wrapper class picker. Under full motion we reuse the
+  // existing `roaming-star-celebrate` (scale+brightness bounce). Under
+  // reduced motion we fall back to a transform-free brightness-only flash
+  // via `roaming-star-celebrate-rm` so the tap-to-replay still reads as an
+  // acknowledgement without animating the element's position.
+  const pulseClass =
+    celebratePulseKey > 0
+      ? reducedMotion
+        ? "roaming-star-celebrate-rm"
+        : "roaming-star-celebrate"
+      : undefined;
+
+  // The × dismiss affordance lights up in the success-terminal state only.
+  // It's rendered alongside the keyed pulse wrapper so the click target is
+  // visually adjacent to the diamond but not overlapping it.
+  const showDismissButton =
+    mode === "dormant" && state.status === "success" && !dismissedBySession;
+
   const dormantBlock = (
     <div
       ref={dormantSlotRef}
@@ -439,30 +572,51 @@ export const RoamingStar = memo(function RoamingStar({
       data-testid="roaming-star-dormant-slot"
     >
       {mode === "dormant" && (
-        // Keyed wrapper — `key` bumps on every celebration replay so the
-        // `roaming-star-celebrate` keyframe restarts from 0% on each click.
-        // Line-height 0 prevents inline whitespace baseline fudge from
-        // shifting the cluster vertically when the pulse runs.
-        <span
-          key={celebratePulseKey}
-          className={
-            celebratePulseKey > 0 && !reducedMotion
-              ? "roaming-star-celebrate"
-              : undefined
-          }
-          style={{ display: "inline-flex", lineHeight: 0 }}
-        >
-          <StarButton
-            size={dormantSize}
-            fillLevel={state.fillLevel}
-            status={state.status}
-            reducedMotion={reducedMotion}
-            ariaLabel={ariaLabel}
-            onClick={handleStarClick}
-            onKey={handleKey}
-            breathing={!reducedMotion}
-          />
-        </span>
+        // `group` + `relative` so the × dismiss button can anchor itself at
+        // the top-right of the star and reveal on hover / focus-within.
+        <div className="group relative inline-flex" style={{ lineHeight: 0 }}>
+          {/* Keyed wrapper — `key` bumps on every celebration replay so the
+              pulse keyframe restarts from 0% on each click. Line-height 0
+              prevents inline whitespace baseline fudge from shifting the
+              cluster vertically when the pulse runs. */}
+          <span
+            key={celebratePulseKey}
+            className={pulseClass}
+            style={{ display: "inline-flex", lineHeight: 0 }}
+          >
+            <StarButton
+              size={dormantSize}
+              fillLevel={state.fillLevel}
+              status={state.status}
+              reducedMotion={reducedMotion}
+              ariaLabel={ariaLabel}
+              onClick={handleStarClick}
+              onKey={handleKey}
+              breathing={!reducedMotion}
+              /* Paired soft pulse while the discovery hint is on-screen —
+                 applied directly to the StarShape wrapper inside the button
+                 so the tap target itself glows. Gated with reducedMotion at
+                 source (no class ⇒ no animation ⇒ no motion). */
+              extraClassName={
+                discoveryHintVisible && !reducedMotion
+                  ? "roaming-star-discovery-pulse"
+                  : undefined
+              }
+            />
+          </span>
+          {showDismissButton && (
+            <button
+              type="button"
+              data-testid="roaming-star-dismiss"
+              aria-label="Dismiss completion"
+              onClick={handleDismissClick}
+              className="roaming-star-dismiss absolute -right-2 -top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-hover:opacity-100 group-focus-within:opacity-100"
+              style={{ fontSize: 14, lineHeight: 1 }}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
+        </div>
       )}
       {mode === "dormant" && (
         <div className="flex flex-col items-center gap-1.5">
@@ -497,6 +651,29 @@ export const RoamingStar = memo(function RoamingStar({
               <span className="roaming-star-check-dot" style={{ animationDelay: "280ms" }} />
             </span>
           )}
+          {/* One-time discovery hint — announced politely to screen readers
+              and shown as a small pill below the label. Mounted for every
+              dormant render (not just state.status === "success") so the
+              live region is registered with the accessibility tree before
+              its text content changes: some screen readers (e.g. NVDA +
+              Chrome) only track live regions that existed at DOM mount
+              time, so a late-mounting region can silently miss its first
+              announcement. `role="status"` is implicitly aria-live="polite"
+              per the ARIA spec (see docs/learnings/a11y.md), so we avoid
+              redundantly setting both. */}
+          <span
+            role="status"
+            data-testid="roaming-star-discovery-hint"
+            className="font-heading text-[11px] uppercase tracking-widest text-muted-foreground"
+            style={{
+              visibility: discoveryHintVisible ? "visible" : "hidden",
+              // Reserve a fixed height so showing/hiding doesn't shift the
+              // vertical rhythm of the label cluster.
+              minHeight: "1em",
+            }}
+          >
+            {discoveryHintVisible ? DISCOVERY_HINT_TEXT : ""}
+          </span>
         </div>
       )}
     </div>
@@ -685,6 +862,32 @@ export const RoamingStar = memo(function RoamingStar({
           transform-origin: center;
           will-change: transform, filter;
         }
+        /* Phase E.2 reduced-motion replay — no transform, brightness-only
+           flash. Matches the "tap to celebrate" affordance across motion
+           settings without violating prefers-reduced-motion. */
+        @keyframes roaming-star-celebrate-rm {
+          0%   { filter: brightness(1); }
+          40%  { filter: brightness(1.55); }
+          100% { filter: brightness(1); }
+        }
+        .roaming-star-celebrate-rm {
+          animation: roaming-star-celebrate-rm ${REDUCED_MOTION_FLASH_MS}ms linear;
+          will-change: filter;
+        }
+        /* Discovery-hint soft pulse — paired with the "Tap again to
+           celebrate" aria-live announcement. Two gentle scale+brightness
+           beats, then still. Motion is only added under the !reducedMotion
+           branch (see JSX class picker above), so it's safe to not override
+           here — the class simply isn't applied when motion is reduced. */
+        @keyframes roaming-star-discovery-pulse {
+          0%, 100% { transform: scale(1);   filter: brightness(1); }
+          50%      { transform: scale(1.06); filter: brightness(1.35); }
+        }
+        .roaming-star-discovery-pulse {
+          animation: roaming-star-discovery-pulse 1400ms ease-in-out 2;
+          transform-origin: center;
+          will-change: transform, filter;
+        }
         /* Checking skeleton — three gold dots pulsing in sequence. Size
            and gap match the uppercase-tracked secondary line's metrics so
            swapping dots → text on resolution doesn't shift layout. */
@@ -749,6 +952,9 @@ interface StarButtonProps {
   onClick: (el: HTMLButtonElement) => void;
   onKey: (e: KeyboardEvent<HTMLButtonElement>) => void;
   breathing: boolean;
+  /** Optional class applied to the inner wrapper (e.g. the Phase E.2
+   *  discovery-hint pulse). Composed with the breathing class when present. */
+  extraClassName?: string;
 }
 
 function StarButton({
@@ -760,7 +966,17 @@ function StarButton({
   onClick,
   onKey,
   breathing,
+  extraClassName,
 }: StarButtonProps) {
+  // Ternary rather than array/filter/join — this renders on every parent
+  // progress tick while roaming, so we keep the class composition
+  // allocation-free.
+  const breathe = breathing && !reducedMotion;
+  const wrapperClass = breathe
+    ? extraClassName
+      ? `roaming-star-breathing ${extraClassName}`
+      : "roaming-star-breathing"
+    : extraClassName || undefined;
   return (
     <button
       type="button"
@@ -779,7 +995,7 @@ function StarButton({
         height: size,
       }}
     >
-      <span className={breathing && !reducedMotion ? "roaming-star-breathing" : undefined} style={{ display: "inline-block" }}>
+      <span className={wrapperClass} style={{ display: "inline-block" }}>
         <StarShape
           size={size}
           fillLevel={fillLevel}
