@@ -204,7 +204,7 @@ export function StarModal({
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <span>
                   Popup blocked by your browser. Allow popups for this site and
-                  click Proceed again. See{" "}
+                  click &quot;Star all&quot; again. See{" "}
                   <a
                     href="https://support.google.com/chrome/answer/95472"
                     target="_blank"

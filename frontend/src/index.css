@@ -100,6 +100,15 @@
     --animate-star-float: star-float 4s ease-out infinite;
 }
 
+/* Variant-enabled utility. Declared at top level (not inside `@layer`) so
+   Tailwind v4 registers it as a first-class utility — required for
+   `hover:eth-glow` to resolve. A bare class under `@layer utilities` is only
+   a CSS selector, not a Tailwind utility. */
+@utility eth-glow {
+    box-shadow: 0 0 30px oklch(0.620 0.140 270 / 15%),
+                inset 0 0 30px oklch(0.620 0.140 270 / 5%);
+}
+
 /* ============================================================
    DARK MODE (Default) — Deep Navy + Ethereum Blue
    ============================================================ */
@@ -322,7 +331,12 @@
 
 /* ============================================================
    Custom Utilities
-   ============================================================ */
+   ============================================================
+   Plain CSS classes only — no variant prefixes (`hover:`, `md:`, etc.) on
+   these selectors. Tailwind v4 does not wrap `@layer utilities` members
+   with variants, so `hover:glass` or `md:saturn-card` silently resolve to
+   nothing. If you need variant support, promote the class to a top-level
+   `@utility` block (see `@utility eth-glow` earlier in this file). */
 @layer utilities {
     /* Skip-to-content link: visually hidden until focused. */
     .skip-link {
@@ -368,11 +382,6 @@
             background: oklch(0.230 0.022 280 / 65%);
             border-color: oklch(0.400 0.040 270 / 40%);
         }
-    }
-
-    .eth-glow {
-        box-shadow: 0 0 30px oklch(0.620 0.140 270 / 15%),
-                    inset 0 0 30px oklch(0.620 0.140 270 / 5%);
     }
 
     /* ETH accent word in the H1. A single soft aura (≤30px, ~25% alpha)
