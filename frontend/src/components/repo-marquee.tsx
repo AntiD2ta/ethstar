@@ -18,8 +18,11 @@ import type { Repository, StarStatus } from "@/lib/types";
 import { repoKey } from "@/lib/repo-key";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 
-/** Duration of the chip-jump highlight outline in ms. */
-const HIGHLIGHT_DURATION_MS = 600;
+/** Duration of the chip-jump highlight outline in ms. Exported so the
+ *  parent page can size its highlightKey-clear timeout off a single source
+ *  of truth (must be strictly greater than this value so a repeat jump to
+ *  the same repo still re-triggers the effect). */
+export const HIGHLIGHT_DURATION_MS = 600;
 
 interface RepoMarqueeProps {
   /** Stable module-level constant — reference never changes. */

@@ -148,10 +148,12 @@ export const SaturnCard = memo(function SaturnCard({
         sideOffset={6}
         className="w-48 p-1"
       >
-        <div role="menu" aria-label={`${key} actions`} className="flex flex-col">
+        {/* role="group" keeps the two actions semantically paired without
+            promising arrow-key menu navigation. A full DropdownMenu swap is
+            tracked in TASKS.md as a follow-up. */}
+        <div role="group" aria-label={`${key} actions`} className="flex flex-col">
           <button
             type="button"
-            role="menuitem"
             className="rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
             onClick={() => {
               setMenuOpen(false);
@@ -161,7 +163,6 @@ export const SaturnCard = memo(function SaturnCard({
             Star
           </button>
           <a
-            role="menuitem"
             href={repo.url}
             target="_blank"
             rel="noopener noreferrer"

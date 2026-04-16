@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 export interface UseRovingTabindexResult {
@@ -21,7 +21,7 @@ export interface UseRovingTabindexResult {
   onKeyDown: (event: KeyboardEvent<HTMLElement>, index: number) => void;
   /** Mark an item as the current tabbable one (usually wired to onFocus). */
   setCurrent: (index: number) => void;
-  /** The currently active index (may be -1 if no items). */
+  /** The currently active index (clamped to `[0, count-1]`; -1 when count is 0). */
   current: number;
 }
 
@@ -38,21 +38,21 @@ export interface UseRovingTabindexResult {
  * the first chip rather than hopping ring-to-ring.
  */
 export function useRovingTabindex(count: number): UseRovingTabindexResult {
-  const [current, setCurrentState] = useState(0);
-  // Keep a ref of elements we focus after arrow navigation. Consumers don't
-  // have to wire refs — we walk the document for elements with
-  // `data-roving-index={i}` instead. Cheaper than tracking a ref array and
-  // avoids stale-ref issues when the ring re-renders.
-  const focusTargetRef = useRef<string | null>(null);
+  const [storedCurrent, setCurrentState] = useState(0);
+
+  // Derived, not state: if `count` shrinks below the stored index (user
+  // narrows the filter mid-focus), fall back to 0 at render time. We
+  // deliberately don't `setState` in an effect here — cascading renders are
+  // bad, and the stored value can stay stale until the next user action.
+  const current = count === 0 ? -1 : Math.min(storedCurrent, count - 1);
 
   const focusAt = useCallback(
     (next: number, element: HTMLElement | null | undefined) => {
       if (!element) return;
-      // Find the matching sibling by walking up to the shared role="group"
-      // container and querying. Falls back to document if no group is found.
-      const scope = element.closest<HTMLElement>(
-        "[data-roving-scope]",
-      );
+      // Walk up to the shared [data-roving-scope] container and query for the
+      // sibling carrying data-roving-index. Cheaper than tracking a refs array
+      // and avoids stale-ref issues when the ring re-renders.
+      const scope = element.closest<HTMLElement>("[data-roving-scope]");
       const root: ParentNode = scope ?? document;
       const target = root.querySelector<HTMLElement>(
         `[data-roving-index="${next}"]`,
@@ -85,7 +85,6 @@ export function useRovingTabindex(count: number): UseRovingTabindexResult {
           return;
       }
       event.preventDefault();
-      focusTargetRef.current = String(next);
       setCurrentState(next);
       focusAt(next, event.currentTarget);
     },
@@ -98,9 +97,9 @@ export function useRovingTabindex(count: number): UseRovingTabindexResult {
 
   const tabIndexFor = useCallback(
     (index: number): number => {
-      // When there are no items, a single probing call should still report 0
-      // so the first mount doesn't flicker -1 before items appear.
-      if (count === 0) return 0;
+      // With no items there's nothing to focus — callers render 0 chips so
+      // this is only hit by edge probes; -1 is the honest answer.
+      if (count === 0) return -1;
       return index === current ? 0 : -1;
     },
     [count, current],

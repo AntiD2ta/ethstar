@@ -17,7 +17,7 @@ import { AuthHeader } from "@/components/auth-header";
 import { CommunityStarsBanner } from "@/components/community-stars-banner";
 import { HeroSection } from "@/components/hero-section";
 import { ManualStarModal } from "@/components/manual-star-modal";
-import { RepoMarquee } from "@/components/repo-marquee";
+import { HIGHLIGHT_DURATION_MS, RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
 import { READY_FILL_LEVEL } from "@/components/roaming-star/constants";
 import { RoamingStar } from "@/components/roaming-star/roaming-star";
@@ -83,14 +83,16 @@ export default function HomePage() {
   // Saturn-ring filter — default "core Ethereum spine" for signed-out users;
   // authed users can widen the selection via the filter sheet.
   const ringFilter = useRingFilter();
-  // Depend on the memoized `countProgress` (only re-created when `selectedRepos`
-  // changes in the hook), not the whole `ringFilter` object (which is a fresh
-  // literal every render of this component). Including `ringFilter` here would
-  // re-run the O(N) iteration on every intermediate render (auth flips, modal
-  // open/close, star progress ticks), defeating the memo.
+  // Destructure `countProgress` so the memo dep is a plain local variable.
+  // React Compiler's `preserve-manual-memoization` rule rejects a property
+  // access (`ringFilter.countProgress`) as a dep when it would infer the
+  // parent object — destructuring sidesteps that while preserving stability
+  // (the hook memoizes `countProgress` against `selectedRepos`, so it only
+  // changes when the filter does).
+  const { countProgress } = ringFilter;
   const ringProgress = useMemo(
-    () => ringFilter.countProgress(starStatuses),
-    [ringFilter.countProgress, starStatuses],
+    () => countProgress(starStatuses),
+    [countProgress, starStatuses],
   );
 
   // Ring → marquee jump state. `highlightKey` pins the current target repo
@@ -328,19 +330,24 @@ export default function HomePage() {
 
   // Ring chip → marquee jump. Setting highlightKey + bumping highlightToken
   // triggers the matching marquee's useEffect, which scrolls the card into
-  // view and adds the 600ms outline class.
+  // view and adds the outline class. The reset delay is sized just past the
+  // visual highlight so a subsequent jump to the same repo still re-triggers
+  // the effect (same-key re-trigger needs the parent to hold the key beyond
+  // the class removal).
+  const HIGHLIGHT_RESET_PADDING_MS = 300;
   const handleRingJump = useCallback((repo: Repository) => {
     setHighlightKey(repoKey(repo));
     setHighlightToken((t) => t + 1);
     if (highlightResetRef.current != null) {
       window.clearTimeout(highlightResetRef.current);
     }
-    // Clear the key slightly after the visual highlight completes so a
-    // subsequent jump to the same repo still re-triggers the effect.
-    highlightResetRef.current = window.setTimeout(() => {
-      setHighlightKey(null);
-      highlightResetRef.current = null;
-    }, 900);
+    highlightResetRef.current = window.setTimeout(
+      () => {
+        setHighlightKey(null);
+        highlightResetRef.current = null;
+      },
+      HIGHLIGHT_DURATION_MS + HIGHLIGHT_RESET_PADDING_MS,
+    );
   }, []);
 
   useEffect(() => {

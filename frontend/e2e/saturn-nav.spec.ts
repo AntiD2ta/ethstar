@@ -128,7 +128,7 @@ test.describe("Saturn ring navigation — interactions", () => {
     await expect(card).toHaveClass(/repo-card-highlight/, { timeout: 1500 });
   });
 
-  test("Shift+click opens the per-repo action menu", async ({ page }) => {
+  test("Shift+click opens the per-repo action group", async ({ page }) => {
     await page.goto("/");
     const ring = page.getByRole("region", {
       name: /saturn repository navigator/i,
@@ -148,13 +148,13 @@ test.describe("Saturn ring navigation — interactions", () => {
         }),
       );
     });
-    const menu = page.getByRole("menu", {
+    const group = page.getByRole("group", {
       name: /ethereum\/go-ethereum actions/i,
     });
-    await expect(menu).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: "Star" })).toBeVisible();
+    await expect(group).toBeVisible();
+    await expect(group.getByRole("button", { name: "Star" })).toBeVisible();
     await expect(
-      menu.getByRole("menuitem", { name: "Open on GitHub" }),
+      group.getByRole("link", { name: "Open on GitHub" }),
     ).toBeVisible();
   });
 

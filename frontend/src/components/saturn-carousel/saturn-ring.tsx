@@ -54,8 +54,9 @@ interface SaturnRingProps {
    *  sequence. The ring consumes `globalBase` + `chipIndex` per chip so the
    *  ring-system behaves as a single flat focus chain. */
   globalBase?: number;
-  /** Currently tabbable global index (one across the ring system). */
-  globalCurrent?: number;
+  /** Returns the tabIndex for a given global index — delegate to the
+   *  roving-tabindex hook so the 0-count clamp stays in one place. */
+  tabIndexFor?: (globalIndex: number) => number;
   onRovingKeyDown?: (
     event: KeyboardEvent<HTMLElement>,
     index: number,
@@ -80,7 +81,7 @@ export const SaturnRing = memo(function SaturnRing({
   onJump,
   onStarTrigger,
   globalBase = 0,
-  globalCurrent = 0,
+  tabIndexFor,
   onRovingKeyDown,
   onRovingFocus,
 }: SaturnRingProps) {
@@ -124,7 +125,7 @@ export const SaturnRing = memo(function SaturnRing({
         const k = repoKey(repo);
         const status = starStatuses[k] ?? "unknown";
         const globalIndex = globalBase + chipIndex;
-        const tabIndex = globalIndex === globalCurrent ? 0 : -1;
+        const tabIndex = tabIndexFor ? tabIndexFor(globalIndex) : -1;
         return (
           <div
             key={k}

@@ -128,7 +128,7 @@ describe("SaturnCard", () => {
     expect(onJump).toHaveBeenCalledWith(repo);
   });
 
-  it("Shift+click opens the action menu", () => {
+  it("Shift+click opens the action group", () => {
     const onJump = vi.fn();
     const onStar = vi.fn();
     render(
@@ -140,10 +140,12 @@ describe("SaturnCard", () => {
       />,
     );
     fireEvent.click(screen.getByRole("link"), { shiftKey: true });
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Star" })).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: "Open on GitHub" }),
+      screen.getByRole("group", { name: "ethereum/go-ethereum actions" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Star" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open on GitHub" }),
     ).toBeInTheDocument();
     expect(onJump).not.toHaveBeenCalled();
   });

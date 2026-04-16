@@ -117,7 +117,7 @@ describe("SaturnChip", () => {
     expect(onJump).toHaveBeenCalledWith(repo);
   });
 
-  it("Shift+click opens the action menu with Star + Open on GitHub", () => {
+  it("Shift+click opens the action group with Star + Open on GitHub", () => {
     const onJump = vi.fn();
     const onStar = vi.fn();
     render(
@@ -130,16 +130,18 @@ describe("SaturnChip", () => {
     );
     const chip = getPrimaryChipLink();
     fireEvent.click(chip, { shiftKey: true });
-    const menu = screen.getByRole("menu");
-    expect(menu).toHaveAttribute("aria-label", "ethereum/go-ethereum actions");
-    expect(screen.getByRole("menuitem", { name: "Star" })).toBeInTheDocument();
+    const group = screen.getByRole("group", {
+      name: "ethereum/go-ethereum actions",
+    });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Star" })).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: "Open on GitHub" }),
+      screen.getByRole("link", { name: "Open on GitHub" }),
     ).toBeInTheDocument();
     expect(onJump).not.toHaveBeenCalled();
   });
 
-  it("Star menu item calls onStarTrigger", async () => {
+  it("Star action calls onStarTrigger", async () => {
     const user = userEvent.setup();
     const onStar = vi.fn();
     render(
@@ -147,7 +149,7 @@ describe("SaturnChip", () => {
     );
     const chip = getPrimaryChipLink();
     fireEvent.click(chip, { shiftKey: true });
-    await user.click(screen.getByRole("menuitem", { name: "Star" }));
+    await user.click(screen.getByRole("button", { name: "Star" }));
     expect(onStar).toHaveBeenCalledWith(repo);
   });
 

@@ -103,13 +103,7 @@ export function SaturnCarousel({
   }, []);
 
   const totalCount = repos.length;
-  const { tabIndexFor, onKeyDown, setCurrent, current } =
-    useRovingTabindex(totalCount);
-
-  // Keep tabIndexFor from being unused — the ring uses `current` + per-chip
-  // globalIndex to drive tabIndex computation directly for perf, but we
-  // compute it once to keep the hook stable.
-  void tabIndexFor;
+  const { tabIndexFor, onKeyDown, setCurrent } = useRovingTabindex(totalCount);
 
   // Precompute the cumulative base index per ring so every chip's global
   // roving index is O(1) at render time.
@@ -153,7 +147,7 @@ export function SaturnCarousel({
           onJump={onJump}
           onStarTrigger={onStarTrigger}
           globalBase={globalBases[ringIndex]}
-          globalCurrent={current}
+          tabIndexFor={tabIndexFor}
           onRovingKeyDown={onKeyDown}
           onRovingFocus={setCurrent}
         />
