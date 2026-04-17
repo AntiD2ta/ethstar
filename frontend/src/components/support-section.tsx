@@ -121,11 +121,16 @@ export function SupportSection() {
             Propose more repos
           </a>
         </Button>
-        <div className="inline-flex items-center rounded-full border border-border">
+        {/* Explicit `h-9` aligns this composite pill with the outline
+            buttons on its row (shadcn's default size="default" is also h-9).
+            Without it the pill under-hung the row by ~6px on desktop. The
+            child buttons inherit `h-full` so their click targets stay flush
+            with the pill edges. */}
+        <div className="inline-flex h-9 items-center rounded-full border border-border">
           <button
             type="button"
             onClick={() => setTipOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-l-full px-3 py-1.5 font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-full items-center gap-1.5 rounded-l-full px-3 font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Send ETH tip"
           >
             <Wallet className="size-4" aria-hidden="true" />
@@ -135,7 +140,7 @@ export function SupportSection() {
           <button
             type="button"
             onClick={handleCopyAddress}
-            className="inline-flex items-center gap-1 rounded-r-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-full items-center gap-1 rounded-r-full px-3 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label={copied ? "Wallet address copied" : "Copy wallet address"}
             data-testid="wallet-copy"
           >

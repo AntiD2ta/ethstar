@@ -28,6 +28,23 @@ function Wrapper({ children }: { children: ReactNode }) {
   );
 }
 
+describe("SupportSection — footer row alignment", () => {
+  it("ETH-tip + copy pill matches the outline-button row height (h-9)", () => {
+    render(<SupportSection />, { wrapper: Wrapper });
+    // The ETH tip/copy pill is a two-button rounded-full cluster that sits on
+    // the same flex row as `<Button variant="outline">` triggers. The outline
+    // buttons ship with shadcn's default `h-9`; the custom pill previously
+    // had no explicit height, producing a visually noticeable ~6px under-hang
+    // on the row. The `h-9` token aligns them on one height.
+    const copyBtn = screen.getByTestId("wallet-copy");
+    const pill = copyBtn.parentElement;
+    expect(pill).not.toBeNull();
+    // className assertion is the only feasible check in jsdom — layout
+    // properties are not computed there, so we can't measure actual height.
+    expect(pill!.className).toMatch(/\bh-9\b/);
+  });
+});
+
 describe("SupportSection — wallet copy button", () => {
   it("writes the checksummed ETH address to the clipboard when Copy is clicked", async () => {
     // `userEvent.setup()` installs its own clipboard mock, so spy on the

@@ -181,6 +181,44 @@ describe("RoamingStar", () => {
     expect(btn.getAttribute("aria-label")).toMatch(/percent/);
   });
 
+  // Defensive: home.tsx always passes `remaining: number`, but a future caller
+  // (or an in-flight type-cast during data-meta loading) could pass null/
+  // undefined. Previously that surfaced as "Star all 0 Ethereum repos…" on
+  // screen readers — wrong: we don't know the count yet, we shouldn't announce
+  // a concrete "0". Mirror the `ready` branch, which already drops the count
+  // into a skeleton until `state.checking` clears.
+  it("omits the count from the disconnected aria-label when remaining is nullish", () => {
+    renderStar({
+      state: {
+        status: "disconnected",
+        fillLevel: 0,
+        // `as unknown as number` simulates the data-loading window where a
+        // future caller might not have resolved the count yet.
+        remaining: undefined as unknown as number,
+      },
+    });
+    const btn = screen.getByTestId("roaming-star-button");
+    expect(btn).toHaveAttribute(
+      "aria-label",
+      "Star all Ethereum repos — sign in with GitHub to begin",
+    );
+    expect(screen.getByText("Star all now")).toBeInTheDocument();
+  });
+
+  // The discovery-hint live region is permanently mounted so NVDA + Chrome
+  // observe it before its first announcement. But while its content is empty
+  // (the majority of the slot's lifetime) the hidden node was still being
+  // traversed by assistive-tech on the way through the page — a silent stop
+  // that contributes nothing. `aria-hidden` pulls it out of the a11y tree
+  // while empty, and `aria-atomic` ensures the whole pill text is announced
+  // atomically (not rebroadcast per-keystroke-addition by late-reading ATs).
+  it("marks the empty discovery-hint status as aria-hidden with aria-atomic", () => {
+    renderStar();
+    const hint = screen.getByTestId("roaming-star-discovery-hint");
+    expect(hint).toHaveAttribute("aria-atomic", "true");
+    expect(hint).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("partial-failure state renders a concrete retry label with the failed count", () => {
     renderStar({
       state: {

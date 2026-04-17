@@ -106,7 +106,12 @@ export const SaturnCard = memo(function SaturnCard({
           onFocus={handleFocus}
         >
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate font-heading text-xs font-semibold leading-tight text-primary group-hover:underline">
+            {/* `text-foreground` with a `group-hover:text-primary` affordance —
+                the resting eth-blue (oklch 0.62) was only 3.14:1 on the
+                translucent saturn-card at 12px, below WCAG AA. The ETH accent
+                now emerges on hover as a tint shift, preserving the visual
+                identity without failing the baseline contrast bar. */}
+            <h3 className="truncate font-heading text-xs font-semibold leading-tight text-foreground group-hover:text-primary group-hover:underline">
               {repo.owner}/{repo.name}
             </h3>
             <CompactStarIndicator status={status} />
@@ -115,7 +120,10 @@ export const SaturnCard = memo(function SaturnCard({
           {metaLoading && !liveDescription ? (
             <Skeleton className="h-3 w-full rounded" />
           ) : (
-            <p className="line-clamp-1 text-[11px] leading-snug text-muted-foreground">
+            // `text-foreground/75` (not muted) — muted renders as 3.49:1 at
+            // 11px on the card bg. Alpha-dimming off the real foreground
+            // keeps hierarchy vs the H3 without dropping below 4.5:1.
+            <p className="line-clamp-1 text-[11px] leading-snug text-foreground/75">
               {description}
             </p>
           )}
@@ -127,12 +135,17 @@ export const SaturnCard = memo(function SaturnCard({
                 alt={repo.owner}
                 className="size-4 rounded-full"
               />
-              <span className="text-[10px] text-muted-foreground">
+              {/* `text-foreground/80` instead of `text-muted-foreground` —
+                  muted is 2.69:1 on the semi-transparent navy card at 10px,
+                  under the WCAG AA 4.5:1 floor. The near-foreground alpha
+                  keeps the meta row visually subordinate to the repo name
+                  without failing contrast on the small type. */}
+              <span className="text-[10px] text-foreground/80">
                 {repo.owner}
               </span>
             </div>
             {typeof starCount === "number" ? (
-              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-0.5 text-[10px] text-foreground/80">
                 <Star size={9} fill="currentColor" strokeWidth={0} aria-hidden="true" />
                 <span>{formatStarCount(starCount)}</span>
               </div>

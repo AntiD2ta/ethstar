@@ -39,9 +39,12 @@ const read = (rel: string) => readFileSync(resolve(here, rel), "utf8");
 describe("CTA verb lock (Phase H)", () => {
   it("roaming-star dormant label starts with 'Star all '", () => {
     const src = read("components/roaming-star/roaming-star.tsx");
-    // The disconnected primary line is assembled as a template literal —
-    // the leading string literal must contain the canonical verb prefix.
-    expect(src).toMatch(/`Star all \$\{state\.remaining \?\? 0\} now`/);
+    // The disconnected primary line has two branches: the string literal
+    // fallback when the count hasn't resolved, and the template literal
+    // when it has. Both must preserve the canonical verb — lock each
+    // independently so verb drift in either path still trips the guard.
+    expect(src).toMatch(/"Star all now"/);
+    expect(src).toMatch(/`Star all \$\{state\.remaining\} now`/);
   });
 
   it("star-modal confirm button starts with 'Star all '", () => {
