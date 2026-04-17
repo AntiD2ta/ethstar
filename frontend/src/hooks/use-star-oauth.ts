@@ -127,6 +127,10 @@ export function useStarOAuth(): StarOAuthReturn {
       };
 
       window.addEventListener("message", onMessage);
+      // Test hook: signal that the message listener is live so E2E mocks of
+      // `window.open` can safely post back without a speculative setTimeout.
+      // The attribute is removed in `cleanup` below.
+      document.documentElement.setAttribute("data-star-listener-ready", "1");
 
       // Poll for popup closed by user
       const pollId = setInterval(() => {
@@ -147,6 +151,7 @@ export function useStarOAuth(): StarOAuthReturn {
 
       const cleanup = () => {
         window.removeEventListener("message", onMessage);
+        document.documentElement.removeAttribute("data-star-listener-ready");
         clearInterval(pollId);
         clearTimeout(timeoutId);
         if (!popup.closed) {

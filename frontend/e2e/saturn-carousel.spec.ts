@@ -128,8 +128,18 @@ test.describe("Saturn Carousel — Mobile", () => {
         return { w: r.width, h: r.height };
       }),
     );
+    // Guard: reduce with no initial value on an empty array throws. Assert a
+    // non-empty set of ring fragments first so a layout regression surfaces
+    // as a helpful failure instead of `TypeError: Reduce of empty array`.
+    expect(
+      dims.length,
+      "mobile ring should produce fragments at portrait viewport",
+    ).toBeGreaterThan(0);
     // Largest ring (by area) should be taller than wide.
-    const outer = dims.reduce((a, b) => (a.w * a.h > b.w * b.h ? a : b));
+    const outer = dims.reduce(
+      (a, b) => (a.w * a.h > b.w * b.h ? a : b),
+      { w: 0, h: 0 },
+    );
     expect(outer.h).toBeGreaterThan(outer.w);
     // And it should be noticeably elongated, not a near-circle. At
     // `tiltX: 55` the observed aspect is ~1.7×; 1.3× is a conservative

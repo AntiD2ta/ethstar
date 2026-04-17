@@ -93,8 +93,12 @@ test("failed repo shows retry button that re-attempts starring", async ({
   const retryBtn = page.getByRole("button", { name: "Retry starring" }).first();
   await expect(retryBtn).toBeVisible({ timeout: 10000 });
 
-  // Button is inside a continuously-scrolling marquee; force click to bypass stability check.
-  await retryBtn.click({ force: true });
+  // Button is inside a continuously-scrolling marquee. A plain click — even
+  // with `force: true` — can still fail with "outside of the viewport" when
+  // the element drifts horizontally off-screen between resolution and click.
+  // Dispatch the click directly on the DOM node to sidestep Playwright's
+  // viewport actionability check entirely.
+  await retryBtn.evaluate((el) => (el as HTMLButtonElement).click());
 
   // After click, the PUT should have been called at least once.
   await expect.poll(() => retryCount, { timeout: 5000 }).toBeGreaterThan(0);
