@@ -13,7 +13,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach, beforeAll } from "vitest";
+import { afterAll, afterEach, beforeAll } from "vitest";
 
 // Node 25 exposes a stub `localStorage` global that shadows happy-dom's
 // implementation and lacks setItem/clear. Install a simple Map-backed
@@ -75,4 +75,46 @@ afterEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
+});
+
+// Web Animations API shim for happy-dom: jsdom/happy-dom don't implement
+// `element.animate()`, and any component relying on a FLIP useLayoutEffect
+// (e.g. `useFlipTransition` in RoamingStar) would throw when the effect
+// runs. Installing a minimal Animation-shaped stub here — instead of inside
+// each test — prevents tests that only incidentally touch FLIP code from
+// reinventing the shim. Restored after the suite so leakage to other
+// runners is avoided.
+type AnimationShim = {
+  cancel: () => void;
+  finish: () => void;
+  onfinish: (() => void) | null;
+  oncancel: (() => void) | null;
+};
+let previousAnimate: unknown;
+let animateShimInstalled = false;
+
+beforeAll(() => {
+  const proto = HTMLElement.prototype as unknown as { animate?: unknown };
+  if (typeof proto.animate !== "function") {
+    previousAnimate = proto.animate;
+    proto.animate = function animate(): AnimationShim {
+      return {
+        cancel: () => {},
+        finish: () => {},
+        onfinish: null,
+        oncancel: null,
+      };
+    };
+    animateShimInstalled = true;
+  }
+});
+
+afterAll(() => {
+  if (!animateShimInstalled) return;
+  const proto = HTMLElement.prototype as unknown as { animate?: unknown };
+  if (previousAnimate === undefined) {
+    delete proto.animate;
+  } else {
+    proto.animate = previousAnimate;
+  }
 });

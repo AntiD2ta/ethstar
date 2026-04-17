@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Loader2, Star } from "lucide-react";
 import {
@@ -61,33 +61,39 @@ export const SaturnCard = memo(function SaturnCard({
   const key = repoKey(repo);
   const statusWord = status === "starred" ? "starred" : "not starred";
 
-  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    if (e.shiftKey) {
-      setMenuOpen(true);
-      return;
-    }
-    onJump?.(repo);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLAnchorElement>) => {
-    if (rovingIndex != null) {
-      onRovingKeyDown?.(e, rovingIndex);
-      if (e.defaultPrevented) return;
-    }
-    if (e.key === "Enter" || e.key === " ") {
+  const handleClick = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>) => {
       e.preventDefault();
       if (e.shiftKey) {
         setMenuOpen(true);
         return;
       }
       onJump?.(repo);
-    }
-  };
+    },
+    [onJump, repo],
+  );
 
-  const handleFocus = () => {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLAnchorElement>) => {
+      if (rovingIndex != null) {
+        onRovingKeyDown?.(e, rovingIndex);
+        if (e.defaultPrevented) return;
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setMenuOpen(true);
+          return;
+        }
+        onJump?.(repo);
+      }
+    },
+    [rovingIndex, onRovingKeyDown, onJump, repo],
+  );
+
+  const handleFocus = useCallback(() => {
     if (rovingIndex != null) onRovingFocus?.(rovingIndex);
-  };
+  }, [rovingIndex, onRovingFocus]);
 
   return (
     <Popover open={menuOpen} onOpenChange={setMenuOpen}>

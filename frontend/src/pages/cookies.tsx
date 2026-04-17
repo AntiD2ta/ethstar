@@ -137,7 +137,7 @@ export default function CookiesPage() {
         <h2>Inventory</h2>
       </article>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+      <div className="mt-6 rounded-lg border border-border">
         <Table>
           <TableHeader>
             <TableRow>
