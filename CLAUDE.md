@@ -94,10 +94,50 @@ These rules shape the codebase in ways not obvious from any single file.
 You have Chrome browser automation via `mcp__claude-in-chrome__*`. **Do not skip browser validation for frontend changes.**
 
 1. Start dev servers (`make dev-go &` and `cd frontend && npm run dev &`; `make kill-server` first if `:8080` is busy).
-2. Navigate to `http://localhost:5173` and walk through the acceptance criteria.
-3. Write a Playwright regression for what you validated.
+2. Navigate to `http://localhost:5173` and walk through the acceptance criteria. Take screenshots at key steps. Verify visual correctness (no overflow, layout breakage, dead links, blank pages) and interactive behavior (clicks, forms, dialogs, scroll).
+3. Write a Playwright regression in `frontend/e2e/` for every bug fix or behavioral change. Use `page.route()` to mock API responses when testing UI independently. Run `make test-e2e` to verify all E2E tests pass.
+4. If you discover additional bugs during validation, fix them and add regression tests before moving on.
 
 Chrome MCP caveats and fallbacks live in `docs/learnings/browser-automation.md`.
+
+## API validation (backend/contract changes)
+
+When a task changes API surface (new endpoint, modified request/response shape, new filter):
+
+1. Run integration tests: `gosilent test -tags=integration ./internal/integration/...`. These use `httptest.NewServer` with in-memory SQLite and a mock external client — real HTTP through the full middleware stack.
+2. Add integration tests for new endpoints in `internal/integration/`.
+3. For contract changes (new fields, changed status codes, error shape), update integration tests + E2E tests that depend on the shape, then run `make test`.
+
+## Test runner: `gosilent`
+
+Use `gosilent` instead of `go test` for all Go test runs. It wraps `go test -json`, collapses passing packages to one summary line, and expands only failures — ~358x less output for clean context.
+
+```bash
+gosilent test ./...                      # instead of: go test ./...
+gosilent test -race -count=1 ./...
+gosilent test --detail ./...             # expand all
+gosilent test --verbose ./...            # raw
+```
+
+The Makefile `test-go` target already uses `gosilent`. Fall back to `go test` only if `gosilent` is missing.
+
+## Quality gates
+
+All gates must pass before merging. `make check` runs static checks; `make gate` adds race + build.
+
+| Gate              | Command                 | Checks                                         |
+| ----------------- | ----------------------- | ---------------------------------------------- |
+| Go lint           | `make lint-go`          | golangci-lint (vet, staticcheck, errcheck, …)  |
+| Go tests          | `make test-go`          | unit tests via gosilent                        |
+| Go race           | `make test-go-race`     | race detector                                  |
+| Go security       | `make security`         | gosec OWASP scan                               |
+| Integration       | `make test-integration` | API integration tests with real DB             |
+| Frontend lint     | `make lint-frontend`    | ESLint                                         |
+| TypeScript        | `make typecheck`        | `tsc --noEmit`                                 |
+| E2E               | `make test-e2e`         | Playwright                                     |
+| Build             | `make build`            | frontend build + Go binary compile             |
+
+Pre-commit: `make check` (lint + typecheck + security). Pre-merge: `make gate` (check + race + build).
 
 ## Topic learnings (read when relevant)
 

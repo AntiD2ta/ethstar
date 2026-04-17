@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "chrome-devtools-mcp@chrome-devtools-plugins": true,
+    "impeccable@impeccable": true
+  }
+}
