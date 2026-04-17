@@ -43,6 +43,7 @@ export function ChalkMark({
       className={className}
       aria-hidden={ariaHidden}
       focusable="false"
+      data-testid="chalk-mark"
     >
       {/* Single pass — a slightly bumpy quadratic approximating a human stroke.
           Two control points produce one gentle dip + one upward kick so the

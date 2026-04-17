@@ -28,39 +28,45 @@ async function setupWithStarStatuses(
 ) {
   await seedAuth(page);
 
-  // Profile fetch.
-  await page.route("https://api.github.com/user", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        login: "e2euser",
-        avatar_url: "",
-        name: "E2E User",
+  // Register all routes concurrently so they're all installed before the
+  // first navigation fires any requests. Sequential awaits on page.route
+  // don't guarantee ordering relative to the initial goto() — mirror the
+  // Promise.all pattern used in home.spec.ts.
+  await Promise.all([
+    // Profile fetch.
+    page.route("https://api.github.com/user", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          login: "e2euser",
+          avatar_url: "",
+          name: "E2E User",
+        }),
       }),
+    ),
+
+    // Star checks: unstarred repos return 404, rest return 204 (starred).
+    page.route("https://api.github.com/user/starred/**", (route) => {
+      const url = route.request().url();
+      const isUnstarred = unstarredRepos.some((name) => url.endsWith(`/${name}`));
+      return route.fulfill({ status: isUnstarred ? 404 : 204, body: "" });
     }),
-  );
 
-  // Star checks: unstarred repos return 404, rest return 204 (starred).
-  await page.route("https://api.github.com/user/starred/**", (route) => {
-    const url = route.request().url();
-    const isUnstarred = unstarredRepos.some((name) => url.endsWith(`/${name}`));
-    return route.fulfill({ status: isUnstarred ? 404 : 204, body: "" });
-  });
+    // Stats API — return zeros so the counter doesn't interfere.
+    page.route("**/api/stats", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ total_stars: 0, total_users: 0 }),
+      }),
+    ),
 
-  // Stats API — return zeros so the counter doesn't interfere.
-  await page.route("**/api/stats", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ total_stars: 0, total_users: 0 }),
-    }),
-  );
-
-  // GraphQL — return empty (not auth'd for GraphQL in test).
-  await page.route("https://api.github.com/graphql", (route) =>
-    route.fulfill({ status: 401, body: "" }),
-  );
+    // GraphQL — return empty (not auth'd for GraphQL in test).
+    page.route("https://api.github.com/graphql", (route) =>
+      route.fulfill({ status: 401, body: "" }),
+    ),
+  ]);
 
   await page.goto("/");
 }
@@ -71,9 +77,13 @@ async function setupWithStarStatuses(
  * star modal.
  */
 async function openManualModal(page: import("@playwright/test").Page) {
-  // Wait for star checks to finish — the RoamingStar becomes "ready".
+  // Wait for star checks to finish — the RoamingStar becomes "ready" and
+  // drops `data-checking` to "false". `handleStarTrigger` no-ops while the
+  // initial sweep is still in flight, so clicking too early silently drops
+  // the event and the modal never opens.
   const star = page.getByTestId("roaming-star-button").first();
   await expect(star).toHaveAttribute("data-status", "ready", { timeout: 15000 });
+  await expect(star).toHaveAttribute("data-checking", "false", { timeout: 15000 });
   await star.click();
 
   // The star modal (authorization warning) should appear.

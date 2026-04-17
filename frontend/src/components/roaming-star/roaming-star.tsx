@@ -603,6 +603,7 @@ export const RoamingStar = memo(function RoamingStar({
               size={dormantSize}
               fillLevel={state.fillLevel}
               status={state.status}
+              checking={state.checking}
               reducedMotion={reducedMotion}
               ariaLabel={ariaLabel}
               onClick={handleStarClick}
@@ -788,6 +789,7 @@ export const RoamingStar = memo(function RoamingStar({
             size={floatingSize}
             fillLevel={state.fillLevel}
             status={state.status}
+            checking={state.checking}
             reducedMotion={reducedMotion}
             ariaLabel={ariaLabel}
             onClick={handleStarClick}
@@ -984,6 +986,11 @@ interface StarButtonProps {
   size: number;
   fillLevel: number;
   status: RoamingStarState["status"];
+  /** Surfaced as `data-checking` so E2E tests can wait for the initial
+   *  star-status sweep to finish before clicking. `status` alone can read
+   *  as "ready" the moment auth is known, even while `isChecking` is still
+   *  true — and the parent `handleStarTrigger` no-ops on `isChecking`. */
+  checking?: boolean;
   reducedMotion: boolean;
   ariaLabel: string;
   /** Receives the button element so callers can read its on-screen rect — we
@@ -1000,6 +1007,7 @@ function StarButton({
   size,
   fillLevel,
   status,
+  checking,
   reducedMotion,
   ariaLabel,
   onClick,
@@ -1024,6 +1032,7 @@ function StarButton({
       onKeyDown={onKey}
       data-testid="roaming-star-button"
       data-status={status}
+      data-checking={checking ? "true" : "false"}
       className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-full"
       style={{
         background: "transparent",

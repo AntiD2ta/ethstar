@@ -162,17 +162,39 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
 
   // Mock window.open to auto-deliver a fake classic OAuth token via postMessage.
   // This bypasses the popup OAuth flow so the starring proceeds immediately.
+  // Drive the postMessage off the `data-star-listener-ready` attribute that
+  // use-star-oauth sets the moment its "message" listener is attached, so we
+  // can't race the listener setup with a fixed setTimeout.
   await page.addInitScript(() => {
     const origOpen = window.open.bind(window);
+    const postToken = () =>
+      window.postMessage(
+        { type: "ethstar-star-token", access_token: "ghu_fake_star_token" },
+        window.location.origin,
+      );
+    const waitForListener = (): Promise<void> =>
+      new Promise((resolve) => {
+        const READY_ATTR = "data-star-listener-ready";
+        if (document.documentElement.hasAttribute(READY_ATTR)) {
+          resolve();
+          return;
+        }
+        const obs = new MutationObserver(() => {
+          if (document.documentElement.hasAttribute(READY_ATTR)) {
+            obs.disconnect();
+            resolve();
+          }
+        });
+        obs.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: [READY_ATTR],
+        });
+      });
     window.open = (url?: string | URL, ...args: Parameters<typeof window.open> extends [unknown, ...infer R] ? R : never[]) => {
       if (typeof url === "string" && url.includes("/api/auth/star")) {
-        // Simulate the popup posting back a token then closing.
-        setTimeout(() => {
-          window.postMessage(
-            { type: "ethstar-star-token", access_token: "ghu_fake_star_token" },
-            window.location.origin,
-          );
-        }, 50);
+        // Wait for the hook's message listener before posting so we can't
+        // lose the token to a pre-listener dispatch.
+        void waitForListener().then(postToken);
         // Return a fake popup object that reports itself as closed after the message is sent.
         return { closed: false, close: () => {} } as Window;
       }
@@ -229,9 +251,13 @@ test("failed stats POST queues pending stars, next successful POST flushes them"
 
   await page.goto("/");
 
-  // Wait for star checks to complete (status=ready), then click the RoamingStar.
+  // Wait for star checks to complete (status=ready AND checking done) before
+  // clicking the RoamingStar — `handleStarTrigger` no-ops while `isChecking`
+  // is still true, even though `data-status` flips to "ready" the moment
+  // auth is known.
   const star = page.getByTestId("roaming-star-button").first();
   await expect(star).toHaveAttribute("data-status", "ready", { timeout: 15000 });
+  await expect(star).toHaveAttribute("data-checking", "false", { timeout: 15000 });
   await star.click();
 
   // StarModal opens at warning step — click "Star all" to trigger OAuth popup (mocked above).
