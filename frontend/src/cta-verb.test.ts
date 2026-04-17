@@ -47,9 +47,13 @@ describe("CTA verb lock (Phase H)", () => {
     expect(src).toMatch(/`Star all \$\{state\.remaining\} now`/);
   });
 
-  it("star-modal confirm button starts with 'Star all '", () => {
+  it("star-modal confirm button uses the 'Star all ' verb in bulk mode", () => {
     const src = read("components/star-modal.tsx");
-    expect(src).toMatch(/Star all \{unstarredCount\}/);
+    // The bulk-mode label lives in the derived `ctaLabel` template literal.
+    // Lock the canonical verb + count interpolation; the per-repo Star
+    // action takes the singular branch (`Star ${repoLabel}` /
+    // "Star repository") which is intentionally separate.
+    expect(src).toMatch(/`Star all \$\{targetCount\}`/);
   });
 
   it("no legacy CTA verbs leak into rendered components", () => {

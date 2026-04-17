@@ -168,8 +168,6 @@ export default function HomePage() {
     [retryStar, handleSessionExpired, handleNetworkError, handleStarForbidden],
   );
 
-  // Open the star modal instead of directly starring — the modal handles
-  // the classic OAuth popup flow and passes the ephemeral token to starAll.
   const handleOpenManualModal = useCallback(() => {
     setManualModalOpen(true);
   }, []);
@@ -179,9 +177,16 @@ export default function HomePage() {
   // so a cancelled-then-reopened session doesn't inherit the old aborted flag.
   const starAbortRef = useRef<AbortController | null>(null);
 
-  const handleStarAll = useCallback(() => {
+  // Per-run repo selection. `null` = bulk mode (every currently-unstarred
+  // repo); a single-element array = chip-menu Star on one repo. The bulk
+  // RoamingStar passes `null`; chip menu passes the single Repository.
+  const [pendingStarRepos, setPendingStarRepos] =
+    useState<Repository[] | null>(null);
+
+  const handleStarAll = useCallback((repos: Repository[] | null = null) => {
     setStarResult(null);
     setStarModalKey((k) => k + 1);
+    setPendingStarRepos(repos);
     starAbortRef.current?.abort();
     starAbortRef.current = new AbortController();
     setStarModalOpen(true);
@@ -198,6 +203,7 @@ export default function HomePage() {
     const result = await starAll({
       token: ephemeralToken,
       signal: controller.signal,
+      repos: pendingStarRepos ?? undefined,
       onRateLimit: (waitMs) => {
         const seconds = Math.ceil(waitMs / 1000);
         toast.warning(
@@ -224,12 +230,26 @@ export default function HomePage() {
       setStarModalOpen(false);
     }
     return result;
-  }, [starAll, reportStars, token, handleSessionExpired, handleNetworkError, handleStarForbidden]);
+  }, [starAll, reportStars, token, pendingStarRepos, handleSessionExpired, handleNetworkError, handleStarForbidden]);
 
   const unstarredRepos = useMemo(
     () => REPOSITORIES.filter((r) => starStatuses[repoKey(r)] === "unstarred"),
     [starStatuses],
   );
+
+  // What the modal will star this run. In bulk mode this is "every currently
+  // unstarred repo"; in single-repo mode it's the one repo passed via the
+  // chip menu. Drives the modal's count + target-label copy.
+  const starModalTarget = useMemo(() => {
+    if (pendingStarRepos && pendingStarRepos.length > 0) {
+      const single = pendingStarRepos.length === 1 ? pendingStarRepos[0] : null;
+      return {
+        count: pendingStarRepos.length,
+        repoLabel: single ? `${single.owner}/${single.name}` : null,
+      };
+    }
+    return { count: unstarredRepos.length, repoLabel: null };
+  }, [pendingStarRepos, unstarredRepos.length]);
 
   const allDone =
     progress.total > 0 && progress.starred === progress.total;
@@ -318,15 +338,27 @@ export default function HomePage() {
   // already starred — the RoamingStar also gates this on `state.status ===
   // "success"`, but we guard here too so keyboard/programmatic callers
   // can't sneak past the visual state and open a 0-repo modal.
-  const handleStarTrigger = useCallback(() => {
-    if (allDone) return;
-    if (isChecking) return;
-    if (!isAuthenticated) {
-      login();
-      return;
-    }
-    handleStarAll();
-  }, [allDone, isChecking, isAuthenticated, login, handleStarAll]);
+  // When `repo` is provided (chip-menu Star), we open the modal in
+  // single-repo mode so just that one repo is starred. The bulk-mode
+  // `allDone`/`isChecking` gates don't apply per-repo — clicking Star on
+  // an individual chip should still work even after the bulk run finished
+  // or while the initial check is in flight.
+  const handleStarTrigger = useCallback(
+    (repo?: Repository) => {
+      if (!isAuthenticated) {
+        login();
+        return;
+      }
+      if (repo) {
+        handleStarAll([repo]);
+        return;
+      }
+      if (allDone) return;
+      if (isChecking) return;
+      handleStarAll();
+    },
+    [allDone, isChecking, isAuthenticated, login, handleStarAll],
+  );
 
   const handleCancelStarring = useCallback(() => {
     starAbortRef.current?.abort();
@@ -535,8 +567,12 @@ export default function HomePage() {
       <StarModal
         key={starModalKey}
         open={starModalOpen}
-        onOpenChange={setStarModalOpen}
-        unstarredCount={unstarredRepos.length}
+        onOpenChange={(open) => {
+          setStarModalOpen(open);
+          if (!open) setPendingStarRepos(null);
+        }}
+        targetCount={starModalTarget.count}
+        targetRepoLabel={starModalTarget.repoLabel}
         progress={progress}
         onStartStarring={handleStartStarring}
         requestToken={requestToken}

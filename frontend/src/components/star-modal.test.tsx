@@ -22,7 +22,8 @@ type StarResult = { starred: number; failed: number; aborted: boolean };
 const defaultProps = {
   open: true,
   onOpenChange: vi.fn(),
-  unstarredCount: 5,
+  targetCount: 5,
+  targetRepoLabel: null,
   progress: { total: 0, starred: 0, remaining: 0, current: null },
   onStartStarring: vi.fn<(token: string) => Promise<StarResult>>(),
   requestToken: vi.fn<() => Promise<string>>(),
@@ -104,6 +105,27 @@ describe("StarModal", () => {
 
     expect(await screen.findByTestId("star-modal-stopped")).toBeInTheDocument();
     expect(screen.getByText(/stopped at 3 of 5/i)).toBeInTheDocument();
+  });
+
+  it("warning step uses singular copy when targetCount is 1", () => {
+    render(
+      <StarModal
+        {...defaultProps}
+        targetCount={1}
+        targetRepoLabel="ethereum/go-ethereum"
+      />,
+    );
+    // Description should name the single repo and use singular wording.
+    // Text spans multiple inline elements (label + <strong>), so match on
+    // the dialog's combined text content.
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent ?? "").toMatch(
+      /star\s+ethereum\/go-ethereum 1 public repository/i,
+    );
+    // CTA button reflects single-repo selection.
+    expect(
+      screen.getByRole("button", { name: /^star ethereum\/go-ethereum$/i }),
+    ).toBeInTheDocument();
   });
 
   it("renames the progress-step abort button to 'Stop after current'", async () => {
