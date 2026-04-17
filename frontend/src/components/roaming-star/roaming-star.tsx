@@ -307,8 +307,12 @@ export const RoamingStar = memo(function RoamingStar({
     if (!completed) {
       // Completion unwound (e.g. parent cleared starResult) — reset the
       // one-shot guards so the next completion cycle fires its own burst.
-      supernovaPlayedRef.current = false;
-      setSupernovaSettled(false);
+      // Gate on playedRef (which becomes true before settled, so a strict
+      // superset) — reset iff a cycle actually played.
+      if (supernovaPlayedRef.current) {
+        supernovaPlayedRef.current = false;
+        setSupernovaSettled(false);
+      }
       return;
     }
     if (supernovaPlayedRef.current) return;
@@ -374,7 +378,12 @@ export const RoamingStar = memo(function RoamingStar({
   const ariaLabel = useMemo(() => {
     switch (state.status) {
       case "disconnected":
-        return `Star all ${state.remaining ?? 0} Ethereum repos — sign in with GitHub to begin`;
+        // When the count hasn't resolved, don't announce a concrete "0" —
+        // "Star all 0 repos" reads as "already done" to screen readers, the
+        // opposite of the loading intent. Drop the count instead.
+        return state.remaining == null
+          ? "Star all Ethereum repos — sign in with GitHub to begin"
+          : `Star all ${state.remaining} Ethereum repos — sign in with GitHub to begin`;
       case "ready":
         return "Begin starring all Ethereum repositories";
       case "in-progress":
@@ -399,7 +408,13 @@ export const RoamingStar = memo(function RoamingStar({
           : state.oauthStatus === "blocked"
             ? "Popup blocked — click to retry"
             : "Sign in with GitHub ↗";
-      return [`Star all ${state.remaining ?? 0} now`, secondary];
+      // Mirror the aria-label branch: drop the count while we don't know it
+      // yet rather than painting "Star all 0 now".
+      const primary =
+        state.remaining == null
+          ? "Star all now"
+          : `Star all ${state.remaining} now`;
+      return [primary, secondary];
     }
     if (state.status === "ready") {
       // While the initial check is in flight, the final count is not yet
@@ -660,9 +675,14 @@ export const RoamingStar = memo(function RoamingStar({
               time, so a late-mounting region can silently miss its first
               announcement. `role="status"` is implicitly aria-live="polite"
               per the ARIA spec (see docs/learnings/a11y.md), so we avoid
-              redundantly setting both. */}
+              redundantly setting both. `aria-atomic` ensures the full pill
+              is announced as one chunk (not per-word as content streams in);
+              `aria-hidden` pulls the empty state out of the a11y tree so
+              ATs don't traverse an empty status on every page sweep. */}
           <span
             role="status"
+            aria-atomic="true"
+            aria-hidden={!discoveryHintVisible}
             data-testid="roaming-star-discovery-hint"
             className="font-heading text-[11px] uppercase tracking-widest text-muted-foreground"
             style={{
