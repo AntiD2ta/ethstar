@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { seedConsent } from "./helpers";
 
 // Regression coverage for Phase H — Audit & Polish. Locks in the
@@ -112,9 +112,7 @@ test.describe("Phase H — polish regressions", () => {
   // as inline `<span>` inside the stats `<p>`, so they should never receive
   // focus. Kept as an explicit guard against reverting to a flex row of
   // `<div>` kids.
-  test("hero stat separators are not keyboard focusable", async ({
-    page,
-  }: { page: Page }) => {
+  test("hero stat separators are not keyboard focusable", async ({ page }) => {
     await page.goto("/");
     const focusableSeparators = await page.evaluate(() => {
       const meta = document.querySelector('[data-testid="hero-meta"]');
@@ -127,5 +125,96 @@ test.describe("Phase H — polish regressions", () => {
       return all.length;
     });
     expect(focusableSeparators).toBe(0);
+  });
+
+  // Phase H keyboard-traversal: the first visible tab stop on `/` must be
+  // the skip link (invisible until focused), then the primary hero CTA.
+  // "Hidden focusables" — elements with `display: none` / `visibility: hidden`
+  // or `aria-hidden="true"` / `inert` ancestors — should never receive focus
+  // from Tab. The skip link is a deliberate exception (offscreen by default,
+  // visible on focus) and passes the visibility check once focused.
+  test("keyboard traversal: skip link first, no hidden focusables in first 10 stops", async ({
+    page,
+  }) => {
+    // Sample depth. 10 covers skip link + hero CTAs + browse-repos link +
+    // first handful of repo chips on a typical home render; going deeper
+    // starts crossing into the Saturn ring's roving-tabindex handler,
+    // which is stress-tested in saturn-nav.spec.ts.
+    const TAB_STOP_SAMPLE = 10;
+
+    await page.goto("/");
+    await page.waitForLoadState("load");
+    // Put focus at the very start of the document.
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      document.body.focus();
+    });
+
+    const stops: Array<{
+      tag: string;
+      label: string;
+      visible: boolean;
+      inInertTree: boolean;
+    }> = [];
+    for (let i = 0; i < TAB_STOP_SAMPLE; i++) {
+      await page.keyboard.press("Tab");
+      const stop = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) return null;
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        const visible =
+          rect.width > 0 &&
+          rect.height > 0 &&
+          style.visibility !== "hidden" &&
+          style.display !== "none";
+        // Walk ancestors to detect inert/aria-hidden containers that would
+        // make the focus illegal.
+        let parent: HTMLElement | null = el.parentElement;
+        let inInertTree = false;
+        while (parent) {
+          if (parent.hasAttribute("inert") || parent.getAttribute("aria-hidden") === "true") {
+            inInertTree = true;
+            break;
+          }
+          parent = parent.parentElement;
+        }
+        return {
+          tag: el.tagName.toLowerCase(),
+          label:
+            el.getAttribute("aria-label") ??
+            el.textContent?.trim().slice(0, 40) ??
+            el.id ??
+            "",
+          visible,
+          inInertTree,
+        };
+      });
+      if (stop) stops.push(stop);
+    }
+
+    expect(stops.length, "should have at least one tab stop").toBeGreaterThan(0);
+
+    // First non-body stop must be the skip link (href="#repos", class .skip-link).
+    const first = stops[0];
+    expect(first.tag).toBe("a");
+    expect(first.label).toMatch(/Skip to repositories/);
+
+    // No stop may be inside an inert / aria-hidden subtree.
+    for (const stop of stops) {
+      expect(
+        stop.inInertTree,
+        `focus landed inside inert/aria-hidden subtree: ${JSON.stringify(stop)}`,
+      ).toBe(false);
+    }
+
+    // Every tab stop must be visible once focused (skip link included —
+    // its :focus rule pulls it onscreen).
+    for (const stop of stops) {
+      expect(
+        stop.visible,
+        `focus landed on invisible element: ${JSON.stringify(stop)}`,
+      ).toBe(true);
+    }
   });
 });
