@@ -13,36 +13,53 @@
 
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { seedConsent } from "./helpers";
+
+// Phase H audit coverage: the four routes we ship to users. 404 is exercised
+// by navigating to an unmatched path — SPA fallback renders <NotFoundPage />.
+const ROUTES = [
+  { path: "/", label: "home" },
+  { path: "/privacy", label: "privacy" },
+  { path: "/cookies", label: "cookies" },
+  { path: "/this-route-does-not-exist", label: "404" },
+] as const;
 
 test.describe("Accessibility", () => {
-  test("axe-core: zero WCAG 2.1 AA violations on home page", async ({
-    page,
-  }) => {
-    await page.goto("/");
-    // Wait for the page to be fully loaded
-    await page.waitForLoadState("load");
-
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      // Exclude the WebGL canvas — axe can't meaningfully analyze it
-      // and the parent already has aria-hidden/aria-label
-      .exclude("canvas")
-      // Color-contrast failures are a design-level issue tracked in TASKS.md
-      // backlog. Excluding here to focus on structural a11y first.
-      .disableRules(["color-contrast"])
-      .analyze();
-
-    // Log violation details for easier debugging if this fails
-    const violations = results.violations.map((v) => ({
-      id: v.id,
-      impact: v.impact,
-      description: v.description,
-      nodes: v.nodes.length,
-      targets: v.nodes.map((n) => n.target),
-    }));
-
-    expect(violations, JSON.stringify(violations, null, 2)).toHaveLength(0);
+  test.beforeEach(async ({ page }) => {
+    await seedConsent(page);
   });
+
+  for (const { path, label } of ROUTES) {
+    test(`axe-core: zero WCAG 2.1 AA violations on ${label} (${path})`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+      await page.waitForLoadState("load");
+
+      const results = await new AxeBuilder({ page })
+        // Exclude the WebGL canvas — axe can't meaningfully analyze it
+        // and the parent already has aria-hidden/aria-label.
+        .exclude("canvas")
+        .withTags(["wcag2a", "wcag2aa"])
+        // Color-contrast failures are tracked separately: the Saturn ring's
+        // rAF-driven depth cue produces back-ring opacity down to 0.2, and
+        // a saturn-card owner label keeps a scoped exception (see
+        // saturn-nav.spec.ts). For the home/legal/404 routes we just inherit
+        // that exclusion rather than introduce a new per-route gate.
+        .disableRules(["color-contrast"])
+        .analyze();
+
+      const violations = results.violations.map((v) => ({
+        id: v.id,
+        impact: v.impact,
+        description: v.description,
+        nodes: v.nodes.length,
+        targets: v.nodes.map((n) => n.target),
+      }));
+
+      expect(violations, JSON.stringify(violations, null, 2)).toHaveLength(0);
+    });
+  }
 
   test("landmark structure: main, header, nav, footer exist", async ({
     page,

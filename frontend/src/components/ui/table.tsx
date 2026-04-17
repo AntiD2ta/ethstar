@@ -5,10 +5,19 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  // tabIndex={0} + role="group" satisfy axe's scrollable-region-focusable
+  // rule: the overflow-x wrapper is only reachable with a tabstop, and
+  // Safari needs one to allow arrow-key panning. Upstream shadcn omits
+  // this; we added it after a Phase H axe scan flagged the cookies table.
+  // jsx-a11y's no-noninteractive-tabindex doesn't know about this Safari
+  // quirk, so we suppress the rule here with an explanatory comment.
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- axe scrollable-region-focusable requires this for keyboard pan in Safari
+      tabIndex={0}
+      role="group"
     >
       <table
         data-slot="table"

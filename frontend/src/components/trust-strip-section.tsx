@@ -91,7 +91,7 @@ export const TrustStripSection = memo(function TrustStripSection({
     >
       <h2
         id="trust-strip-heading"
-        className="font-heading text-2xl font-bold tracking-tight md:text-3xl"
+        className="font-heading text-h2 font-bold tracking-tight"
       >
         What we ask — and what we don&apos;t
       </h2>
