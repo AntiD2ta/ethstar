@@ -307,3 +307,50 @@ test.describe("mobile hero viewport", () => {
     await expect(meta).toHaveText(/categor/i);
   });
 });
+
+test.describe("hero — consent banner visible", () => {
+  // These tests exercise behaviours that require the consent banner to render
+  // (the test bodies click `consent-reject`). Override the file-level
+  // `seedConsent` beforeEach by clearing the seeded key before each navigation.
+  // `addInitScript` runs in registration order on every document load, so this
+  // runs after the outer seed script and leaves localStorage empty.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem("ethstar_consent");
+    });
+  });
+
+  test("hero renders the 'what is starring?' explainer above the fold", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    // Dismiss consent banner so it doesn't push layout on small viewports.
+    await page.getByTestId("consent-reject").click();
+    const explainer = page.getByTestId("starring-explainer");
+    await expect(explainer).toBeVisible();
+    await expect(explainer).toHaveText(/a github star is a free public signal/i);
+  });
+
+  test("cold-start renders the fallback star count with ~ prefix and opacity-60 while live data loads", async ({
+    page,
+  }) => {
+    // Delay the GraphQL meta endpoint so the fallback remains visible long
+    // enough to assert the placeholder treatment.
+    await page.route("**/api.github.com/graphql", async (route) => {
+      await new Promise((r) => setTimeout(r, 3_000));
+      await route.continue();
+    });
+
+    await page.goto("/");
+    // Dismiss consent banner so it doesn't layer over the hero stats.
+    await page.getByTestId("consent-reject").click();
+
+    const stars = page.getByTestId("combined-stars");
+    await expect(stars).toBeVisible();
+    // While live data has not arrived, the span reports data-live="false",
+    // renders a "~" prefix, and carries the opacity-60 class.
+    await expect(stars).toHaveAttribute("data-live", "false");
+    await expect(stars).toHaveText(/^~/);
+    await expect(stars).toHaveClass(/opacity-60/);
+  });
+});
