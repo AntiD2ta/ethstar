@@ -442,6 +442,55 @@ describe("useStars — starAll", () => {
     expect(result.current.stars.starAll).toBe(starAllBefore);
   });
 
+  it("starAll with explicit repos overrides the unstarred filter", async () => {
+    // Single-repo flow: chip-menu Star sends [oneRepo] to starAll regardless
+    // of which repos are currently unstarred. Used by the per-repo Star
+    // action so it doesn't accidentally fan out to the bulk OAuth flow.
+    spy.checkAllStars.mockImplementation(
+      async (
+        _token: string,
+        repos: Repository[],
+        onProgress?: (r: StarCheckResult) => void,
+      ) => {
+        const results: StarCheckResult[] = [];
+        for (const repo of repos) {
+          const r: StarCheckResult = { repo, status: "unstarred" };
+          results.push(r);
+          onProgress?.(r);
+        }
+        return results;
+      },
+    );
+
+    let capturedReposToStar: Repository[] = [];
+    spy.starAllUnstarred.mockImplementation(
+      async (
+        _token: string,
+        repos: Repository[],
+      ): Promise<StarAllResult> => {
+        capturedReposToStar = repos;
+        return { starred: repos.length, failed: 0 };
+      },
+    );
+
+    const { result } = renderHook(() => useStarsWithAuth(), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(result.current.auth.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.stars.checkStars();
+    });
+
+    const targetRepo = REPOSITORIES[5];
+    await act(async () => {
+      await result.current.stars.starAll({ repos: [targetRepo] });
+    });
+
+    expect(capturedReposToStar).toHaveLength(1);
+    expect(capturedReposToStar[0]).toBe(targetRepo);
+  });
+
   it("starAll uses external token when provided", async () => {
     spy.checkAllStars.mockImplementation(
       async (

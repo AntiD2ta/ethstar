@@ -38,7 +38,13 @@ const POPUP_BLOCKED_MSG =
 interface StarModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  unstarredCount: number;
+  /** How many repositories the modal will star this run. Bulk mode passes
+   *  the count of currently-unstarred repos; the per-repo Star action
+   *  passes 1. Drives the description count and pluralization. */
+  targetCount: number;
+  /** When `targetCount === 1`, the "owner/name" of the single repo so the
+   *  warning copy and CTA button can name it explicitly. */
+  targetRepoLabel?: string | null;
   progress: StarProgress;
   onStartStarring: (token: string) => Promise<StarResult>;
   requestToken: () => Promise<string>;
@@ -64,7 +70,8 @@ interface StarModalProps {
 export function StarModal({
   open,
   onOpenChange,
-  unstarredCount,
+  targetCount,
+  targetRepoLabel,
   progress,
   onStartStarring,
   requestToken,
@@ -74,6 +81,13 @@ export function StarModal({
   onCancelStarring,
   popupBlocked,
 }: StarModalProps) {
+  const isSingle = targetCount === 1;
+  const repoLabel = isSingle ? targetRepoLabel : null;
+  const ctaLabel = isSingle
+    ? repoLabel
+      ? `Star ${repoLabel}`
+      : "Star repository"
+    : `Star all ${targetCount}`;
   const [step, setStep] = useState<Step>("warning");
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -159,8 +173,20 @@ export function StarModal({
                 Authorization Required
               </DialogTitle>
               <DialogDescription>
-                This will add a star to <strong>{unstarredCount} public repositories</strong>{" "}
-                on your GitHub account. The starred list is visible on your public profile.
+                {isSingle ? (
+                  <>
+                    This will star{" "}
+                    <strong>
+                      {repoLabel ? `${repoLabel} ` : ""}1 public repository
+                    </strong>{" "}
+                    on your GitHub account. The starred list is visible on your public profile.
+                  </>
+                ) : (
+                  <>
+                    This will add a star to <strong>{targetCount} public repositories</strong>{" "}
+                    on your GitHub account. The starred list is visible on your public profile.
+                  </>
+                )}
               </DialogDescription>
               {/* Sibling <p> rather than nested inside DialogDescription —
                   Radix Description is a <p>, can't nest paragraphs. */}
@@ -230,9 +256,7 @@ export function StarModal({
               <Button variant="outline" onClick={handleManual}>
                 Star manually instead
               </Button>
-              <Button onClick={handleProceed}>
-                Star all {unstarredCount}
-              </Button>
+              <Button onClick={handleProceed}>{ctaLabel}</Button>
             </DialogFooter>
           </>
         )}

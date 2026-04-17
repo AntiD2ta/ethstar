@@ -43,6 +43,12 @@ interface StarAllOptions extends StarErrorCallbacks {
    *  iteration boundary, cancels the in-flight request, and returns with
    *  `aborted: true`. No exception is thrown. */
   signal?: AbortSignal;
+  /** Explicit repos to star, overriding the default "all currently
+   *  unstarred" selection. Used by the per-repo Star action from the
+   *  Saturn chip menu so a single-repo trigger doesn't fan out to the
+   *  whole repo list. The caller owns the selection — no status filter is
+   *  applied, so passing an already-starred repo will be a GitHub no-op. */
+  repos?: Repository[];
 }
 
 interface UseStarsReturn {
@@ -180,6 +186,7 @@ export function useStars(): UseStarsReturn {
       };
 
       const selectUnstarred = () =>
+        options?.repos ??
         REPOSITORIES.filter(
           (r) => starStatusesRef.current[repoKey(r)] === "unstarred",
         );

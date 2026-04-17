@@ -228,6 +228,73 @@ test.describe("Saturn ring navigation — interactions", () => {
     ).toBeVisible();
   });
 
+  test("chip menu Star action opens the modal in single-repo mode", async ({
+    page,
+  }) => {
+    // Regression: handleStarTrigger used to ignore its repo argument and
+    // funnel chip-Star clicks into the bulk "Star all N" OAuth flow. The
+    // modal must now name the single repo and only target it.
+    await seedAuth(page);
+    await mockAuthedApis(page);
+    await page.goto("/");
+    const ring = page.getByRole("region", {
+      name: /saturn repository navigator/i,
+    });
+    await expect(ring).toBeVisible();
+
+    await page.evaluate(() => {
+      const chip = document.querySelector<HTMLAnchorElement>(
+        'a[aria-label^="ethereum/go-ethereum,"]',
+      );
+      if (!chip) throw new Error("chip not found");
+      chip.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          shiftKey: true,
+          view: window,
+        }),
+      );
+    });
+
+    const group = page.getByRole("group", {
+      name: /ethereum\/go-ethereum actions/i,
+    });
+    await expect(group).toBeVisible();
+    // The popover lands above the chip (Radix `side="top"`) and for
+    // top-ring chips can place the menu just outside the viewport, so a
+    // real click would fail Playwright's viewport check. Dispatch the
+    // click synthetically — the button is already mounted and bound.
+    // Match the Star button by its label so future menu additions can't
+    // make this selector silently click the wrong action.
+    await page.evaluate(() => {
+      const buttons = Array.from(
+        document
+          .querySelector<HTMLDivElement>(
+            'div[role="group"][aria-label="ethereum/go-ethereum actions"]',
+          )
+          ?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+      );
+      const btn = buttons.find(
+        (b) => b.textContent?.trim().toLowerCase() === "star",
+      );
+      if (!btn) throw new Error("Star menu button not found");
+      btn.click();
+    });
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    // Single-repo copy: dialog body names the repo + "1 public repository".
+    await expect(dialog).toContainText(/ethereum\/go-ethereum 1 public repository/i);
+    // CTA reflects the single-repo selection — NOT the bulk "Star all" copy.
+    await expect(
+      dialog.getByRole("button", { name: /^star ethereum\/go-ethereum$/i }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: /^star all/i }),
+    ).toHaveCount(0);
+  });
+
   test("arrow keys walk chips — exactly one chip is tabbable at a time", async ({
     page,
   }) => {
