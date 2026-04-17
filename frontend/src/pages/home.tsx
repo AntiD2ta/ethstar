@@ -36,7 +36,7 @@ import { useStars } from "@/hooks/use-stars";
 import { useStats } from "@/hooks/use-stats";
 import { CATEGORIES, REPOSITORIES, REPOS_BY_CATEGORY } from "@/lib/repos";
 import { repoKey } from "@/lib/repo-key";
-import { formatHeroStars } from "@/lib/utils";
+import { deriveHeroStarsDisplay } from "@/lib/utils";
 import type { Repository } from "@/lib/types";
 
 const SaturnCarousel = lazy(
@@ -63,17 +63,16 @@ export default function HomePage() {
     { starred: number; failed: number; aborted: boolean } | null
   >(null);
   const { repoMeta, combinedStars, isLoading: metaLoading } = useRepoMeta(REPOSITORIES, token);
-  // `starsAreLive` drives both the `~` prefix (honest placeholder marker)
-  // and the opacity cross-fade. Derived from combinedStars instead of
-  // metaLoading because metaLoading flips true → false even when the fetch
-  // fails and we stay on the fallback forever.
-  const starsAreLive = combinedStars !== null;
-  // `starsAreLive` is derived from `combinedStars` — it cannot change
-  // independently, so only the base value belongs in the dep array.
-  const formattedStars = useMemo(() => {
-    const formatted = formatHeroStars(combinedStars ?? FALLBACK_COMBINED_STARS);
-    return combinedStars !== null ? formatted : `~${formatted}`;
-  }, [combinedStars]);
+  // `isLive` drives both the `~` prefix (honest placeholder marker) and the
+  // opacity cross-fade. Derived from combinedStars instead of metaLoading
+  // because metaLoading flips true → false even when the fetch fails and we
+  // stay on the fallback forever. The pure `deriveHeroStarsDisplay` helper
+  // pairs the label + isLive flag so they can never drift (a label with "~"
+  // and isLive=true would misrepresent the data).
+  const { label, isLive } = useMemo(
+    () => deriveHeroStarsDisplay(combinedStars, FALLBACK_COMBINED_STARS),
+    [combinedStars],
+  );
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const reposRef = useRef<HTMLDivElement | null>(null);
@@ -449,8 +448,8 @@ export default function HomePage() {
       <HeroSection
         ref={heroRef}
         repoCount={REPOSITORIES.length}
-        formattedStars={formattedStars}
-        starsAreLive={starsAreLive}
+        formattedStars={label}
+        starsAreLive={isLive}
         categoryCount={CATEGORIES.length}
         onViewRepositories={scrollToRepos}
         // The star supernovas and self-dismisses once the user has starred
@@ -501,8 +500,8 @@ export default function HomePage() {
           echoing what the user already saw. */}
       <TrustStripSection
         repoCount={REPOSITORIES.length}
-        formattedStars={formattedStars}
-        starsAreLive={starsAreLive}
+        formattedStars={label}
+        starsAreLive={isLive}
       />
 
       <SlideTransition />

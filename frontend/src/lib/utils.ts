@@ -44,3 +44,21 @@ export function formatHeroStars(count: number): string {
   }
   return count.toString();
 }
+
+/**
+ * Derive the hero's combined-stars display from live data + a conservative
+ * fallback. When live data is present, the label is the formatted count and
+ * `isLive` is true. When live data is null (pre-fetch or failure), the label
+ * is `~` + formatted fallback, and `isLive` is false — this is the honest
+ * placeholder marker. See `home.tsx` for callsite rationale.
+ */
+export function deriveHeroStarsDisplay(
+  combinedStars: number | null,
+  fallback: number,
+): { label: string; isLive: boolean } {
+  const formatted = formatHeroStars(combinedStars ?? fallback);
+  if (combinedStars === null) {
+    return { label: `~${formatted}`, isLive: false };
+  }
+  return { label: formatted, isLive: true };
+}

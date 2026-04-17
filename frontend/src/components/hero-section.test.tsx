@@ -20,7 +20,10 @@ const renderHero = (overrides: Partial<ComponentProps<typeof HeroSection>> = {})
   render(
     <HeroSection
       repoCount={58}
-      formattedStars="125K"
+      // The realistic fallback format is `${k},000+` (see `formatHeroStars`);
+      // the previous "125K" compact-suffix form is unreachable in production
+      // and would mask format drift.
+      formattedStars="125,000+"
       starsAreLive
       categoryCount={5}
       onViewRepositories={() => {}}
@@ -92,6 +95,39 @@ describe("HeroSection", () => {
     expect(html).not.toContain("Star Every");
     // "Star every Ethereum repo" was the duplicated dormant slop string.
     expect(html).not.toContain("Star every Ethereum repo");
+  });
+
+  it("passes formattedStars through byte-for-byte to the combined-stars span", () => {
+    // The hero renders formattedStars verbatim — no truncation, no compaction.
+    // Format decisions belong to the caller (home.tsx owns the `~` prefix and
+    // `formatHeroStars` owns the suffix). This test guards against any
+    // accidental re-formatting inside HeroSection.
+    renderHero({ formattedStars: "129,000+" });
+    const stars = screen.getByTestId("combined-stars");
+    expect(stars.textContent).toBe("129,000+");
+  });
+
+  it("cold-start treatment: starsAreLive=false renders data-live=false and opacity-60", () => {
+    // While live GitHub data is still in flight, home.tsx passes
+    // `starsAreLive={false}` and a `~`-prefixed fallback label. The span
+    // must surface this as a data attribute (for E2E selectors) and as a
+    // 40%-dim opacity class for the honest-placeholder visual treatment.
+    renderHero({ starsAreLive: false, formattedStars: "~125,000+" });
+    const stars = screen.getByTestId("combined-stars");
+    expect(stars.getAttribute("data-live")).toBe("false");
+    expect(stars.className).toMatch(/\bopacity-60\b/);
+    expect(stars.textContent).toBe("~125,000+");
+  });
+
+  it("live treatment: starsAreLive=true renders data-live=true and opacity-100", () => {
+    // Once live stars arrive, home.tsx flips `starsAreLive` to true and
+    // drops the `~` prefix. The span cross-fades to full opacity; the data
+    // attribute flips so E2E can assert the live-data state deterministically.
+    renderHero({ starsAreLive: true, formattedStars: "129,000+" });
+    const stars = screen.getByTestId("combined-stars");
+    expect(stars.getAttribute("data-live")).toBe("true");
+    expect(stars.className).toMatch(/\bopacity-100\b/);
+    expect(stars.textContent).toBe("129,000+");
   });
 
   it("stacks hero content vertically on a centered axis (scene-centric layout)", () => {
