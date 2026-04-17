@@ -6,6 +6,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Hero-only compound breakpoint: desktop-width but short-height (e.g. 13"
+   laptops at 768+ × ≤800). Tightens vertical rhythm so the hero doesn't
+   overflow the dvh. Define once here — replaces the inline
+   `[@media(min-width:768px)_and_(max-height:800px)]:` variant used five
+   times in `hero-section.tsx`. */
+@custom-variant short-laptop (@media (min-width: 768px) and (max-height: 800px));
+
 /*
  * Design System — Ethstar: Dark Elegance + Clean Minimalism
  * Color Mood: Ethereum Blue (#627EEA) + Purple (#7B3FE4) on deep navy
@@ -60,6 +67,11 @@
     --color-eth-blue: var(--eth-blue);
     --color-eth-purple: var(--eth-purple);
     --color-star-gold: var(--star-gold);
+
+    /* Modal/sheet scrim — brand-tinted navy (Phase E quieter pass). Used
+       with alpha suffix (e.g. `bg-scrim/60`) so a single color source drives
+       both Dialog and Sheet overlays. */
+    --color-scrim: oklch(0.12 0.01 250);
 
     /* -- Chart Colors -- */
     --color-chart-1: var(--chart-1);

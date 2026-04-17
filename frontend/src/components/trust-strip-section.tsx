@@ -27,8 +27,14 @@ type IconComponent = React.ComponentType<{ className?: string; "aria-hidden"?: b
 interface TrustItemData {
   icon: IconComponent;
   label: string;
-  value: string;
+  /** Static value. Omit for the Coverage slot, which synthesizes its value
+   *  from live repoCount/formattedStars props at render time. */
+  value?: string;
   detail: string;
+  /** Explicit opt-in for the dim-while-loading visual treatment. Only the
+   *  Coverage slot uses it today; decoupling it from `value === undefined`
+   *  means a future item that omits `value` won't accidentally dim. */
+  dimWhenLoading?: true;
 }
 
 // Two separate OAuth handshakes back this app: a read-only GitHub App for
@@ -37,8 +43,7 @@ interface TrustItemData {
 // page preempts the "wait, why does it want write access?" moment at the
 // GitHub consent screen — GitHub describes `public_repo` as "Access public
 // repositories," which sounds broader than what we do with it.
-// `Coverage.value` is synthesized from props at render time (see the map).
-const TRUST_ITEMS: ReadonlyArray<Omit<TrustItemData, "value"> & { value?: string }> = [
+const TRUST_ITEMS: ReadonlyArray<TrustItemData> = [
   {
     icon: UserCheck,
     label: "Sign in",
@@ -63,7 +68,7 @@ const TRUST_ITEMS: ReadonlyArray<Omit<TrustItemData, "value"> & { value?: string
   {
     icon: BookOpenCheck,
     label: "Coverage",
-    // Value is populated from props at render time.
+    dimWhenLoading: true,
     detail: "Curated fundamental repositories across the Ethereum ecosystem.",
   },
 ];
@@ -100,19 +105,16 @@ export const TrustStripSection = memo(function TrustStripSection({
         data-testid="trust-strip"
         className="grid w-full max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6"
       >
-        {TRUST_ITEMS.map((item) => {
-          const isCoverage = item.value === undefined;
-          return (
-            <TrustItem
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              value={item.value ?? coverageValue}
-              detail={item.detail}
-              dimValue={isCoverage && !starsAreLive}
-            />
-          );
-        })}
+        {TRUST_ITEMS.map((item) => (
+          <TrustItem
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            value={item.value ?? coverageValue}
+            detail={item.detail}
+            dimValue={item.dimWhenLoading === true && !starsAreLive}
+          />
+        ))}
       </ul>
     </section>
   );

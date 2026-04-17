@@ -76,7 +76,7 @@ export function HeroSection({
     <section
       ref={ref}
       data-testid="hero-section"
-      className="relative flex min-h-dvh flex-col px-4 py-12 md:px-6 md:py-20 [@media(min-width:768px)_and_(max-height:800px)]:py-10"
+      className="relative flex min-h-dvh flex-col px-4 py-12 md:px-6 md:py-20 short-laptop:py-10"
     >
       <HeroLogo />
 
@@ -98,7 +98,7 @@ export function HeroSection({
 
         <p
           data-testid="hero-subhead"
-          className="mt-6 max-w-[55ch] text-body-lg leading-relaxed text-muted-foreground [@media(min-width:768px)_and_(max-height:800px)]:mt-4"
+          className="mt-6 max-w-[55ch] text-body-lg leading-relaxed text-muted-foreground short-laptop:mt-4"
         >
           One tap stars every core Ethereum open-source repo on your GitHub.
           Each star is a public recognition that tells the teams and devs
@@ -107,7 +107,7 @@ export function HeroSection({
 
         {/* Generous gap — this is the tier break between framing copy and the
             starring moment. The diamond earns the breathing room. */}
-        <div className="mt-10 flex items-center justify-center md:mt-12 [@media(min-width:768px)_and_(max-height:800px)]:mt-6">
+        <div className="mt-10 flex items-center justify-center md:mt-12 short-laptop:mt-6">
           {primaryCta}
         </div>
 
@@ -130,7 +130,7 @@ export function HeroSection({
         <button
           type="button"
           onClick={onViewRepositories}
-          className="group mt-6 inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(min-width:768px)_and_(max-height:800px)]:mt-4"
+          className="group mt-6 inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background short-laptop:mt-4"
         >
           {primaryCtaPresent
             ? "or browse the repositories"
@@ -145,7 +145,7 @@ export function HeroSection({
 
         <p
           data-testid="hero-meta"
-          className="mt-10 text-caption text-muted-foreground md:mt-14 [@media(min-width:768px)_and_(max-height:800px)]:mt-6"
+          className="mt-10 text-caption text-muted-foreground md:mt-14 short-laptop:mt-6"
           aria-label="Site statistics"
         >
           <span className="font-semibold text-primary">{repoCount}+</span>{" "}

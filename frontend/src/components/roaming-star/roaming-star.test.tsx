@@ -24,44 +24,47 @@ import {
 } from "./constants";
 import type { RoamingStarState } from "./types";
 
-// Stub IntersectionObserver: default to "visible" so the star stays dormant
-// (in-hero) during tests unless we explicitly unhide it.
-class StubIO implements IntersectionObserver {
-  readonly root = null;
-  readonly rootMargin = "";
-  readonly thresholds: ReadonlyArray<number> = [];
-  private cb: IntersectionObserverCallback;
-  constructor(cb: IntersectionObserverCallback) {
-    this.cb = cb;
-  }
-  observe(target: Element) {
-    // Report fully visible so mode resolves to "dormant".
-    this.cb(
-      [
-        {
-          isIntersecting: true,
-          intersectionRatio: 1,
-          target,
-          boundingClientRect: target.getBoundingClientRect(),
-          intersectionRect: target.getBoundingClientRect(),
-          rootBounds: null,
-          time: 0,
-        } as IntersectionObserverEntry,
-      ],
-      this,
-    );
-  }
-  unobserve() {}
-  disconnect() {}
-  takeRecords(): IntersectionObserverEntry[] {
-    return [];
-  }
+// Passing `true` keeps the star dormant (in-hero); `false` transitions it
+// to roaming. A single factory replaces two near-identical class stubs
+// that only differed on `isIntersecting`.
+function makeStubIO(visible: boolean) {
+  return class StubIO implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "";
+    readonly thresholds: ReadonlyArray<number> = [];
+    private cb: IntersectionObserverCallback;
+    constructor(cb: IntersectionObserverCallback) {
+      this.cb = cb;
+    }
+    observe(target: Element) {
+      const rect = target.getBoundingClientRect();
+      this.cb(
+        [
+          {
+            isIntersecting: visible,
+            intersectionRatio: visible ? 1 : 0,
+            target,
+            boundingClientRect: rect,
+            intersectionRect: visible ? rect : new DOMRect(0, 0, 0, 0),
+            rootBounds: null,
+            time: 0,
+          } as IntersectionObserverEntry,
+        ],
+        this,
+      );
+    }
+    unobserve() {}
+    disconnect() {}
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+  };
 }
 
 beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
-  vi.stubGlobal("IntersectionObserver", StubIO);
+  vi.stubGlobal("IntersectionObserver", makeStubIO(true));
 });
 
 const baseState: RoamingStarState = {
@@ -286,65 +289,14 @@ describe("RoamingStar", () => {
     // hero doesn't see a silent floating diamond. The 40px comet was
     // previously a mystery element with the label hidden behind a 180px
     // cursor-gravity radius.
-    class OffStubIO implements IntersectionObserver {
-      readonly root = null;
-      readonly rootMargin = "";
-      readonly thresholds: ReadonlyArray<number> = [];
-      private cb: IntersectionObserverCallback;
-      constructor(cb: IntersectionObserverCallback) {
-        this.cb = cb;
-      }
-      observe(target: Element) {
-        // Report NOT intersecting so mode resolves to "roaming".
-        this.cb(
-          [
-            {
-              isIntersecting: false,
-              intersectionRatio: 0,
-              target,
-              boundingClientRect: target.getBoundingClientRect(),
-              intersectionRect: new DOMRect(0, 0, 0, 0),
-              rootBounds: null,
-              time: 0,
-            } as IntersectionObserverEntry,
-          ],
-          this,
-        );
-      }
-      unobserve() {}
-      disconnect() {}
-      takeRecords(): IntersectionObserverEntry[] {
-        return [];
-      }
-    }
-
     it("renders the persistent label pill when mode transitions to roaming", () => {
-      vi.stubGlobal("IntersectionObserver", OffStubIO);
-      // jsdom doesn't implement Web Animations API — the dormant→roaming FLIP
-      // in useLayoutEffect would throw "element.animate is not a function".
-      // Shim with a minimal Animation-shaped stub so the effect runs to the
-      // useState-setting branch where introVisible is actually toggled.
-      const noopAnim = {
-        cancel: () => {},
-        onfinish: null as (() => void) | null,
-        oncancel: null as (() => void) | null,
-      };
-      const prevAnimate = (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
-      (HTMLElement.prototype as unknown as { animate: () => typeof noopAnim }).animate = () => noopAnim;
-      try {
-        renderStar();
-        // The roaming-mode label pill is identified by data-testid and echoes
-        // labelLines[0] — "Star all 17 now" in the disconnected state (Phase E).
-        const label = screen.getByTestId("roaming-star-label");
-        expect(label).toBeInTheDocument();
-        expect(label).toHaveTextContent("Star all 17 now");
-      } finally {
-        if (prevAnimate === undefined) {
-          delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
-        } else {
-          (HTMLElement.prototype as unknown as { animate: unknown }).animate = prevAnimate;
-        }
-      }
+      vi.stubGlobal("IntersectionObserver", makeStubIO(false));
+      renderStar();
+      // The roaming-mode label pill is identified by data-testid and echoes
+      // labelLines[0] — "Star all 17 now" in the disconnected state (Phase E).
+      const label = screen.getByTestId("roaming-star-label");
+      expect(label).toBeInTheDocument();
+      expect(label).toHaveTextContent("Star all 17 now");
     });
   });
 
