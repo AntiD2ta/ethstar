@@ -165,6 +165,86 @@ describe("RepoCard", () => {
     });
   });
 
+  describe("stretched-link / whole-card click target", () => {
+    it("title anchor exposes target, rel, aria-label, and the card href", () => {
+      render(<RepoCard repo={repo} status="unstarred" />);
+      const anchor = screen.getByRole("link", {
+        name: /ethereum\/go-ethereum on GitHub, opens in new tab/i,
+      });
+      expect(anchor).toHaveAttribute("href", repo.url);
+      expect(anchor).toHaveAttribute("target", "_blank");
+      expect(anchor).toHaveAttribute("rel", "noopener noreferrer");
+    });
+
+    it("card article has `relative` so the stretched ::after overlay is positioned to it", () => {
+      const { container } = render(<RepoCard repo={repo} status="unstarred" />);
+      const article = container.querySelector("article") as HTMLElement;
+      expect(article.className).toMatch(/\brelative\b/);
+    });
+
+    it("title anchor applies the stretched-link overlay classes (after:absolute + after:inset-0)", () => {
+      const { container } = render(<RepoCard repo={repo} status="unstarred" />);
+      const anchor = container.querySelector("a[href='" + repo.url + "']") as HTMLElement;
+      expect(anchor.className).toMatch(/after:absolute/);
+      expect(anchor.className).toMatch(/after:inset-0/);
+    });
+
+    it("wraps the StarIndicator in a `relative z-10` container so the retry button escapes the overlay", () => {
+      render(<RepoCard repo={repo} status="failed" onRetry={vi.fn()} />);
+      const retryBtn = screen.getByRole("button", { name: /retry starring/i });
+      const wrapper = retryBtn.closest("div") as HTMLElement;
+      expect(wrapper.className).toMatch(/\brelative\b/);
+      expect(wrapper.className).toMatch(/\bz-10\b/);
+    });
+
+    it("removes anchor and retry button from the Tab order when focusable={false}", () => {
+      render(<RepoCard repo={repo} status="failed" onRetry={vi.fn()} focusable={false} />);
+      const anchor = screen.getByRole("link", {
+        name: /ethereum\/go-ethereum on GitHub, opens in new tab/i,
+      });
+      expect(anchor).toHaveAttribute("tabindex", "-1");
+      const retryBtn = screen.getByRole("button", { name: /retry starring/i });
+      expect(retryBtn).toHaveAttribute("tabindex", "-1");
+    });
+
+    it("keeps anchor and retry button tabbable by default (focusable omitted)", () => {
+      render(<RepoCard repo={repo} status="failed" onRetry={vi.fn()} />);
+      const anchor = screen.getByRole("link", {
+        name: /ethereum\/go-ethereum on GitHub, opens in new tab/i,
+      });
+      expect(anchor).not.toHaveAttribute("tabindex");
+      const retryBtn = screen.getByRole("button", { name: /retry starring/i });
+      expect(retryBtn).not.toHaveAttribute("tabindex");
+    });
+
+    it("clicking the retry button calls onRetry and does NOT follow the card link", async () => {
+      const onRetry = vi.fn();
+      render(<RepoCard repo={repo} status="failed" onRetry={onRetry} />);
+      const retryBtn = screen.getByRole("button", { name: /retry starring/i });
+
+      // Stub window.open to catch accidental navigations.
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+      // Simulate a real click that also bubbles — mirrors user-event behaviour
+      // but lets us assert the anchor's default action didn't fire.
+      let anchorClicked = false;
+      const anchor = screen.getByRole("link", {
+        name: /ethereum\/go-ethereum on GitHub, opens in new tab/i,
+      });
+      anchor.addEventListener("click", (e) => {
+        anchorClicked = true;
+        e.preventDefault();
+      });
+
+      await userEvent.click(retryBtn);
+
+      expect(onRetry).toHaveBeenCalledWith(repo);
+      expect(anchorClicked).toBe(false);
+      expect(openSpy).not.toHaveBeenCalled();
+      openSpy.mockRestore();
+    });
+  });
+
   it("shows no skeletons when data is loaded", () => {
     const { container } = render(
       <RepoCard

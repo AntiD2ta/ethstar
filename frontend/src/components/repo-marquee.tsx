@@ -251,25 +251,30 @@ export const RepoMarquee = memo(function RepoMarquee({
   // chip-jump tween is running + during the grace window after.
   useAutoScroll(scrollRef, SCROLL_SPEED, !prefersReducedMotion, externalPausedRef);
 
-  const cards = expandedRepos.map((repo, i) => {
-    const k = repoKey(repo);
-    return (
-      <RepoCard
-        key={`${k}-${i}`}
-        repo={repo}
-        status={starStatuses[k] ?? "unknown"}
-        starCount={repoMeta[k]?.stargazers_count}
-        liveDescription={repoMeta[k]?.description}
-        metaLoading={metaLoading}
-        onRetry={isAuthenticated ? onRetry : undefined}
-      />
-    );
-  });
+  const renderCards = (focusable: boolean) =>
+    expandedRepos.map((repo, i) => {
+      const k = repoKey(repo);
+      return (
+        <RepoCard
+          key={`${k}-${i}`}
+          repo={repo}
+          status={starStatuses[k] ?? "unknown"}
+          starCount={repoMeta[k]?.stargazers_count}
+          liveDescription={repoMeta[k]?.description}
+          metaLoading={metaLoading}
+          onRetry={isAuthenticated ? onRetry : undefined}
+          focusable={focusable}
+        />
+      );
+    });
 
   // Three identical copies power the seamless loop: useAutoScroll keeps the
   // user centered in the middle copy so manual scroll can wrap in either
   // direction. Reduced motion skips the duplicates entirely (no looping, no
-  // wasted DOM).
+  // wasted DOM). Duplicates stay aria-hidden + out of Tab order via
+  // focusable={false}; avoid the `inert` attribute because it also blocks
+  // pointer events and the scroll loop parks the visible viewport on a
+  // duplicate copy most of the time.
   const showDuplicate = !prefersReducedMotion;
 
   return (
@@ -281,17 +286,16 @@ export const RepoMarquee = memo(function RepoMarquee({
     >
       <div className="flex w-max gap-4 md:gap-8">
         <div className="flex gap-4 md:gap-8">
-          {cards}
+          {renderCards(true)}
         </div>
         {showDuplicate &&
           Array.from({ length: MARQUEE_COPY_COUNT - 1 }, (_, i) => (
             <div
               key={`dup-${i}`}
               aria-hidden="true"
-              inert={true}
               className="flex gap-4 md:gap-8"
             >
-              {cards}
+              {renderCards(false)}
             </div>
           ))}
       </div>

@@ -26,6 +26,10 @@ interface RepoCardProps {
   liveDescription?: string | null;
   metaLoading?: boolean;
   onRetry?: (repo: Repository) => void;
+  // The marquee renders three DOM copies to drive a seamless loop; only one
+  // copy should receive keyboard focus. Set false on the aria-hidden duplicates
+  // to drop the anchor and retry button out of the Tab order.
+  focusable?: boolean;
 }
 
 export const RepoCard = memo(function RepoCard({
@@ -35,7 +39,9 @@ export const RepoCard = memo(function RepoCard({
   liveDescription,
   metaLoading,
   onRetry,
+  focusable = true,
 }: RepoCardProps) {
+  const tabIndex = focusable ? undefined : -1;
   const handleRetry = useCallback(() => {
     onRetry?.(repo);
   }, [onRetry, repo]);
@@ -49,7 +55,7 @@ export const RepoCard = memo(function RepoCard({
     <article
       data-repo-key={repoKey(repo)}
       className={cn(
-        "glass glass-hover group flex h-36 w-[240px] shrink-0 flex-col justify-between rounded-xl p-4 transition-all md:h-44 md:w-[320px] md:p-5",
+        "glass glass-hover group relative flex h-36 w-[240px] shrink-0 flex-col justify-between rounded-xl p-4 transition-all md:h-44 md:w-[320px] md:p-5",
         "hover:eth-glow",
       )}
     >
@@ -58,16 +64,28 @@ export const RepoCard = memo(function RepoCard({
           href={repo.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="min-w-0 flex-1"
+          tabIndex={tabIndex}
+          aria-label={`${repo.owner}/${repo.name} on GitHub, opens in new tab`}
+          className={cn(
+            "min-w-0 flex-1",
+            // Stretched-link overlay: the ::after pseudo covers the whole card
+            // so clicks anywhere inside the article hit the anchor.
+            "after:absolute after:inset-0 after:rounded-xl",
+            // Focus ring moves from the title underline to the whole card.
+            "focus-visible:outline-none focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50",
+          )}
         >
           <h3 className="truncate font-heading text-sm font-semibold text-primary group-hover:underline md:text-base">
             {repo.owner}/{repo.name}
           </h3>
         </a>
-        <StarIndicator
-          status={status}
-          onRetry={onRetry ? handleRetry : undefined}
-        />
+        <div className="relative z-10">
+          <StarIndicator
+            status={status}
+            onRetry={onRetry ? handleRetry : undefined}
+            tabIndex={tabIndex}
+          />
+        </div>
       </div>
 
       {metaLoading && !liveDescription ? (
@@ -141,9 +159,11 @@ const RepoAvatar = memo(function RepoAvatar({ owner }: { owner: string }) {
 function StarIndicator({
   status,
   onRetry,
+  tabIndex,
 }: {
   status: StarStatus;
   onRetry?: () => void;
+  tabIndex?: number;
 }) {
   if (status === "checking") {
     return <Skeleton className="h-5 w-5 rounded-full" aria-label="Checking" />;
@@ -174,6 +194,7 @@ function StarIndicator({
         <button
           type="button"
           onClick={onRetry}
+          tabIndex={tabIndex}
           className="rounded-full text-destructive transition-colors hover:text-primary focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           aria-label="Retry starring"
         >

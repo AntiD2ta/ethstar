@@ -34,6 +34,7 @@ import { useStars } from "@/hooks/use-stars";
 import { useStats } from "@/hooks/use-stats";
 import { CATEGORIES, REPOSITORIES, REPOS_BY_CATEGORY } from "@/lib/repos";
 import { repoKey } from "@/lib/repo-key";
+import { shouldSplit, splitInHalf } from "@/lib/split-marquee";
 import { deriveHeroStarsDisplay } from "@/lib/utils";
 import type { Repository } from "@/lib/types";
 import { onIdle } from "@/lib/webgl";
@@ -560,27 +561,56 @@ export default function HomePage() {
             )}
           </p>
         )}
-        {CATEGORIES.map((category) => (
-          <RepoSection
-            key={category.name}
-            name={category.name}
-            iconName={category.icon}
-          >
-            <RepoMarquee
-              repos={REPOS_BY_CATEGORY[category.name]}
-              starStatuses={starStatuses}
-              repoMeta={repoMeta}
-              metaLoading={metaLoading}
-              isAuthenticated={isAuthenticated}
-              onRetry={handleRetryStar}
-              isDesktop={isDesktop}
-              prefersReducedMotion={prefersReducedMotion}
-              label={`Scrolling list of ${category.name} repositories`}
-              highlightKey={highlightKey}
-              highlightToken={highlightToken}
-            />
-          </RepoSection>
-        ))}
+        {CATEGORIES.map((category) => {
+          const repos = REPOS_BY_CATEGORY[category.name];
+          const split = shouldSplit(repos.length, isDesktop);
+          return (
+            <RepoSection
+              key={category.name}
+              name={category.name}
+              iconName={category.icon}
+            >
+              {split ? (
+                <div
+                  role="group"
+                  aria-label={`${category.name} repositories`}
+                  className="flex flex-col gap-3"
+                >
+                  {splitInHalf(repos).map((half, i) => (
+                    <RepoMarquee
+                      key={`${category.name}-row-${i + 1}`}
+                      repos={half}
+                      starStatuses={starStatuses}
+                      repoMeta={repoMeta}
+                      metaLoading={metaLoading}
+                      isAuthenticated={isAuthenticated}
+                      onRetry={handleRetryStar}
+                      isDesktop={isDesktop}
+                      prefersReducedMotion={prefersReducedMotion}
+                      label={`Scrolling list of ${category.name} repositories, row ${i + 1} of 2`}
+                      highlightKey={highlightKey}
+                      highlightToken={highlightToken}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <RepoMarquee
+                  repos={repos}
+                  starStatuses={starStatuses}
+                  repoMeta={repoMeta}
+                  metaLoading={metaLoading}
+                  isAuthenticated={isAuthenticated}
+                  onRetry={handleRetryStar}
+                  isDesktop={isDesktop}
+                  prefersReducedMotion={prefersReducedMotion}
+                  label={`Scrolling list of ${category.name} repositories`}
+                  highlightKey={highlightKey}
+                  highlightToken={highlightToken}
+                />
+              )}
+            </RepoSection>
+          );
+        })}
       </div>
 
       <SupportSection />
