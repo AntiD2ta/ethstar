@@ -69,8 +69,21 @@ export function useAutoScroll(
     }
 
     let lastTime = 0;
+    let running = false;
+    // Assume visible until the IntersectionObserver contradicts us. IO
+    // callbacks are async; a synchronous default of `true` avoids a blank
+    // first-paint window where the marquee sits still before IO confirms.
+    let visible = true;
 
     function tick(time: number) {
+      if (!visible) {
+        // Park the rAF chain — IO's visibility callback restarts it when
+        // the marquee scrolls back on-screen. Idle off-screen marquees no
+        // longer accumulate scrollLeft writes (each of which forces layout)
+        // or rAF callbacks during boot.
+        running = false;
+        return;
+      }
       const externallyPaused = externalPausedRef?.current ?? false;
       if (lastTime > 0 && !pausedRef.current && !externallyPaused) {
         const delta = (time - lastTime) / 1000; // seconds
@@ -91,7 +104,16 @@ export function useAutoScroll(
       rafRef.current = requestAnimationFrame(tick);
     }
 
-    rafRef.current = requestAnimationFrame(tick);
+    function ensureRunning() {
+      if (running) return;
+      // Reset lastTime so the first frame after a pause doesn't scroll a
+      // huge delta from accumulated real-time drift.
+      lastTime = 0;
+      running = true;
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    ensureRunning();
 
     // Re-measure on resize — group widths change with viewport and the period
     // must track them. Cheap: one offsetLeft read per observer callback.
@@ -102,6 +124,23 @@ export function useAutoScroll(
         copies = el.firstElementChild?.children.length ?? 1;
       });
       ro.observe(el);
+    }
+
+    // Pause the rAF loop entirely when the marquee is off-screen. Below-fold
+    // marquees would otherwise run 60 Hz scrollLeft writes during boot —
+    // each write forces layout and steals main-thread budget from FCP. The
+    // 200px root margin starts the loop slightly before the element enters
+    // the viewport so the user never catches a stationary marquee.
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      io = new IntersectionObserver(
+        ([entry]) => {
+          visible = entry.isIntersecting;
+          if (visible) ensureRunning();
+        },
+        { rootMargin: "200px 0px" },
+      );
+      io.observe(el);
     }
 
     const pause = () => { pausedRef.current = true; };
@@ -118,6 +157,7 @@ export function useAutoScroll(
     return () => {
       cancelAnimationFrame(rafRef.current);
       ro?.disconnect();
+      io?.disconnect();
       el.removeEventListener("mouseenter", pause);
       el.removeEventListener("mouseleave", resume);
       el.removeEventListener("focusin", pause);
