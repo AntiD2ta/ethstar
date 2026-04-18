@@ -106,6 +106,10 @@ test.describe("mobile marquee behavior", () => {
   test("marquee auto-scrolls on mobile", async ({ page }) => {
     await page.goto("/");
     const marquee = page.locator('[aria-label*="Scrolling"]').first();
+    // The rAF loop now parks itself via IntersectionObserver when the marquee
+    // is off-screen (see use-auto-scroll.ts). Scroll into view so the loop
+    // actually runs during the 1200ms wait.
+    await marquee.scrollIntoViewIfNeeded();
     await expect(marquee).toBeVisible();
     const initial = await marquee.evaluate((el) => el.scrollLeft);
     // Give the useAutoScroll rAF loop a moment to advance scrollLeft.
@@ -138,6 +142,10 @@ test.describe("desktop marquee behavior", () => {
   test("marquee wraps in both directions — forward past 2× period and backward past 0", async ({ page }) => {
     await page.goto("/");
     const marquee = page.locator('[role="region"]').first();
+    // The rAF wrap logic is now gated by an IntersectionObserver — off-screen
+    // marquees have their loop parked, so el.scrollLeft mutations don't get
+    // corrected. Scroll into view so the wrap math actually executes.
+    await marquee.scrollIntoViewIfNeeded();
     await expect(marquee).toBeVisible();
 
     // Once layout settles, the auto-scroll effect centers scrollLeft on the
