@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { prefersSaveData } from "@/lib/webgl";
 import { EthereumDiamond } from "./ethereum-diamond";
 import { WireframeGlobe } from "./wireframe-globe";
 import { SceneLighting } from "./scene-lighting";
@@ -22,9 +23,16 @@ import { SceneLighting } from "./scene-lighting";
 /**
  * Full 3D Ethereum scene — Canvas with diamond, globe, lighting, and bloom.
  * Default export so it can be React.lazy()'d from hero-logo.tsx.
+ *
+ * The EffectComposer + Bloom pass is the dominant remaining WebGL cost
+ * (postprocessing-pipeline compile + per-frame shader work). Skip it on
+ * mobile, under prefers-reduced-motion, and when Save-Data is set. The
+ * diamond still spins in all cases — we only drop the glow bloom.
  */
 export default function EthereumScene() {
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const heavyEffects = isDesktop && !reducedMotion && !prefersSaveData();
 
   // Chrome may not fire requestAnimationFrame in visible tabs without user
   // interaction or DevTools open (energy optimization). R3F's render loop
@@ -48,14 +56,16 @@ export default function EthereumScene() {
       <SceneLighting />
       <EthereumDiamond paused={reducedMotion} />
       <WireframeGlobe paused={reducedMotion} />
-      <EffectComposer>
-        <Bloom
-          luminanceThreshold={0.2}
-          luminanceSmoothing={0.9}
-          intensity={1.2}
-          mipmapBlur
-        />
-      </EffectComposer>
+      {heavyEffects && (
+        <EffectComposer>
+          <Bloom
+            luminanceThreshold={0.2}
+            luminanceSmoothing={0.9}
+            intensity={1.2}
+            mipmapBlur
+          />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 }

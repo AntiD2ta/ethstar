@@ -53,3 +53,16 @@ export function onIdle(cb: () => void, fallbackDelayMs = 200): () => void {
   const id = window.setTimeout(cb, fallbackDelayMs);
   return () => window.clearTimeout(id);
 }
+
+type NavigatorConnection = { saveData?: boolean };
+
+/**
+ * Read the user's Save-Data header opt-in via the Network Information API.
+ * Returns false when the API is missing (Safari, older Firefox) — treat
+ * absence as "no opt-in," never as "yes."
+ */
+export function prefersSaveData(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const conn = (navigator as Navigator & { connection?: NavigatorConnection }).connection;
+  return conn?.saveData === true;
+}
