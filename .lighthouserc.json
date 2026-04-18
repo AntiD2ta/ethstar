@@ -18,7 +18,7 @@
       "assertions": {
         "largest-contentful-paint": [
           "error",
-          { "maxNumericValue": 8500, "aggregationMethod": "median" }
+          { "maxNumericValue": 7500, "aggregationMethod": "median" }
         ],
         "cumulative-layout-shift": [
           "error",
@@ -26,7 +26,7 @@
         ],
         "total-blocking-time": [
           "error",
-          { "maxNumericValue": 2500, "aggregationMethod": "median" }
+          { "maxNumericValue": 1500, "aggregationMethod": "median" }
         ],
         "first-contentful-paint": [
           "warn",
