@@ -130,7 +130,7 @@ export function HeroSection({
         <button
           type="button"
           onClick={onViewRepositories}
-          className="group mt-6 inline-flex items-center gap-1.5 rounded font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background short-laptop:mt-4"
+          className="group mt-6 inline-flex min-h-11 items-center gap-1.5 rounded px-3 font-heading text-sm font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background short-laptop:mt-4"
         >
           {primaryCtaPresent
             ? "or browse the repositories"

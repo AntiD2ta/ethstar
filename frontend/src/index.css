@@ -350,6 +350,14 @@
    nothing. If you need variant support, promote the class to a top-level
    `@utility` block (see `@utility eth-glow` earlier in this file). */
 @layer utilities {
+    /* Saturn keyboard-shortcut hint: hidden at rest, fades in when any
+       descendant of the Saturn section takes focus. Keyed on the existing
+       `data-roving-scope="saturn"` attribute so the hint stays decoupled
+       from class-name churn on the section wrapper. */
+    [data-roving-scope="saturn"]:focus-within [data-testid="saturn-keyboard-hint"] {
+        opacity: 1;
+    }
+
     /* Skip-to-content link: visually hidden until focused. */
     .skip-link {
         position: absolute;

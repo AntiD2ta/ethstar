@@ -38,7 +38,7 @@ export function AuthHeader({
       <nav aria-label="Site">
         <a
           href="/"
-          className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight"
+          className="inline-flex min-h-11 items-center gap-2 font-heading text-lg font-bold tracking-tight"
         >
           <img
             src="/logo-128.png"
@@ -57,7 +57,7 @@ export function AuthHeader({
         href={MAINTAINERS_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
       >
         <ListPlus className="size-3.5" aria-hidden="true" />
         <span className="max-sm:hidden">Propose more repos</span>
@@ -84,7 +84,7 @@ export function AuthHeader({
             variant="ghost"
             size="sm"
             onClick={onLogout}
-            className="rounded-full"
+            className="min-h-11 min-w-11 rounded-full"
             aria-label="Sign out"
           >
             <LogOut aria-hidden="true" />
@@ -93,7 +93,7 @@ export function AuthHeader({
       ) : (
         <Button
           onClick={onLogin}
-          className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+          className="min-h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <span className="max-sm:hidden">Sign in with GitHub</span>
           <span className="sm:hidden">Sign in</span>
