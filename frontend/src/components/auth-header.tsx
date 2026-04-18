@@ -11,12 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ListPlus, LogOut } from "lucide-react";
+import { ListPlus, LogOut, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { GitHubUser } from "@/lib/types";
 import { MAINTAINERS_URL } from "@/lib/constants";
+import { useCommandPalette } from "@/hooks/command-palette-context";
 
 interface AuthHeaderProps {
   user: GitHubUser | null;
@@ -33,6 +34,7 @@ export function AuthHeader({
   onLogin,
   onLogout,
 }: AuthHeaderProps) {
+  const { open: openCommandPalette } = useCommandPalette();
   return (
     <header className="glass sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6">
       <nav aria-label="Site">
@@ -63,6 +65,17 @@ export function AuthHeader({
         <span className="max-sm:hidden">Propose more repos</span>
         <span className="sm:hidden">Propose</span>
       </a>
+
+      <button
+        type="button"
+        onClick={openCommandPalette}
+        aria-label="Open command palette"
+        data-testid="command-palette-trigger"
+        className="inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground max-sm:justify-center max-sm:px-0"
+      >
+        <Search className="size-3.5" aria-hidden="true" />
+        <kbd className="font-mono max-sm:hidden">⌘K</kbd>
+      </button>
 
       {isLoading ? (
         <div className="flex items-center gap-2 sm:gap-3" role="status" aria-label="Loading account">
