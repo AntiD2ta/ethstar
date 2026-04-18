@@ -58,6 +58,67 @@ test.describe("RepoCard: whole-card is a clickable link", () => {
     await newPage.close();
   });
 
+  test("duplicate-copy cards in the marquee are still clickable (inert regression)", async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+
+    // The marquee renders 3 copies of each card for the seamless loop. The
+    // auto-scroll parks the viewport in the middle copy, so visible cards are
+    // almost always the duplicates. Verify a duplicate copy still navigates
+    // — the previous `inert={true}` on duplicates blocked all pointer events.
+    const copies = page.locator('article[data-repo-key="ethereum/go-ethereum"]');
+    // Under reduced motion the marquee skips duplicates entirely. Re-enable
+    // motion just for this spec so all three copies render.
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.reload();
+    // Wait for at least 2 copies to render (reduced-motion disables duplicates
+    // in some browsers; this is the cross-browser-safe guard).
+    await expect.poll(async () => copies.count()).toBeGreaterThanOrEqual(2);
+
+    // Pick a copy that is NOT the first (index 0 is the interactive-by-default
+    // copy; pre-fix the duplicates were inert and failed).
+    const duplicate = copies.nth(1);
+    await duplicate.scrollIntoViewIfNeeded();
+    await expect(duplicate).toBeVisible();
+
+    // The duplicate should be inside an aria-hidden wrapper — a11y guard.
+    const ariaHiddenParent = duplicate.locator(
+      'xpath=ancestor::div[@aria-hidden="true"][1]',
+    );
+    await expect(ariaHiddenParent).toBeAttached();
+
+    // Click the description of the duplicate — pre-fix this was a no-op.
+    const desc = duplicate.locator("p").first();
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      desc.click({ force: true }),
+    ]);
+    await newPage.waitForLoadState("domcontentloaded").catch(() => {});
+    expect(newPage.url()).toContain("github.com/ethereum/go-ethereum");
+    await newPage.close();
+  });
+
+  test("duplicate-copy anchors are out of the Tab order (tabindex=-1)", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const copies = page.locator('article[data-repo-key="ethereum/go-ethereum"]');
+    await expect.poll(async () => copies.count()).toBeGreaterThanOrEqual(2);
+
+    const firstAnchor = copies.nth(0).getByRole("link");
+    // First copy is interactive — no tabindex override.
+    await expect(firstAnchor).not.toHaveAttribute("tabindex", /.*/);
+
+    // Duplicate copies drop out of the Tab order.
+    const dupAnchor = copies.nth(1).locator("a[href^='https://github.com/']");
+    await expect(dupAnchor).toHaveAttribute("tabindex", "-1");
+  });
+
   test("anchor has aria-label naming the destination repo and opens in new tab", async ({
     page,
   }) => {

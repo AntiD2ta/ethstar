@@ -197,6 +197,26 @@ describe("RepoCard", () => {
       expect(wrapper.className).toMatch(/\bz-10\b/);
     });
 
+    it("removes anchor and retry button from the Tab order when focusable={false}", () => {
+      render(<RepoCard repo={repo} status="failed" onRetry={vi.fn()} focusable={false} />);
+      const anchor = screen.getByRole("link", {
+        name: /ethereum\/go-ethereum on GitHub, opens in new tab/i,
+      });
+      expect(anchor).toHaveAttribute("tabindex", "-1");
+      const retryBtn = screen.getByRole("button", { name: /retry starring/i });
+      expect(retryBtn).toHaveAttribute("tabindex", "-1");
+    });
+
+    it("keeps anchor and retry button tabbable by default (focusable omitted)", () => {
+      render(<RepoCard repo={repo} status="failed" onRetry={vi.fn()} />);
+      const anchor = screen.getByRole("link", {
+        name: /ethereum\/go-ethereum on GitHub, opens in new tab/i,
+      });
+      expect(anchor).not.toHaveAttribute("tabindex");
+      const retryBtn = screen.getByRole("button", { name: /retry starring/i });
+      expect(retryBtn).not.toHaveAttribute("tabindex");
+    });
+
     it("clicking the retry button calls onRetry and does NOT follow the card link", async () => {
       const onRetry = vi.fn();
       render(<RepoCard repo={repo} status="failed" onRetry={onRetry} />);
