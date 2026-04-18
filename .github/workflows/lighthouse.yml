@@ -51,11 +51,34 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_timeout: 600
+          # Vercel Deployment Protection gates preview URLs behind SSO; we
+          # pass the Protection-Bypass-for-Automation secret so the poll
+          # loop can reach the preview instead of timing out on 401.
+          vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+      - name: Inject bypass header into Lighthouse config
+        # Lighthouse fetches every sub-resource (JS, CSS, images) directly —
+        # each one must carry the same bypass header or it will 401 and the
+        # audit will run against a blank page. We layer `extraHeaders` on
+        # top of the committed `.lighthouserc.json` at runtime so the
+        # secret never lands in a tracked file. The result is written to a
+        # worktree-local generated file that Lighthouse consumes in the
+        # next step.
+        env:
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          jq --arg secret "$BYPASS_SECRET" \
+            '.ci.collect.settings.extraHeaders = {"x-vercel-protection-bypass": $secret}' \
+            .lighthouserc.json > .lighthouserc.generated.json
 
       - name: Run Lighthouse against preview
         uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12
         with:
           urls: ${{ steps.vercel.outputs.url }}
-          configPath: ./.lighthouserc.json
+          configPath: ./.lighthouserc.generated.json
           uploadArtifacts: true
-          temporaryPublicStorage: true
+          # Public storage uploads the full Lighthouse JSON, which includes
+          # per-request network metadata — that would leak the bypass
+          # header. The artifact upload above keeps the report available to
+          # repo members without exposing it to the public web.
+          temporaryPublicStorage: false
