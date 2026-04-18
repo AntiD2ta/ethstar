@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { AuthHeader } from "@/components/auth-header";
 import { CommunityStarsBanner } from "@/components/community-stars-banner";
 import { HeroSection } from "@/components/hero-section";
-import { ManualStarModal } from "@/components/manual-star-modal";
 import { HIGHLIGHT_DURATION_MS, RepoMarquee } from "@/components/repo-marquee";
 import { RepoSection } from "@/components/repo-section";
 import { READY_FILL_LEVEL } from "@/components/roaming-star/constants";
@@ -24,7 +23,6 @@ import { RoamingStar } from "@/components/roaming-star/roaming-star";
 import type { RoamingStarState } from "@/components/roaming-star/types";
 import { RingFilterSheet } from "@/components/saturn-carousel/ring-filter-sheet";
 import { SlideTransition } from "@/components/slide-transition";
-import { StarModal } from "@/components/star-modal";
 import { SupportSection } from "@/components/support-section";
 import { TrustStripSection } from "@/components/trust-strip-section";
 import { useAuth } from "@/hooks/auth-context";
@@ -38,9 +36,23 @@ import { CATEGORIES, REPOSITORIES, REPOS_BY_CATEGORY } from "@/lib/repos";
 import { repoKey } from "@/lib/repo-key";
 import { deriveHeroStarsDisplay } from "@/lib/utils";
 import type { Repository } from "@/lib/types";
+import { onIdle } from "@/lib/webgl";
 
 const SaturnCarousel = lazy(
   () => import("@/components/saturn-carousel/saturn-carousel"),
+);
+
+// Both modals only mount on user interaction. Splitting them out of the
+// main bundle saves ~50-70 KB gzipped of parse/compile work on first paint.
+// The lazy() wrapper does the chunk split; the `modalsReady` gate below
+// keeps the import() from firing until the browser is idle (so the chunks
+// don't compete with above-the-fold work). Named exports need the default
+// shim because React.lazy only accepts default-exported modules.
+const StarModal = lazy(() =>
+  import("@/components/star-modal").then((m) => ({ default: m.StarModal })),
+);
+const ManualStarModal = lazy(() =>
+  import("@/components/manual-star-modal").then((m) => ({ default: m.ManualStarModal })),
 );
 
 // Fallback combined star count shown briefly before live GitHub data loads.
@@ -59,6 +71,11 @@ export default function HomePage() {
   const [starModalOpen, setStarModalOpen] = useState(false);
   const [starModalKey, setStarModalKey] = useState(0);
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  // Gate that defers the modal lazy-chunk imports until idle. Flipped true
+  // on the first idle tick after mount (or immediately when the user beats
+  // the idle by opening a modal). The race is acceptable: the worst case
+  // on a slow device is a brief Suspense blank before the first modal paints.
+  const [modalsReady, setModalsReady] = useState(false);
   const [starResult, setStarResult] = useState<
     { starred: number; failed: number; aborted: boolean } | null
   >(null);
@@ -393,6 +410,14 @@ export default function HomePage() {
     };
   }, []);
 
+  // Prefetch the modal chunks once the browser is idle so first-click is
+  // instant, without competing with above-the-fold work. If the user opens
+  // a modal before idle fires, the `modalsReady || *Open` gate below still
+  // mounts the lazy boundary — at the cost of a brief Suspense blank.
+  useEffect(() => {
+    return onIdle(() => setModalsReady(true));
+  }, []);
+
   // Memoize the floating filter-control fragment so it stays referentially
   // stable across `starStatuses` ticks. A fresh inline fragment on every
   // HomePage render would otherwise force SaturnCarousel to rebuild its
@@ -560,36 +585,44 @@ export default function HomePage() {
 
       <SupportSection />
 
-      {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete).
-          The progress step visually defers to the RoamingStar (takeover mode);
-          the modal shell still provides Radix focus-trap + inert-page. */}
-      <StarModal
-        key={starModalKey}
-        open={starModalOpen}
-        onOpenChange={(open) => {
-          setStarModalOpen(open);
-          if (!open) setPendingStarRepos(null);
-        }}
-        targetCount={starModalTarget.count}
-        targetRepoLabel={starModalTarget.repoLabel}
-        progress={progress}
-        onStartStarring={handleStartStarring}
-        requestToken={requestToken}
-        cancelOAuth={cancelOAuth}
-        starResult={starResult}
-        onOpenManualModal={handleOpenManualModal}
-        onCancelStarring={handleCancelStarring}
-        popupBlocked={oauthStatus === "blocked"}
-      />
+      {/* Modals — lazy-split out of the main bundle and gated on either the
+          first idle tick post-mount or a user-triggered open. The Suspense
+          fallback is null because the idle path has no UI and a user-open
+          race shows a near-instant blank rather than a spinner. */}
+      {(modalsReady || starModalOpen || manualModalOpen) && (
+        <Suspense fallback={null}>
+          {/* Star OAuth modal — 4-step flow (warning → auth → progress → complete).
+              The progress step visually defers to the RoamingStar (takeover mode);
+              the modal shell still provides Radix focus-trap + inert-page. */}
+          <StarModal
+            key={starModalKey}
+            open={starModalOpen}
+            onOpenChange={(open) => {
+              setStarModalOpen(open);
+              if (!open) setPendingStarRepos(null);
+            }}
+            targetCount={starModalTarget.count}
+            targetRepoLabel={starModalTarget.repoLabel}
+            progress={progress}
+            onStartStarring={handleStartStarring}
+            requestToken={requestToken}
+            cancelOAuth={cancelOAuth}
+            starResult={starResult}
+            onOpenManualModal={handleOpenManualModal}
+            onCancelStarring={handleCancelStarring}
+            popupBlocked={oauthStatus === "blocked"}
+          />
 
-      {/* Manual starring modal — list of unstarred repos with GitHub links */}
-      <ManualStarModal
-        open={manualModalOpen}
-        onOpenChange={setManualModalOpen}
-        repos={REPOSITORIES}
-        starStatuses={starStatuses}
-        onRecheckRepo={recheckRepo}
-      />
+          {/* Manual starring modal — list of unstarred repos with GitHub links */}
+          <ManualStarModal
+            open={manualModalOpen}
+            onOpenChange={setManualModalOpen}
+            repos={REPOSITORIES}
+            starStatuses={starStatuses}
+            onRecheckRepo={recheckRepo}
+          />
+        </Suspense>
+      )}
     </main>
   );
 }
