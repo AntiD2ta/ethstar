@@ -1,0 +1,61 @@
+name: Lighthouse CI
+
+# Runs Lighthouse against the Vercel preview deployment for each PR and gates
+# on mobile Core Web Vitals budgets (LCP ≤ 2.5s, CLS ≤ 0.1, TBT ≤ 200ms).
+# Thresholds live in `.lighthouserc.json` so they can be edited without
+# touching the workflow.
+#
+# Triggers on `pull_request` only — Lighthouse needs a live URL, and the
+# Vercel preview URL is only published after the PR's push event fires.
+#
+# Security note: the `urls` input below receives `steps.vercel.outputs.url`
+# which is sourced from Vercel's GitHub commit-status / deployment APIs via
+# `patrickedqvist/wait-for-vercel-preview`. It is not user-controlled input
+# (e.g. a PR title) and is passed to a `with:` parameter, not a shell, so no
+# explicit escaping is needed.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "web/**"
+      - "vercel.json"
+      - ".lighthouserc.json"
+      - ".github/workflows/lighthouse.yml"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    permissions:
+      # `wait-for-vercel-preview` polls commit statuses / deployments to find
+      # the Vercel preview URL. `treosh/lighthouse-ci-action` uploads a PR
+      # comment with the report link, which needs `pull-requests: write`.
+      contents: read
+      pull-requests: write
+      statuses: read
+      deployments: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Wait for Vercel preview
+        id: vercel
+        uses: patrickedqvist/wait-for-vercel-preview@d7982701e6fcd3ae073bff929e408e004404d38d # v1.3.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 600
+
+      - name: Run Lighthouse against preview
+        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12
+        with:
+          urls: ${{ steps.vercel.outputs.url }}
+          configPath: ./.lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
