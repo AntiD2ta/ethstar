@@ -60,16 +60,42 @@ type NavigatorWithLowEndHints = Navigator & {
   connection?: NavigatorConnection;
 };
 
+let _saveData: boolean | null = null;
+
 /**
  * Read the user's Save-Data header opt-in via the Network Information API.
  * Returns false when the API is missing (Safari, older Firefox) — treat
- * absence as "no opt-in," never as "yes."
+ * absence as "no opt-in," never as "yes." Memoized: the connection value
+ * can flip at runtime, but reading it once per session is the pragmatic
+ * trade — the Canvas re-renders at 60 Hz when frameloop="always", and
+ * repeated host-object reads accumulate.
  */
 export function prefersSaveData(): boolean {
+  if (_saveData !== null) return _saveData;
   if (typeof navigator === "undefined") return false;
   const conn = (navigator as NavigatorWithLowEndHints).connection;
-  return conn?.saveData === true;
+  _saveData = conn?.saveData === true;
+  return _saveData;
 }
+
+let _reducedMotion: boolean | null = null;
+
+/**
+ * Read the user's prefers-reduced-motion opt-in via matchMedia. Single
+ * synchronous read — no subscription. Returns false when matchMedia is
+ * unavailable (SSR, ancient browsers). Memoized for the same reason as
+ * prefersSaveData: callers may hit it on every render.
+ */
+export function prefersReducedMotion(): boolean {
+  if (_reducedMotion !== null) return _reducedMotion;
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  _reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return _reducedMotion;
+}
+
+let _lowEnd: boolean | null = null;
 
 /**
  * Heuristic: the device is likely to struggle with the WebGL scene. Hits on
@@ -78,19 +104,26 @@ export function prefersSaveData(): boolean {
  * fallback — we trade the signature visual on low-end hardware for a
  * paint-within-a-frame hero on devices that can't afford 40s of shader
  * compile. Probabilistic branching: some real users will never see the 3D
- * version, which is an intentional tradeoff tracked via analytics.
+ * version, which is an intentional tradeoff tracked via analytics. Memoized
+ * per the same rationale as prefersSaveData — HeroLogo sits inside
+ * HeroSection, which re-renders on every HomePage state tick.
  */
 export function isLowEndDevice(): boolean {
+  if (_lowEnd !== null) return _lowEnd;
   if (typeof navigator === "undefined") return false;
   const nav = navigator as NavigatorWithLowEndHints;
   if (typeof nav.hardwareConcurrency === "number" && nav.hardwareConcurrency <= 4) {
-    return true;
+    _lowEnd = true;
+    return _lowEnd;
   }
   if (typeof nav.deviceMemory === "number" && nav.deviceMemory <= 2) {
-    return true;
+    _lowEnd = true;
+    return _lowEnd;
   }
   if (nav.connection?.saveData === true) {
-    return true;
+    _lowEnd = true;
+    return _lowEnd;
   }
-  return false;
+  _lowEnd = false;
+  return _lowEnd;
 }
