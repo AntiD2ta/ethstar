@@ -11,12 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ListPlus, LogOut } from "lucide-react";
+import { ListPlus, LogOut, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { GitHubUser } from "@/lib/types";
 import { MAINTAINERS_URL } from "@/lib/constants";
+import { useCommandPalette } from "@/hooks/command-palette-context";
 
 interface AuthHeaderProps {
   user: GitHubUser | null;
@@ -33,12 +34,13 @@ export function AuthHeader({
   onLogin,
   onLogout,
 }: AuthHeaderProps) {
+  const { open: openCommandPalette } = useCommandPalette();
   return (
     <header className="glass sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6">
       <nav aria-label="Site">
         <a
           href="/"
-          className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight"
+          className="inline-flex min-h-11 items-center gap-2 font-heading text-lg font-bold tracking-tight"
         >
           <img
             src="/logo-128.png"
@@ -57,12 +59,23 @@ export function AuthHeader({
         href={MAINTAINERS_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
       >
         <ListPlus className="size-3.5" aria-hidden="true" />
         <span className="max-sm:hidden">Propose more repos</span>
         <span className="sm:hidden">Propose</span>
       </a>
+
+      <button
+        type="button"
+        onClick={openCommandPalette}
+        aria-label="Open command palette"
+        data-testid="command-palette-trigger"
+        className="inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground max-sm:justify-center max-sm:px-0"
+      >
+        <Search className="size-3.5" aria-hidden="true" />
+        <kbd className="font-mono max-sm:hidden">⌘K</kbd>
+      </button>
 
       {isLoading ? (
         <div className="flex items-center gap-2 sm:gap-3" role="status" aria-label="Loading account">
@@ -84,7 +97,7 @@ export function AuthHeader({
             variant="ghost"
             size="sm"
             onClick={onLogout}
-            className="rounded-full"
+            className="min-h-11 min-w-11 rounded-full"
             aria-label="Sign out"
           >
             <LogOut aria-hidden="true" />
@@ -93,7 +106,7 @@ export function AuthHeader({
       ) : (
         <Button
           onClick={onLogin}
-          className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+          className="min-h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <span className="max-sm:hidden">Sign in with GitHub</span>
           <span className="sm:hidden">Sign in</span>

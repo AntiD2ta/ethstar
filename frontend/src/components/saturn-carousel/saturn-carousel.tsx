@@ -239,6 +239,7 @@ export function SaturnCarousel({
       style={{ perspective: "1200px" }}
     >
       <h2 className="sr-only">Ethereum Ecosystem</h2>
+      <KeyboardHint />
       <div ref={ringContainerRef} className="relative h-[80vh] w-full">
         {rings}
       </div>
@@ -269,6 +270,32 @@ function FloatingFilterControl({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * Keyboard-shortcut hint for the Saturn navigator. The opacity toggle is
+ * driven by a plain-CSS `:focus-within` rule in `index.css` keyed on the
+ * section's `data-roving-scope="saturn"` attribute — not a Tailwind `group`
+ * variant — so the hint stays decoupled from any class renames on the
+ * section. Discoverability only: the shortcuts themselves are already
+ * wired up via `useRovingTabindex` (arrow keys) and `saturn-chip`
+ * handleKeyDown (Enter / Shift+Enter). Desktop only — mobile users don't
+ * have a hardware keyboard reliably, and the pinch-to-explore hint already
+ * occupies that slot.
+ */
+function KeyboardHint() {
+  return (
+    <div
+      data-testid="saturn-keyboard-hint"
+      aria-hidden="true"
+      className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-full bg-background/70 px-3 py-1 text-[11px] text-muted-foreground opacity-0 backdrop-blur-sm transition-opacity duration-200"
+    >
+      <kbd className="font-mono">←</kbd>{" "}
+      <kbd className="font-mono">→</kbd> to navigate ·{" "}
+      <kbd className="font-mono">Enter</kbd> to open ·{" "}
+      <kbd className="font-mono">Shift+Enter</kbd> for actions
     </div>
   );
 }

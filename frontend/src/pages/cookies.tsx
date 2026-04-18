@@ -124,7 +124,7 @@ export default function CookiesPage() {
         </div>
       </header>
 
-      <article className="prose prose-invert max-w-[65ch] prose-headings:font-heading prose-a:text-primary">
+      <article className="prose prose-invert max-w-[65ch] prose-headings:font-heading prose-a:text-primary prose-p:leading-[1.7] prose-li:leading-[1.7]">
         <h2>How we use storage</h2>
         <p>
           Ethstar uses browser cookies and <code>localStorage</code> for two
@@ -164,7 +164,7 @@ export default function CookiesPage() {
         </Table>
       </div>
 
-      <article className="prose prose-invert mt-8 max-w-[65ch] prose-headings:font-heading prose-a:text-primary">
+      <article className="prose prose-invert mt-8 max-w-[65ch] prose-headings:font-heading prose-a:text-primary prose-p:leading-[1.7] prose-li:leading-[1.7]">
         <h2>Third-party details</h2>
         <p>
           Vercel Analytics and Speed Insights load from{" "}

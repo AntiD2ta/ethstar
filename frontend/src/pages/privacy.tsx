@@ -32,7 +32,7 @@ export default function PrivacyPage() {
         </p>
       </header>
 
-      <article className="prose prose-invert max-w-[65ch] prose-headings:font-heading prose-a:text-primary">
+      <article className="prose prose-invert max-w-[65ch] prose-headings:font-heading prose-a:text-primary prose-p:leading-[1.7] prose-li:leading-[1.7]">
         <h2>1. Who we are</h2>
         <p>
           Ethstar (&quot;the Service&quot;) is a community project that helps
