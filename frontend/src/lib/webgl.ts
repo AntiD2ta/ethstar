@@ -55,6 +55,10 @@ export function onIdle(cb: () => void, fallbackDelayMs = 200): () => void {
 }
 
 type NavigatorConnection = { saveData?: boolean };
+type NavigatorWithLowEndHints = Navigator & {
+  deviceMemory?: number;
+  connection?: NavigatorConnection;
+};
 
 /**
  * Read the user's Save-Data header opt-in via the Network Information API.
@@ -63,6 +67,30 @@ type NavigatorConnection = { saveData?: boolean };
  */
 export function prefersSaveData(): boolean {
   if (typeof navigator === "undefined") return false;
-  const conn = (navigator as Navigator & { connection?: NavigatorConnection }).connection;
+  const conn = (navigator as NavigatorWithLowEndHints).connection;
   return conn?.saveData === true;
+}
+
+/**
+ * Heuristic: the device is likely to struggle with the WebGL scene. Hits on
+ * hardwareConcurrency ≤ 4, deviceMemory ≤ 2 GB, or Save-Data opt-in. Any
+ * match short-circuits the 3D import entirely in favour of the static PNG
+ * fallback — we trade the signature visual on low-end hardware for a
+ * paint-within-a-frame hero on devices that can't afford 40s of shader
+ * compile. Probabilistic branching: some real users will never see the 3D
+ * version, which is an intentional tradeoff tracked via analytics.
+ */
+export function isLowEndDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as NavigatorWithLowEndHints;
+  if (typeof nav.hardwareConcurrency === "number" && nav.hardwareConcurrency <= 4) {
+    return true;
+  }
+  if (typeof nav.deviceMemory === "number" && nav.deviceMemory <= 2) {
+    return true;
+  }
+  if (nav.connection?.saveData === true) {
+    return true;
+  }
+  return false;
 }

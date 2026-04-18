@@ -12,7 +12,7 @@
 // limitations under the License.
 
 import { type ComponentType, useEffect, useRef, useState } from "react";
-import { onIdle, supportsWebGL } from "@/lib/webgl";
+import { isLowEndDevice, onIdle, supportsWebGL } from "@/lib/webgl";
 
 type SceneModule = typeof import("./hero-logo-3d/ethereum-scene");
 
@@ -39,7 +39,12 @@ function FallbackLogo({ fillParent = false }: { fillParent?: boolean }) {
 }
 
 export function HeroLogo() {
-  const webgl = supportsWebGL();
+  // Gate the 3D path on both WebGL capability AND device headroom. Low-end
+  // devices (≤4 cores, ≤2 GB, or Save-Data on) skip the import entirely —
+  // even deferred to idle, the 254 KB chunk plus WebGL init can dominate
+  // boot on Moto-G-class hardware. Those users get the static PNG hero, no
+  // cross-fade, no 3D chunk ever downloaded.
+  const use3D = supportsWebGL() && !isLowEndDevice();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [Scene, setScene] = useState<ComponentType | null>(null);
 
@@ -67,7 +72,7 @@ export function HeroLogo() {
   // LCP (the PNG is already cached from <link rel="preload"> in index.html)
   // and the 3D scene cross-fades in once the main thread has cooled off.
   useEffect(() => {
-    if (!webgl) return;
+    if (!use3D) return;
     let cancelled = false;
     const cancelIdle = onIdle(() => {
       if (cancelled) return;
@@ -92,7 +97,7 @@ export function HeroLogo() {
       cancelled = true;
       cancelIdle();
     };
-  }, [webgl]);
+  }, [use3D]);
 
   return (
     <div
@@ -101,7 +106,7 @@ export function HeroLogo() {
       className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
       style={{ perspective: "800px" }}
     >
-      {webgl ? (
+      {use3D ? (
         // Sized container — both the FallbackLogo and the Scene stack
         // absolutely inside it, so the wrapper reserves the same box whether
         // the 3D has arrived yet or not (CLS parity).
