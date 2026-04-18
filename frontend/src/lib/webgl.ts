@@ -24,3 +24,32 @@ export function supportsWebGL(): boolean {
   }
   return _cached;
 }
+
+type IdleDeadline = { didTimeout: boolean; timeRemaining: () => number };
+type RequestIdleCallback = (
+  cb: (d: IdleDeadline) => void,
+  opts?: { timeout?: number },
+) => number;
+type CancelIdleCallback = (handle: number) => void;
+
+/**
+ * Schedule `cb` during browser idle time. Falls back to `setTimeout` with the
+ * given delay when requestIdleCallback is unavailable (Safari < 16.4). Returns
+ * a cancel function that clears whichever scheduler fired. Paired with a 2s
+ * safety timeout so a permanently busy main thread can't starve the callback.
+ */
+export function onIdle(cb: () => void, fallbackDelayMs = 200): () => void {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+  const w = window as unknown as {
+    requestIdleCallback?: RequestIdleCallback;
+    cancelIdleCallback?: CancelIdleCallback;
+  };
+  if (w.requestIdleCallback && w.cancelIdleCallback) {
+    const id = w.requestIdleCallback(() => cb(), { timeout: 2000 });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(cb, fallbackDelayMs);
+  return () => window.clearTimeout(id);
+}
