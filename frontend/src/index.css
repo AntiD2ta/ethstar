@@ -381,6 +381,18 @@
         will-change: filter, transform;
     }
 
+    /* One-shot opacity fade for the 3D scene cross-fade over the static
+       FallbackLogo. `both` keeps the final opacity: 1 state after the
+       animation ends so the scene stays visible. Matches FallbackLogo's
+       fade-out duration in hero-logo.tsx so the two transitions overlap. */
+    @keyframes hero-scene-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    .animate-hero-scene-in {
+        animation: hero-scene-in 700ms ease-out both;
+    }
+
     /* Glassmorphism — Phase E quieter pass: blur 12 → 6px halves the GPU
        cost and the "AI gloss" tell while still producing surface depth. */
     .glass {
@@ -586,6 +598,7 @@
     .animate-rotate-3d,
     .animate-glow-pulse,
     .animate-hero-logo,
+    .animate-hero-scene-in,
     .animate-saturn-pulse,
     .animate-star-float,
     .css-diamond-rotate,
