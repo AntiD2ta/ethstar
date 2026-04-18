@@ -88,7 +88,6 @@ export function HeroLogo() {
           // already visible, so there's nothing to recover here — log once
           // in dev and stay on the fallback silently in prod.
           if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
             console.warn("hero-logo: 3D scene chunk failed to load; staying on fallback");
           }
         });
