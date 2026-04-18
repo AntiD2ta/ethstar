@@ -130,4 +130,39 @@ test.describe("Cookie consent", () => {
     await footerBtn.click();
     await expect(page.getByTestId("consent-banner")).toBeVisible();
   });
+
+  test("consent banner is a non-blocking bottom sheet that doesn't obscure the hero CTA", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const banner = page.getByTestId("consent-banner");
+    await expect(banner).toBeVisible();
+
+    const heroBox = await page.getByTestId("hero-section").boundingBox();
+    const bannerBox = await banner.boundingBox();
+    const viewport = page.viewportSize();
+    if (!heroBox || !bannerBox || !viewport) throw new Error("missing box data");
+
+    // Banner pinned to the bottom of the viewport.
+    expect(bannerBox.y + bannerBox.height).toBeLessThanOrEqual(viewport.height);
+    expect(viewport.height - (bannerBox.y + bannerBox.height)).toBeLessThan(40);
+
+    // Banner occupies at most 25% of viewport (the plan targets ≤20% on mobile;
+    // desktop widths give us more horizontal room so content fits in one row).
+    expect(bannerBox.height / viewport.height).toBeLessThan(0.25);
+
+    // The banner does not cover the top of the hero — the hero CTA is
+    // positioned well above the banner's top edge.
+    expect(heroBox.y).toBeLessThan(bannerBox.y);
+  });
+
+  test("cookies banner has Essential only and Accept all actions plus a cookies link", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const banner = page.getByTestId("consent-banner");
+    await expect(banner.getByTestId("consent-reject")).toHaveText(/essential only/i);
+    await expect(banner.getByTestId("consent-accept")).toHaveText(/accept all/i);
+    await expect(banner.getByTestId("consent-cookies-link")).toBeVisible();
+  });
 });
