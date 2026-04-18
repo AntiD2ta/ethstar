@@ -33,10 +33,20 @@ interface FlipParams {
  * or transform origin); `flipTo` handles the animated transition between two
  * *visual* positions without changing layout.
  *
- * Core invariant: when re-triggered mid-flight, we read the *current computed
- * transform* (not the originally measured First), treat that as the new First,
- * and re-invert from the new target. This avoids the scroll-reversal glitch
- * where the star jumps to wherever the last animation thought it was going.
+ * Re-trigger semantics: when called while an animation is in flight, we
+ * `cancel()` the old animation (WAAPI reverts the animated transform — the
+ * element `fill: "none"` means no residual transform is committed) and then
+ * measure `getBoundingClientRect()` — so the new "First" is the element's
+ * post-cancel CSS-laid-out position. This keeps the next flight visually
+ * continuous when callers keep the element's CSS layout stable (the
+ * RoamingStar portal does this by pinning `left`/`top` to the roaming
+ * position). If a caller changes CSS layout between the cancel and the next
+ * `flipTo`, the measured First will reflect the new layout.
+ *
+ * Note: this does *not* read the live computed transform at the instant of
+ * cancellation — upgrading to `animation.commitStyles()` + pre-cancel
+ * transform capture would require behavior-change stress testing and is
+ * deliberately deferred.
  */
 export function useFlipTransition() {
   const activeAnimationRef = useRef<Animation | null>(null);
@@ -44,8 +54,10 @@ export function useFlipTransition() {
   const flipTo = useCallback((params: FlipParams) => {
     const { element, target, durationMs, easing, onDone } = params;
 
-    // Cancel any in-flight animation and capture its *current* computed
-    // transform so we start from where the element actually is right now.
+    // Cancel any in-flight animation. WAAPI reverts the animated transform
+    // on cancel (no `commitStyles`), so the subsequent `getBoundingClientRect`
+    // measures the element's post-cancel CSS-laid-out position. See the
+    // hook-level comment for the re-trigger contract this implies.
     if (activeAnimationRef.current) {
       activeAnimationRef.current.cancel();
       activeAnimationRef.current = null;
