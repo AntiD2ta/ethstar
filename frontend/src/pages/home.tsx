@@ -502,8 +502,23 @@ export default function HomePage() {
           chip fill state mirrors live starStatuses.
           The `filterControl` slot floats the ring-progress + Customize pill
           into the bottom-right of the ring section so it stays visible even
-          when bottom-arc chips from outer rings sweep below the center. */}
-      <Suspense fallback={null}>
+          when bottom-arc chips from outer rings sweep below the center.
+          The Suspense fallback mirrors the loaded section's outer dimensions
+          (py-6 + h-[540px] on mobile, py-12 + h-[80vh] on desktop) so the
+          slot never inflates from 0 → ring height when the lazy chunk lands —
+          that 540+px shift was a 0.69 mobile CLS regression on the Lighthouse
+          gate. Keep this in lockstep with `MobileSaturnViewport`'s h-[540px]
+          and the desktop branch's h-[80vh] in saturn-carousel.tsx. */}
+      <Suspense
+        fallback={
+          <div
+            aria-hidden="true"
+            className="relative mx-auto w-full py-6 md:py-12"
+          >
+            <div className="h-[540px] w-full md:h-[80vh]" />
+          </div>
+        }
+      >
         <SaturnCarousel
           starStatuses={starStatuses}
           repoMeta={repoMeta}
