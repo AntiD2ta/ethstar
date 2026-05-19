@@ -313,6 +313,52 @@ test.describe("Saturn ring navigation — interactions", () => {
     expect(nextLabel).not.toBe(firstLabel);
   });
 
+  test("Enter on a focused chip jumps to the matching marquee card", async ({
+    page,
+  }) => {
+    // Regression for the critique's "power-user efficiency gap" finding:
+    // the chip's keyboard handler must map Enter → onJump, not rely on the
+    // default browser activation (which would follow the href to GitHub
+    // instead of scrolling to the marquee card).
+    await page.goto("/");
+    const ring = page.getByRole("region", {
+      name: /saturn repository navigator/i,
+    });
+    await expect(ring).toBeVisible();
+    // Focus the go-ethereum chip directly so the test doesn't depend on the
+    // default tabbable chip (which is ring-specific).
+    await page.evaluate(() => {
+      const chip = document.querySelector<HTMLAnchorElement>(
+        'a[aria-label="ethereum/go-ethereum, not starred"]',
+      );
+      if (!chip) throw new Error("chip not found");
+      chip.focus();
+    });
+    await page.keyboard.press("Enter");
+    const card = page.locator(
+      'article[data-repo-key="ethereum/go-ethereum"]',
+    ).first();
+    await expect(card).toHaveClass(/repo-card-highlight/, { timeout: 1500 });
+  });
+
+  test("keyboard hint reveals when a chip gains focus", async ({ page }) => {
+    // Discoverability regression: the Saturn section must surface its
+    // keyboard shortcuts when a keyboard user tabs in. The hint is
+    // `opacity: 0` at rest and `opacity: 1` once the section matches
+    // `:focus-within`.
+    await page.goto("/");
+    const hint = page.getByTestId("saturn-keyboard-hint");
+    await expect(hint).toHaveCSS("opacity", "0");
+    await page.evaluate(() => {
+      const chip = document.querySelector<HTMLAnchorElement>(
+        'a[aria-label="ethereum/go-ethereum, not starred"]',
+      );
+      if (!chip) throw new Error("chip not found");
+      chip.focus();
+    });
+    await expect(hint).toHaveCSS("opacity", "1");
+  });
+
   test("right-click / middle-click fallback: chip still carries href", async ({
     page,
   }) => {

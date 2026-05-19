@@ -138,4 +138,36 @@ test.describe("Accessibility", () => {
     await expect(skipLink).toHaveCount(1);
     await expect(skipLink).toContainText("Skip to repositories");
   });
+
+  test("primary header and hero touch targets clear WCAG 2.5.5 (≥44×44 CSS px)", async ({
+    page,
+  }) => {
+    // Regression for the 2026-04-18 critique finding: the four primary
+    // header/hero controls were ≤40px tall (109×40, 161×30, 161×36,
+    // 185×20). WCAG 2.5.5 Level AAA recommends 44×44; `min-h-11` gets us
+    // there without changing the visual weight of the Button component.
+    await page.goto("/");
+    const header = page.locator("header").first();
+    const controls = [
+      { name: "ethstar logo link", loc: header.locator('a[href="/"]').first() },
+      {
+        name: "Propose more repos link",
+        loc: header.getByRole("link", { name: /propose/i }).first(),
+      },
+      {
+        name: "Sign in with GitHub button",
+        loc: header.getByRole("button", { name: /sign in/i }).first(),
+      },
+      {
+        name: "Browse the repositories button",
+        loc: page.getByRole("button", { name: /browse the repositories/i }),
+      },
+    ];
+    for (const { name, loc } of controls) {
+      await expect(loc).toBeVisible();
+      const box = await loc.boundingBox();
+      if (!box) throw new Error(`missing bounding box for ${name}`);
+      expect(box.height, `${name} height`).toBeGreaterThanOrEqual(44);
+    }
+  });
 });
