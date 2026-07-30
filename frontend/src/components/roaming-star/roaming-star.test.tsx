@@ -31,6 +31,7 @@ function makeStubIO(visible: boolean) {
   return class StubIO implements IntersectionObserver {
     readonly root = null;
     readonly rootMargin = "";
+    readonly scrollMargin = "";
     readonly thresholds: ReadonlyArray<number> = [];
     private cb: IntersectionObserverCallback;
     constructor(cb: IntersectionObserverCallback) {
