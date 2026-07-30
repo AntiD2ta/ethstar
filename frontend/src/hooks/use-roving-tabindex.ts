@@ -65,7 +65,7 @@ export function useRovingTabindex(count: number): UseRovingTabindexResult {
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>, index: number) => {
       if (count <= 0) return;
-      let next: number | null = null;
+      let next: number;
       switch (event.key) {
         case "ArrowRight":
         case "ArrowDown":
