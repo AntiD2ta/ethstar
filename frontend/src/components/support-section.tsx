@@ -14,9 +14,10 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { Check, Coffee, Copy, Github, Heart, ListPlus, Wallet } from "lucide-react";
+import { Check, Coffee, Copy, Heart, ListPlus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { GithubIcon } from "@/components/icons/github-icon";
 import { useConsent } from "@/lib/consent-context";
 import {
   ETH_ADDRESS_CHECKSUMMED,
@@ -168,7 +169,7 @@ export function SupportSection() {
           aria-label="GitHub repository"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          <Github aria-hidden="true" className="size-5" />
+          <GithubIcon aria-hidden="true" className="size-5" />
         </a>
         <a
           href={X_PROFILE_URL}

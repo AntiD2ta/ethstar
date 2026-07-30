@@ -23,6 +23,7 @@ import type { RepoMeta } from "@/lib/github";
 import type { Repository, StarStatus } from "@/lib/types";
 import { CssDiamond } from "@/components/css-diamond";
 import { useRovingTabindex } from "@/hooks/use-roving-tabindex";
+import { DESKTOP_RADII, MOBILE_RADII } from "./radii";
 
 interface SaturnCarouselProps {
   starStatuses: Record<string, StarStatus>;
@@ -43,13 +44,6 @@ interface SaturnCarouselProps {
    */
   filterControl?: ReactNode;
 }
-
-// Radii ordered inner → outer. Outer rings have larger circumference so
-// they receive proportionally more chips (see `distributeRepos`).
-// Exported so a drift-detection test can assert MOBILE_RADII stays
-// proportional to DESKTOP_RADII (same slice counts are used on both).
-export const DESKTOP_RADII = [240, 350, 460, 570] as const;
-export const MOBILE_RADII = [100, 145, 190, 235] as const;
 
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.name);
 

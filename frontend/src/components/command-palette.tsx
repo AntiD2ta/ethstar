@@ -14,12 +14,12 @@
 import {
   Cookie,
   ExternalLink,
-  Github,
   Home,
   ListPlus,
   LogOut,
   Shield,
 } from "lucide-react";
+import { GithubIcon } from "@/components/icons/github-icon";
 import {
   CommandDialog,
   CommandEmpty,
@@ -126,7 +126,7 @@ export function CommandPalette({
                 onClose();
               }}
             >
-              <Github aria-hidden="true" />
+              <GithubIcon aria-hidden="true" />
               <span>Sign in with GitHub</span>
             </CommandItem>
           )}
