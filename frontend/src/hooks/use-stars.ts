@@ -109,7 +109,9 @@ export function useStars(): UseStarsReturn {
   // having starStatuses in its dependency array (avoids reconstruction on every
   // status update during the starring loop).
   const starStatusesRef = useRef(starStatuses);
-  starStatusesRef.current = starStatuses;
+  useEffect(() => {
+    starStatusesRef.current = starStatuses;
+  });
 
   const checkStars = useCallback(
     async (options?: StarErrorCallbacks) => {

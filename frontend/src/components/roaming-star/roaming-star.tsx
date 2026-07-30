@@ -120,6 +120,9 @@ export const RoamingStar = memo(function RoamingStar({
   useEffect(() => {
     if (state.status === "disconnected" && dismissedBySession) {
       clearDismissed();
+      // Syncs React state with the localStorage clear above; the guard
+      // keeps it from firing more than once per disconnect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDismissedBySession(false);
     }
   }, [state.status, dismissedBySession]);
@@ -158,7 +161,9 @@ export const RoamingStar = memo(function RoamingStar({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const starLivePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const statusRef = useRef(state.status);
-  statusRef.current = state.status;
+  useEffect(() => {
+    statusRef.current = state.status;
+  });
   // Captured before the user triggers takeover so focus can be returned to
   // the prior element after supernova (a11y brief: "Focus returns…").
   const preTriggerFocusRef = useRef<HTMLElement | null>(null);
@@ -178,6 +183,8 @@ export const RoamingStar = memo(function RoamingStar({
   const [introVisible, setIntroVisible] = useState(false);
   useEffect(() => {
     if (mode !== "roaming") {
+      // Resets the intro label whenever the star leaves roaming mode.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIntroVisible(false);
       return;
     }
