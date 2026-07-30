@@ -13,7 +13,8 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
-import { DESKTOP_RADII, MOBILE_RADII, SaturnCarousel } from "./saturn-carousel";
+import { SaturnCarousel } from "./saturn-carousel";
+import { DESKTOP_RADII, MOBILE_RADII } from "./radii";
 import { REPOSITORIES } from "@/lib/repos";
 
 let rafSpy: ReturnType<typeof vi.spyOn>;
